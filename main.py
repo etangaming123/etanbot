@@ -150,6 +150,21 @@ async def pp_size(interaction: discord.Interaction, user: discord.User = None):
 async def puppet(interaction: discord.Interaction, say: str):
     await interaction.response.send_message(content=say)
 
+@bot.tree.command(name="etanbot-coinflip", description="Flip a coin!")
+async def coinflip(interaction: discord.Interaction):
+    result = random.choice(["Heads", "Tails"])
+    await interaction.response.send_message(content=f"{result}!")
+
+@bot.tree.command(name="etanbot-clean-link", description="Remove stinky link trackers.")
+@app_commands.describe(link="The link you want to clean.")
+async def clean_link(interaction: discord.Interaction, link: str):
+    toremove = ["igsh", "si", "fbclid", "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"]
+    cleaned_link = link
+    for item in toremove:
+        cleaned_link = re.sub(r'([&?])' + re.escape(item) + r'=[^&]*', '', cleaned_link)
+    cleaned_link = re.sub(r'[?&]+$', '', cleaned_link) # remove trailing ? or &
+    await interaction.response.send_message(content=f"Removed stinky link trackers: {cleaned_link}")
+
 # koko amusement linking
 def get_koko_balance(token: str):
     try:
