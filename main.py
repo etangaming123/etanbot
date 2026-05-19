@@ -87,7 +87,7 @@ async def on_ready():
 @bot.tree.command(name="etanbot-ping", description="Ping the bot")
 async def ping(interaction: discord.Interaction):
     await interaction.response.defer()
-    await interaction.response.send_message(f"Pong! [{round(bot.latency * 1000)}ms]")
+    await interaction.edit_original_response(content=f"Pong! [{round(bot.latency * 1000)}ms]")
 
 @bot.tree.command(name="etanbot-8ball", description="Ask the magic 8ball a question!") # use with caution. its completely random yet can be scarily accurate at times
 @app_commands.describe(question="The question to ask the 8ball. (a yes or no question, and keep it short!)")
@@ -165,6 +165,7 @@ async def coinflip(interaction: discord.Interaction):
 @bot.tree.command(name="etanbot-clean-link", description="Remove stinky link trackers.")
 @app_commands.describe(link="The link you want to clean.")
 async def clean_link(interaction: discord.Interaction, link: str):
+    await interaction.response.defer()
     toremove = ["igsh", "si", "fbclid", "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"]
     cleaned_link = link
     for item in toremove:
