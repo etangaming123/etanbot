@@ -1,3 +1,4 @@
 config.json
 etanbot.code-workspace
 *.pkl
+.DS_Store

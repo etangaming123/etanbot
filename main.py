@@ -86,11 +86,13 @@ async def on_ready():
 # general
 @bot.tree.command(name="etanbot-ping", description="Ping the bot")
 async def ping(interaction: discord.Interaction):
+    await interaction.response.defer()
     await interaction.response.send_message(f"Pong! [{round(bot.latency * 1000)}ms]")
 
 @bot.tree.command(name="etanbot-8ball", description="Ask the magic 8ball a question!") # use with caution. its completely random yet can be scarily accurate at times
 @app_commands.describe(question="The question to ask the 8ball. (a yes or no question, and keep it short!)")
 async def eight_ball(interaction: discord.Interaction, question: str):
+    await interaction.response.defer()
     responses = [
         "It is certain.",
         "It is decidedly so.",
@@ -113,29 +115,32 @@ async def eight_ball(interaction: discord.Interaction, question: str):
         "Outlook not so good.",
         "Very doubtful."
     ]
-    await interaction.response.send_message(content=f"You asked the 8ball \"{question}\"...\nThe 8ball says... {random.choice(responses)}")
+    await interaction.edit_original_response(content=f"You asked the 8ball \"{question}\"...\nThe 8ball says... {random.choice(responses)}")
 
 @bot.tree.command(name="etanbot-braincells", description="Check how many braincells you (or someone else) has left. (highest is 1000)")
 @app_commands.describe(user="The user to check braincells for (defaults to yourself).")
 async def braincells(interaction: discord.Interaction, user: discord.User = None):
+    await interaction.response.defer()
     if user is None:
         user = interaction.user
     braincellcount = random.randint(0, 1000)
-    await interaction.response.send_message(content=f"{formatUsername(user)} has {braincellcount} braincells.")
+    await interaction.edit_original_response(content=f"{formatUsername(user)} has {braincellcount} braincells.")
 
 @bot.tree.command(name="etanbot-pizoelectric", description="[Thing] is turning [something else] into electricity!") # based off the infamous copypasta "Japan is turning footsteps into electricity! ⚡Using piezoelectric tiles, every step you take generates a small amount of energy. Millions of steps together can power LED lights and displays in busy places like Shibuya Station. A brilliant way to create a sustainable and smart city -- turning movement into clean, renewable energy 🌱💡"
 @app_commands.describe(thing="Who is turning something into electricity?", somethingelse="What is being turned into electricity?")
 async def pizoelectric(interaction: discord.Interaction, thing: str = None, somethingelse: str = None):
+    await interaction.response.defer()
     if thing is None:
         thing = "Japan"
     if somethingelse is None:
         somethingelse = "footsteps"
 
-    await interaction.response.send_message(content=f"{thing} is turning {somethingelse} into electricity! ⚡Using piezoelectric tiles, every step you take generates a small amount of energy. Millions of steps together can power LED lights and displays in busy places like Shibuya Station. A brilliant way to create a sustainable and smart city -- turning movement into clean, renewable energy 🌱💡")
+    await interaction.edit_original_response(content=f"{thing} is turning {somethingelse} into electricity! ⚡Using piezoelectric tiles, every step you take generates a small amount of energy. Millions of steps together can power LED lights and displays in busy places like Shibuya Station. A brilliant way to create a sustainable and smart city -- turning movement into clean, renewable energy 🌱💡")
 
 @bot.tree.command(name="etanbot-pp-size", description="*wink*")
 @app_commands.describe(user="Whose pp size do you want to check? (defaults to yourself)")
 async def pp_size(interaction: discord.Interaction, user: discord.User = None):
+    await interaction.response.defer()
     if user is None:
         user = interaction.user
     if str(user.id) == config["poweruserid"]:
@@ -143,17 +148,19 @@ async def pp_size(interaction: discord.Interaction, user: discord.User = None):
     else:
         size = random.randint(0, 30)
     string = "8" + "=" * size + "D"
-    await interaction.response.send_message(content=f"{formatUsername(user)}: {string}")
+    await interaction.edit_original_response(content=f"{formatUsername(user)}: {string}")
 
 @bot.tree.command(name="etanbot-puppet", description="Make the bot say something (as a response to the command, not in the channel).")
 @app_commands.describe(say="The thing to say.")
 async def puppet(interaction: discord.Interaction, say: str):
-    await interaction.response.send_message(content=say)
+    await interaction.response.defer()
+    await interaction.edit_original_response(content=say)
 
 @bot.tree.command(name="etanbot-coinflip", description="Flip a coin!")
 async def coinflip(interaction: discord.Interaction):
+    await interaction.response.defer()
     result = random.choice(["Heads", "Tails"])
-    await interaction.response.send_message(content=f"{result}!")
+    await interaction.edit_original_response(content=f"{result}!")
 
 @bot.tree.command(name="etanbot-clean-link", description="Remove stinky link trackers.")
 @app_commands.describe(link="The link you want to clean.")
@@ -163,7 +170,7 @@ async def clean_link(interaction: discord.Interaction, link: str):
     for item in toremove:
         cleaned_link = re.sub(r'([&?])' + re.escape(item) + r'=[^&]*', '', cleaned_link)
     cleaned_link = re.sub(r'[?&]+$', '', cleaned_link) # remove trailing ? or &
-    await interaction.response.send_message(content=f"Removed stinky link trackers: {cleaned_link}")
+    await interaction.edit_original_response(content=f"Removed stinky link trackers: {cleaned_link}")
 
 # koko amusement linking
 def get_koko_balance(token: str):
@@ -206,44 +213,48 @@ def get_koko_balance(token: str):
 @bot.tree.command(name="etanbot-link-card", description="Link your koko amusement card to your discord account to check your balance and transactions!")
 @app_commands.describe(token="/BalanceMobile.aspx?i=[this set of characters]")
 async def link_card(interaction: discord.Interaction, token: str):
+    await interaction.response.defer()
     linkedkokocards = loadData("linkedkokocards")
     if linkedkokocards == "":
-        await interaction.response.send_message(content="An error occurred while accessing the database. Please try again later.")
+        await interaction.edit_original_response(content="An error occurred while accessing the database. Please try again later.")
         return
     linkedkokocards[str(interaction.user.id)] = token
     saveData("linkedkokocards", linkedkokocards)
     thingo = get_koko_balance(token)
-    await interaction.response.send_message(content=f"Successfully linked koko amusement card! {thingo}\nYou can always rerun this command to update your card!")
+    await interaction.edit_original_response(content=f"Successfully linked koko amusement card! {thingo}\nYou can always rerun this command to update your card!")
 
-@bot.tree.command(name="etanbot-my-koko-balance", description="Check your koko amusement balance if you have linked your card using /etanbot-link-card!")
+@bot.tree.command(name="etanbot-koko-balance", description="Check your koko amusement balance if you have linked your card using /etanbot-link-card!")
 async def my_koko_balance(interaction: discord.Interaction):
+    await interaction.response.defer()
     linkedkokocards = loadData("linkedkokocards")
     if linkedkokocards == "":
-        await interaction.response.send_message(content="An error occurred while accessing the database. Please try again later.")
+        await interaction.edit_original_response(content="An error occurred while accessing the database. Please try again later.")
         return
     token = linkedkokocards.get(str(interaction.user.id))
     if not token:
-        await interaction.response.send_message(content="You have not linked a koko amusement card yet! Use /etanbot-link-card to link your card and check your balance!")
+        await interaction.edit_original_response(content="You have not linked a koko amusement card yet! Use /etanbot-link-card to link your card and check your balance!")
         return
     thingo = get_koko_balance(token)
-    await interaction.response.send_message(content=thingo)
+    await interaction.edit_original_response(content=thingo)
 
 @bot.tree.command(name="etanbot-unlink-card", description="Unlink your koko amusement card from your discord account.")
 async def unlink_card(interaction: discord.Interaction):
+    await interaction.response.defer()
     linkedkokocards = loadData("linkedkokocards")
     if linkedkokocards == "":
-        await interaction.response.send_message(content="An error occurred while accessing the database. Please try again later.")
+        await interaction.edit_original_response(content="An error occurred while accessing the database. Please try again later.")
         return
     if str(interaction.user.id) in linkedkokocards:
         del linkedkokocards[str(interaction.user.id)]
         saveData("linkedkokocards", linkedkokocards)
-        await interaction.response.send_message(content="Successfully unlinked your koko amusement card.")
+        await interaction.edit_original_response(content="Successfully unlinked your koko amusement card.")
     else:
-        await interaction.response.send_message(content="You do not have a koko amusement card linked.")
+        await interaction.edit_original_response(content="You do not have a koko amusement card linked.")
 
 # profiles
 @bot.tree.command(name="etanbot-profile-create", description="Creates a profile for you, viewable using /etanbot-profile!")
 async def create_profile(interaction: discord.Interaction):
+    await interaction.response.defer()
     await interaction.response.defer(ephemeral=True)
     profiles = loadData("profiles")
     if str(interaction.user.id) in profiles.keys():
@@ -261,6 +272,7 @@ async def create_profile(interaction: discord.Interaction):
 @bot.tree.command(name="etanbot-profile", description="View your profile or someone else's!")
 @app_commands.describe(user="The user to view the profile of. Defaults to yourself.", viewprivately="Want to make it so only you can see the profile? (defaults to nah)")
 async def viewprofile(interaction: discord.Interaction, user: discord.User = None, viewprivately: bool = False):
+    await interaction.response.defer()
     containsatsymbol = ["tiktok", "youtube"] # these platforms require an @ symbol in the url
     await interaction.response.defer(ephemeral=viewprivately)
     if user is None:
@@ -307,6 +319,7 @@ class ProfileEditModal(discord.ui.Modal, title="Edit Your Profile"):
 
 @bot.tree.command(name="etanbot-profile-edit", description="Edit your profile's bio!")
 async def editprofile(interaction: discord.Interaction):
+    await interaction.response.defer()
     profiles = loadData("profiles")
     if str(interaction.user.id) not in profiles.keys():
         await interaction.edit_original_response(content=f"You don't have a profile yet! Use /etanbot-create-profile to create one.")
@@ -316,6 +329,7 @@ async def editprofile(interaction: discord.Interaction):
 
 @bot.tree.command(name="etanbot-profile-delete", description="Delete your profile! This cannot be undone.")
 async def deleteprofile(interaction: discord.Interaction):
+    await interaction.response.defer()
     await interaction.response.defer(ephemeral=True)
     profiles = loadData("profiles")
     if str(interaction.user.id) not in profiles.keys():
@@ -330,6 +344,7 @@ async def deleteprofile(interaction: discord.Interaction):
 @bot.tree.command(name="etanbot-profile-color", description="Change the color of your profile embed! (hex code, no #, default is green)")
 @app_commands.describe(color="The hex code of the color you want to set for your profile embed (no #, default is green)")
 async def changeprofilecolor(interaction: discord.Interaction, color: str):
+    await interaction.response.defer()
     await interaction.response.defer(ephemeral=True)
     profiles = loadData("profiles")
     if str(interaction.user.id) not in profiles.keys():
