@@ -222,6 +222,9 @@ async def link_card(interaction: discord.Interaction, token: str):
     linkedkokocards[str(interaction.user.id)] = token
     saveData("linkedkokocards", linkedkokocards)
     thingo = get_koko_balance(token)
+    if thingo == "ERROR":
+        await interaction.edit_original_response(content="An error occurred while fetching your koko amusement balance. Please make sure your token is correct and try again later. If this error persists, please [report a bug](https://github.com/etangaming123/etanbot/issues/new).")
+        return
     await interaction.edit_original_response(content=f"Successfully linked koko amusement card! {thingo}\nYou can always rerun this command to update your card!")
 
 @bot.tree.command(name="etanbot-koko-balance", description="Check your koko amusement balance if you have linked your card using /etanbot-link-card!")
@@ -236,6 +239,9 @@ async def my_koko_balance(interaction: discord.Interaction):
         await interaction.edit_original_response(content="You have not linked a koko amusement card yet! Use /etanbot-link-card to link your card and check your balance!")
         return
     thingo = get_koko_balance(token)
+    if thingo == "ERROR":
+        await interaction.edit_original_response(content="An error occurred while fetching your koko amusement balance. Please make sure your token is correct and try again later. If this error persists, please [report a bug](https://github.com/etangaming123/etanbot/issues/new).")
+        return
     await interaction.edit_original_response(content=thingo)
 
 @bot.tree.command(name="etanbot-unlink-card", description="Unlink your koko amusement card from your discord account.")
