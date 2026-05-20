@@ -69,6 +69,11 @@ def truncateMessage(message, length):
     else:
         return message[:length-20] + f"... [{len(message)-length+20} more characters]"
 
+if not os.path.exists("config.json"):
+    with open("config.json", "w") as f:
+        json.dump({"token": "your token here", "poweruserid": "your user id here (for certain commands)"}, f, indent=4)
+    input("Created config.json with default values. Please edit the file with your bot token and user id, then press enter to continue...")
+
 with open('config.json') as f:
     config = json.load(f)
 
@@ -179,6 +184,9 @@ async def clean_link(interaction: discord.Interaction, link: str, additional: st
 def get_koko_balance(token: str):
     try:
         response = requests.get(f"{kokocreditdefaulturl}{token}")
+        if response.status_code != 200:
+            print(f"Error fetching koko balance: Received status code {response.status_code}")
+            return "ERROR_NET"
         soup = BeautifulSoup(response.text, 'html.parser')
 
         # Target labels we want to extract
@@ -213,7 +221,21 @@ def get_koko_balance(token: str):
         traceback.print_exc()
         return "ERROR"
 
-@bot.tree.command(name="etanbot-link-card", description="Link your koko amusement card to your discord account to check your balance and transactions!")
+@bot.tree.command(name="etanbot-koko-help", description="Need help on linking your Koko Amusement card?")
+async def koko_help(interaction: discord.Interaction):
+    await interaction.response.defer()
+    things = [ # I'm organising each new line in an array because I'm cool like that B)
+        "To link your Koko Amusement card, you need to get your token from the Koko Amusement website. Here's how you can do it:",
+        "1. Scan the QR code on the back of your Koko Amusement card using your phone.",
+        "2. Open the link that appears in your browser. It should look something like this: `https://estore.kokoamusement.com.au/BalanceMobile/BalanceMobile.aspx?i=[YourTokenHere]` on your browser's URL address bar.",
+        "3. Copy everything that appears after the `?i=` in the URL. This is your token.",
+        "4. Use the `/etanbot-koko-link-card` command and paste your token there to link your card to your Discord account!",
+        "You're all set! You won't have to do this again, just use /etanbot-koko-balance to check your balance whenever you want.",
+        "Rerun the link command if you want to update your card token or if you get an error when checking your balance."
+    ]
+    await interaction.edit_original_response(content="\n".join(things))
+
+@bot.tree.command(name="etanbot-koko-link-card", description="Link your Koko Amusement card to your discord account to check your balance and transactions!")
 @app_commands.describe(token="/BalanceMobile.aspx?i=[this set of characters]")
 async def link_card(interaction: discord.Interaction, token: str):
     await interaction.response.defer()
@@ -227,9 +249,12 @@ async def link_card(interaction: discord.Interaction, token: str):
     if thingo == "ERROR":
         await interaction.edit_original_response(content="An error occurred while fetching your koko amusement balance. Please make sure your token is correct and try again later. If this error persists, please [report a bug](https://github.com/etangaming123/etanbot/issues/new).")
         return
+    elif thingo == "ERROR_NET":
+        await interaction.edit_original_response(content="An error occurred while sending request. Please try again later. (if issue persists, check the card balance manually, and if it does work, [report a bug](https://github.com/etangaming123/etanbot/issues/new).)")
+        return
     await interaction.edit_original_response(content=f"Successfully linked koko amusement card! {thingo}\nYou can always rerun this command to update your card!")
 
-@bot.tree.command(name="etanbot-koko-balance", description="Check your koko amusement balance if you have linked your card using /etanbot-link-card!")
+@bot.tree.command(name="etanbot-koko-balance", description="Check your koko amusement balance if you have linked your card using /etanbot-koko-link-card!")
 async def my_koko_balance(interaction: discord.Interaction):
     await interaction.response.defer()
     linkedkokocards = loadData("linkedkokocards")
@@ -238,15 +263,18 @@ async def my_koko_balance(interaction: discord.Interaction):
         return
     token = linkedkokocards.get(str(interaction.user.id))
     if not token:
-        await interaction.edit_original_response(content="You have not linked a koko amusement card yet! Use /etanbot-link-card to link your card and check your balance!")
+        await interaction.edit_original_response(content="You have not linked a koko amusement card yet! Use /etanbot-koko-link-card to link your card and check your balance!")
         return
     thingo = get_koko_balance(token)
     if thingo == "ERROR":
         await interaction.edit_original_response(content="An error occurred while fetching your koko amusement balance. Please make sure your token is correct and try again later. If this error persists, please [report a bug](https://github.com/etangaming123/etanbot/issues/new).")
         return
+    elif thingo == "ERROR_NET":
+        await interaction.edit_original_response(content="An error occurred while sending request. Please try again later. (if issue persists, check the card balance manually, and if it does work, [report a bug](https://github.com/etangaming123/etanbot/issues/new).)")
+        return
     await interaction.edit_original_response(content=thingo)
 
-@bot.tree.command(name="etanbot-unlink-card", description="Unlink your koko amusement card from your discord account.")
+@bot.tree.command(name="etanbot-koko-unlink-card", description="Unlink your koko amusement card from your discord account.")
 async def unlink_card(interaction: discord.Interaction):
     await interaction.response.defer()
     linkedkokocards = loadData("linkedkokocards")
@@ -288,7 +316,7 @@ async def viewprofile(interaction: discord.Interaction, user: discord.User = Non
         user = interaction.user
     profiles = loadData("profiles")
     if str(user.id) not in profiles:
-        await interaction.edit_original_response(content=f"This user does not have a profile yet! They can create one using /create-profile.")
+        await interaction.edit_original_response(content=f"This user does not have a profile yet! They can create one using /etanbot-profile-create.")
         return
     profile = profiles[str(user.id)]
     if not "color" in profile:
@@ -318,7 +346,7 @@ class ProfileEditModal(discord.ui.Modal, title="Edit Your Profile"):
         profiles = loadData("profiles")
         user_id = str(interaction.user.id)
         if user_id not in profiles:
-            await interaction.response.send_message(content=f"Your profile was not found. Please create a new one using /create-profile. Here's your bio if you need to copy and paste:\n{self.profile['bio']}", embed=None, view=None, ephemeral=True)
+            await interaction.response.send_message(content=f"Your profile was not found. Please create a new one using /etanbot-profile-create. Here's your bio if you need to copy and paste:\n{self.profile['bio']}", embed=None, view=None, ephemeral=True)
             return
         profiles[user_id]["bio"] = self.bio.value
         if saveData("profiles", profiles):
@@ -331,7 +359,7 @@ async def editprofile(interaction: discord.Interaction):
     await interaction.response.defer()
     profiles = loadData("profiles")
     if str(interaction.user.id) not in profiles.keys():
-        await interaction.edit_original_response(content=f"You don't have a profile yet! Use /etanbot-create-profile to create one.")
+        await interaction.edit_original_response(content=f"You don't have a profile yet! Use /etanbot-profile-create to create one.")
         return
     profile = profiles[str(interaction.user.id)]
     await interaction.response.send_modal(ProfileEditModal(profile))
