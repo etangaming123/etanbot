@@ -163,10 +163,12 @@ async def coinflip(interaction: discord.Interaction):
     await interaction.edit_original_response(content=f"{result}!")
 
 @bot.tree.command(name="etanbot-clean-link", description="Remove stinky link trackers.")
-@app_commands.describe(link="The link you want to clean.")
-async def clean_link(interaction: discord.Interaction, link: str):
+@app_commands.describe(link="The link you want to clean.", additional="Any additional parameters to remove.")
+async def clean_link(interaction: discord.Interaction, link: str, additional: str = None):
     await interaction.response.defer()
-    toremove = ["igsh", "si", "fbclid", "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"]
+    toremove = ["igsh", "si", "fbclid", "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "is"]
+    if additional:
+        toremove.extend(additional.split(","))
     cleaned_link = link
     for item in toremove:
         cleaned_link = re.sub(r'([&?])' + re.escape(item) + r'=[^&]*', '', cleaned_link)
