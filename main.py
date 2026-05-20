@@ -78,6 +78,8 @@ with open('config.json') as f:
     config = json.load(f)
 
 bot = commands.Bot(command_prefix='!', intents=intents)
+bot.tree.allowed_installs = app_commands.AppInstallationType(guild=True, user=True)
+bot.tree.allowed_contexts = app_commands.AppCommandContext(guild=True, dm_channel=True, private_channel=True)
 
 @bot.event
 async def on_ready():

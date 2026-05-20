@@ -2,3 +2,6 @@ config.json
 etanbot.code-workspace
 *.pkl
 .DS_Store
+.vscode
+.venv
+__pycache__
