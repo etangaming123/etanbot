@@ -358,7 +358,7 @@ class ProfileEditModal(discord.ui.Modal, title="Edit Your Profile"):
 
 @bot.tree.command(name="etanbot-profile-edit", description="Edit your profile's bio!")
 async def editprofile(interaction: discord.Interaction):
-    await interaction.response.defer()
+    await interaction.response.defer(ephemeral=True)
     profiles = loadData("profiles")
     if str(interaction.user.id) not in profiles.keys():
         await interaction.edit_original_response(content=f"You don't have a profile yet! Use /etanbot-profile-create to create one.")
@@ -368,7 +368,6 @@ async def editprofile(interaction: discord.Interaction):
 
 @bot.tree.command(name="etanbot-profile-delete", description="Delete your profile! This cannot be undone.")
 async def deleteprofile(interaction: discord.Interaction):
-    await interaction.response.defer()
     await interaction.response.defer(ephemeral=True)
     profiles = loadData("profiles")
     if str(interaction.user.id) not in profiles.keys():
