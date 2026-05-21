@@ -293,7 +293,6 @@ async def unlink_card(interaction: discord.Interaction):
 # profiles
 @bot.tree.command(name="etanbot-profile-create", description="Creates a profile for you, viewable using /etanbot-profile!")
 async def create_profile(interaction: discord.Interaction):
-    await interaction.response.defer()
     await interaction.response.defer(ephemeral=True)
     profiles = loadData("profiles")
     if str(interaction.user.id) in profiles.keys():
@@ -311,7 +310,6 @@ async def create_profile(interaction: discord.Interaction):
 @bot.tree.command(name="etanbot-profile", description="View your profile or someone else's!")
 @app_commands.describe(user="The user to view the profile of. Defaults to yourself.", viewprivately="Want to make it so only you can see the profile? (defaults to nah)")
 async def viewprofile(interaction: discord.Interaction, user: discord.User = None, viewprivately: bool = False):
-    await interaction.response.defer()
     containsatsymbol = ["tiktok", "youtube"] # these platforms require an @ symbol in the url
     await interaction.response.defer(ephemeral=viewprivately)
     if user is None:
