@@ -383,7 +383,6 @@ async def deleteprofile(interaction: discord.Interaction):
 @bot.tree.command(name="etanbot-profile-color", description="Change the color of your profile embed! (hex code, no #, default is green)")
 @app_commands.describe(color="The hex code of the color you want to set for your profile embed (no #, default is green)")
 async def changeprofilecolor(interaction: discord.Interaction, color: str):
-    await interaction.response.defer()
     await interaction.response.defer(ephemeral=True)
     profiles = loadData("profiles")
     if str(interaction.user.id) not in profiles.keys():
