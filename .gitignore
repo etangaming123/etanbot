@@ -5,3 +5,4 @@ etanbot.code-workspace
 .vscode
 .venv
 __pycache__
+*.json
