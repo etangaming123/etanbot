@@ -9,8 +9,6 @@ Funny Discord bot that can be added to your account and used anywhere within Dis
 > This bot is intended for self use. etangaming123 is not responsible for sensitive data on this bot being leaked.
 > *But it's just a Koko Amusement card...*
 
-You can add the bot to your account [here.](https://discord.com/oauth2/authorize?client_id=1505906056222605352) 
-
 ## Features
 
 * 8-ball command
@@ -18,6 +16,10 @@ You can add the bot to your account [here.](https://discord.com/oauth2/authorize
 * Pizoelectric tiles copypasta ("Japan is turning footsteps into electricity! ⚡Using piezoelectric tiles, every step you take generates a small amount of energy. Millions of steps together can power LED lights and displays in busy places like Shibuya Station. A brilliant way to create a sustainable and smart city -- turning movement into clean, renewable energy 🌱💡")
 * (unnofficial) Linkage with Koko Amusement Cards (so you can see how much credit you have left, from the comfort of Discord)
 * Built in profiles (for fun!)
+
+## Quickstart
+
+Open [this link](https://discord.com/oauth2/authorize?client_id=1505906056222605352) to authorise the "officially hosted" etan bot with your Discord account, and you're all good to go!
 
 ## Selfhosting
 
@@ -44,8 +46,9 @@ Get all the required modules with:
 Then, create a `config.json` file in the same directory as `main.py` with the following content:
 
 ```json
-{"token": "Your Discord Bot Token here",
-    "poweruserid": "Your Discord User ID here (optional, for owner-only commands)"
+{
+	"token": "Your Discord Bot Token here",
+	"poweruserid": "Your Discord User ID here (optional, for owner-only commands)"
 }
 ```
 
