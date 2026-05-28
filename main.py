@@ -192,6 +192,37 @@ async def clean_link(interaction: discord.Interaction, link: str, additional: st
     cleaned_link = re.sub(r'[?&]+$', '', cleaned_link) # remove trailing ? or &
     await interaction.edit_original_response(content=f"Removed stinky link trackers: {cleaned_link}")
 
+@bot.tree.command(name="etanbot-randomnumber", description="Generate a random number between a specified range.")
+@app_commands.describe(minimum="The minimum number (inclusive).", maximum="The maximum number (inclusive).")
+async def random_number(interaction: discord.Interaction, minimum: int, maximum: int):
+    await interaction.response.defer()
+    if minimum > maximum:
+        minimum, maximum = maximum, minimum
+    number = random.randint(minimum, maximum)
+    await interaction.edit_original_response(content=f"Your random number between {minimum} and {maximum} is: {number}")
+
+@bot.tree.command(name="etanbot-birthday", description="Whose birthday is it?")
+async def birthday(interaction: discord.Interaction, user: discord.User = None):
+    await interaction.response.defer()
+    bdaystrings = [
+        "Happy birthday, USER!",
+        "Birthday happy, USER!",
+        "Happy birthday to USER!",
+        "Birthday wishes to USER!",
+        "Cake and candles to USER!",
+        "Let's celebrate USER's birthday!"
+    ]
+
+    if user is None:
+        user = interaction.user
+    if user == interaction.user:
+        await interaction.edit_original_response(content="Happy birthday to you!!!")
+        return
+    if user == bot.user:
+        await interaction.edit_original_response(content="thanks but i don't think it's my birthday...")
+        return
+    await interaction.edit_original_response(content=random.choice(bdaystrings).replace("USER", user.mention))
+
 # koko amusement linking
 def get_koko_balance(token: str):
     try:
