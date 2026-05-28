@@ -223,6 +223,12 @@ async def birthday(interaction: discord.Interaction, user: discord.User = None):
         return
     await interaction.edit_original_response(content=random.choice(bdaystrings).replace("USER", user.mention))
 
+@bot.tree.command(name="etanbot-shexonmyytilliz", description="she [x] on my [y] till i [z]")
+@app_commands.describe(x="she does what", y="on your what", z="until you what")
+async def shexonmyytilliz(interaction: discord.Interaction, x: str, y: str, z: str):
+    await interaction.response.defer()
+    await interaction.edit_original_response(content=f"she {x} on my {y} till i {z}")
+
 # koko amusement linking
 def get_koko_balance(token: str):
     try:
