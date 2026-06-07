@@ -180,16 +180,19 @@ async def coinflip(interaction: discord.Interaction):
     await interaction.edit_original_response(content=f"{result}!")
 
 @bot.tree.command(name="etanbot-clean-link", description="Remove stinky link trackers.")
-@app_commands.describe(link="The link you want to clean.", additional="Any additional parameters to remove.")
+@app_commands.describe(link="The link you want to clean.", additional="Any additional parameters to remove, separated by commas (optional).")
 async def clean_link(interaction: discord.Interaction, link: str, additional: str = None):
     await interaction.response.defer()
-    toremove = ["igsh", "si", "fbclid", "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "is"]
+    toremove = ["igsh", "si", "fbclid", "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "is", "mibextid", "gclid", "dclid", "is_from_webapp", "sender_device"] # common link trackers to remove
     if additional:
         toremove.extend(additional.split(","))
     cleaned_link = link
     for item in toremove:
         cleaned_link = re.sub(r'([&?])' + re.escape(item) + r'=[^&]*', '', cleaned_link)
     cleaned_link = re.sub(r'[?&]+$', '', cleaned_link) # remove trailing ? or &
+    if "tiktok" in cleaned_link: # wow tiktok that's slack
+        await interaction.edit_original_response(content=f"WARNING!!! Tiktok's links are known to have trackers embedded WITHIN the url, and not as parameters. If in doubt, open in a private window!\nRemoved stinky link trackers: {cleaned_link}")
+        return
     await interaction.edit_original_response(content=f"Removed stinky link trackers: {cleaned_link}")
 
 @bot.tree.command(name="etanbot-randomnumber", description="Generate a random number between a specified range.")
