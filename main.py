@@ -12,6 +12,7 @@ import re
 
 intents = discord.Intents.default()
 kokocreditdefaulturl = "https://estore.kokoamusement.com.au/BalanceMobile/BalanceMobile.aspx?i="
+repositoryurl = "<{repositoryurl}>"
 
 datastores = ["linkedkokocards", "profiles"] # json files to create
 for item in datastores:
@@ -279,7 +280,7 @@ async def koko_help(interaction: discord.Interaction):
     things = [ # I'm organising each new line in an array because I'm cool like that B)
         "To link your Koko Amusement card, you need to get your token from the Koko Amusement website. Here's how you can do it:",
         "1. Scan the QR code on the back of your Koko Amusement card using your phone.",
-        "2. Open the link that appears in your browser. It should look something like this: `https://estore.kokoamusement.com.au/BalanceMobile/BalanceMobile.aspx?i=[YourTokenHere]` on your browser's URL address bar.",
+        f"2. Open the link that appears in your browser. It should look something like this: `{kokocreditdefaulturl}[YourTokenHere]` on your browser's URL address bar.",
         "3. Copy everything that appears after the `?i=` in the URL. This is your token.",
         "4. Use the `/etanbot-koko-link-card` command and paste your token there to link your card to your Discord account!",
         "You're all set! You won't have to do this again, just use /etanbot-koko-balance to check your balance whenever you want.",
@@ -290,7 +291,7 @@ async def koko_help(interaction: discord.Interaction):
 @bot.tree.command(name="etanbot-koko-link-card", description="Link your Koko Amusement card to your discord account to check your balance and transactions!")
 @app_commands.describe(token="/BalanceMobile.aspx?i=[this set of characters]")
 async def link_card(interaction: discord.Interaction, token: str):
-    await interaction.response.defer()
+    await interaction.response.defer(ephemeral=True)
     linkedkokocards = loadData("linkedkokocards")
     if linkedkokocards == "":
         await interaction.edit_original_response(content="An error occurred while accessing the database. Please try again later.")
@@ -299,10 +300,10 @@ async def link_card(interaction: discord.Interaction, token: str):
     saveData("linkedkokocards", linkedkokocards)
     thingo = get_koko_balance(token)
     if thingo == "ERROR":
-        await interaction.edit_original_response(content="An error occurred while fetching your koko amusement balance. Please make sure your token is correct and try again later. If this error persists, please [report a bug](https://github.com/etangaming123/etanbot/issues/new).")
+        await interaction.edit_original_response(content=f"An error occurred while fetching your koko amusement balance. Please make sure your token is correct and try again later. If this error persists, please [report a bug](<{repositoryurl}>).")
         return
     elif thingo == "ERROR_NET":
-        await interaction.edit_original_response(content="An error occurred while sending request. Please try again later. (if issue persists, check the card balance manually, and if it does work, [report a bug](https://github.com/etangaming123/etanbot/issues/new).)")
+        await interaction.edit_original_response(content=f"An error occurred while sending request. Please try again later. (if issue persists, check the card balance manually, and if it does work, [report a bug](<{repositoryurl}>).)")
         return
     await interaction.edit_original_response(content=f"Successfully linked koko amusement card! {thingo}\nYou can always rerun this command to update your card!")
 
@@ -315,23 +316,23 @@ async def my_koko_balance(interaction: discord.Interaction):
         return
     token = linkedkokocards.get(str(interaction.user.id))
     if not token:
-        await interaction.edit_original_response(content="You have not linked a koko amusement card yet! Use /etanbot-koko-link-card to link your card and check your balance!")
+        await interaction.edit_original_response(content="You have not linked a koko amusement card yet! Use /etanbot-koko-link-card to link your card and check your balance. If you need help, use /etanbot-koko-help for instructions on how to link your card.")
         return
     thingo = get_koko_balance(token)
     if thingo == "ERROR":
-        await interaction.edit_original_response(content="An error occurred while fetching your koko amusement balance. Please make sure your token is correct and try again later. If this error persists, please [report a bug](https://github.com/etangaming123/etanbot/issues/new).")
+        await interaction.edit_original_response(content=f"An error occurred while fetching your koko amusement balance. Please make sure your token is correct and try again later. If this error persists, please [report a bug](<{repositoryurl}>).")
         return
     elif thingo == "ERROR_NET":
-        await interaction.edit_original_response(content="An error occurred while sending request. Please try again later. (if issue persists, check the card balance manually, and if it does work, [report a bug](https://github.com/etangaming123/etanbot/issues/new).)")
+        await interaction.edit_original_response(content=f"An error occurred while sending request. Please try again later. (if issue persists, check the card balance manually, and if it does work, [report a bug](<{repositoryurl}>).)")
         return
     await interaction.edit_original_response(content=thingo)
 
 @bot.tree.command(name="etanbot-koko-unlink-card", description="Unlink your koko amusement card from your discord account.")
 async def unlink_card(interaction: discord.Interaction):
-    await interaction.response.defer()
+    await interaction.response.defer(ephemeral=True)
     linkedkokocards = loadData("linkedkokocards")
     if linkedkokocards == "":
-        await interaction.edit_original_response(content="An error occurred while accessing the database. Please try again later.")
+        await interaction.edit_original_response(content=f"An error occurred while accessing the database. Please try again later.")
         return
     if str(interaction.user.id) in linkedkokocards:
         del linkedkokocards[str(interaction.user.id)]
