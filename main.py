@@ -233,6 +233,11 @@ async def shexonmyytilliz(interaction: discord.Interaction, x: str, y: str, z: s
     await interaction.response.defer()
     await interaction.edit_original_response(content=f"she {x} on my {y} till i {z}")
 
+@bot.tree.command(name="etanbot-10d20", description="Makes a link to use Discord's built in dice roller with 10d20 (10 20-sided dice).")
+async def d20(interaction: discord.Interaction):
+    await interaction.response.defer()
+    await interaction.edit_original_response(content=f"https://discord.com/channels/{interaction.guild_id}/{interaction.channel_id}/roll-dice/10d20")
+
 # koko amusement linking
 def get_koko_balance(token: str):
     try:
