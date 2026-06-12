@@ -13,6 +13,7 @@ import re
 intents = discord.Intents.default()
 kokocreditdefaulturl = "https://estore.kokoamusement.com.au/BalanceMobile/BalanceMobile.aspx?i="
 repositoryurl = "https://github.com/etangaming123/etanbot"
+developergithub = "https://github.com/etangaming123"
 
 datastores = ["linkedkokocards", "profiles"] # json files to create
 for item in datastores:
@@ -80,6 +81,20 @@ def truncateMessage(message, length):
     else:
         return message[:length-20] + f"... [{len(message)-length+20} more characters]"
 
+def getLatestCommitHash():
+    try:
+        response = requests.get("https://api.github.com/repos/etangaming123/etanbot/commits/main")
+        if response.status_code == 200:
+            data = response.json()
+            return data['sha'][:7] # Return the first 7 characters of the commit hash
+        else:
+            print(f"Error fetching latest commit: Received status code {response.status_code}")
+            return "unknown"
+    except Exception as e:
+        print(f"Error fetching latest commit: {e}")
+        traceback.print_exc()
+        return "unknown"
+
 if not os.path.exists("config.json"):
     with open("config.json", "w") as f:
         json.dump({"token": "your token here", "poweruserid": "your user id here (for certain commands)"}, f, indent=4)
@@ -106,6 +121,20 @@ async def on_ready():
 async def ping(interaction: discord.Interaction):
     await interaction.response.defer()
     await interaction.edit_original_response(content=f"Pong! [{round(bot.latency * 1000)}ms]")
+
+@bot.tree.command(name="etanbot-who-am-i", description="Information about the bot!")
+async def whoami(interaction: discord.Interaction):
+    await interaction.response.defer()
+    embed = discord.Embed(title="etanbot info", description="funny discord bot", color=0x8649D7)
+    embed.add_field(name="Description", value="Funny Discord bot that can be added to your account and used anywhere within Discord.", inline=False)
+    embed.add_field(name="Commit", value=getLatestCommitHash(), inline=False)
+    embed.add_field(name="Developer", value=f"[etangaming123]({developergithub})", inline=False)
+    embed.add_field(name="Repository", value=repositoryurl, inline=False)
+    embed.set_footer(text=f"etan • etangaming123 • etangamingxyz")
+    embed.set_thumbnail(url=bot.user.avatar.url if bot.user.avatar else "https://cdn.discordapp.com/embed/avatars/0.png")
+    if bot.user.banner:
+        embed.set_image(url=bot.user.banner.url)
+    await interaction.edit_original_response(embed=embed)
 
 @bot.tree.command(name="etanbot-8ball", description="Ask the magic 8ball a question!") # use with caution. its completely random yet can be scarily accurate at times
 @app_commands.describe(question="The question to ask the 8ball. (a yes or no question, and keep it short!)")
