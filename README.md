@@ -3,23 +3,36 @@
 Funny Discord bot that can be added to your account and used anywhere within Discord.
 
 > [!NOTE]
-> Uptime of this bot is flaky. You are free to selfhost the bot and run it on your own bot account.
+> Uptime of this bot is flaky. 
+You are free to selfhost the bot and run it on your own bot account.
 
 > [!WARNING]
-> This bot is intended for self use. etangaming123 is not responsible for sensitive data on this bot being leaked.
-> *But it's just a Koko Amusement card...*
+> This bot is intended for self hosting. etangaming123 is not responsible for sensitive data on this bot being leaked.
+The only data stored on this bot is your profile (if you wish to use the profiles feature, which is public anyway), and your KOKO Amusement Token - both features are completely optional.
 
 ## Features
+
+### Fun
 
 * 8-ball command
 * Braincell count (or random number generator)
 * Pizoelectric tiles copypasta ("Japan is turning footsteps into electricity! ⚡Using piezoelectric tiles, every step you take generates a small amount of energy. Millions of steps together can power LED lights and displays in busy places like Shibuya Station. A brilliant way to create a sustainable and smart city -- turning movement into clean, renewable energy 🌱💡")
+* "Puppet" command (makes the bot say something!)
+* Random number generator
+* Random birthday message (for any user in a server/dm)
+
+### Useful
+
+* Link cleaner (removes *most* url trackers within links)
 * (unnofficial) Linkage with Koko Amusement Cards (so you can see how much credit you have left, from the comfort of Discord)
+
+### Cosmetic
+
 * Built in profiles (for fun!)
 
 ## Quickstart
 
-Open [this link](https://discord.com/oauth2/authorize?client_id=1505906056222605352) to authorise the "officially hosted" etan bot with your Discord account, and you're all good to go!
+Open [this link](https://discord.com/oauth2/authorize?client_id=1505906056222605352) to authorise the "officially hosted" etan bot with your Discord account, and you're all good to go! You will be able to use commands in servers (where External Apps are allowed), and in DMs with other people (if the bot is online).
 
 ## Selfhosting
 
