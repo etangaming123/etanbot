@@ -233,9 +233,34 @@ async def shexonmyytilliz(interaction: discord.Interaction, x: str, y: str, z: s
     await interaction.response.defer()
     await interaction.edit_original_response(content=f"she {x} on my {y} till i {z}")
 
+@bot.tree.command(name="etanbot-predict", description="Predict when something will happen!")
+@app_commands.describe(event="The event you want to predict.")
+async def predict(interaction: discord.Interaction, event: str):
+    await interaction.response.defer()
+    times = [
+        "right now,"
+        "in a few seconds",
+        "in a few minutes",
+        "in a few hours",
+        "tomorrow",
+        "in a few days",
+        "next week",
+        "in a few weeks",
+        "next month",
+        "in a few months",
+        "next year",
+        "in a few years",
+        "never"
+    ]
+    await interaction.edit_original_response(content=f"{event} will happen {random.choice(times)}!")
+
+
 @bot.tree.command(name="etanbot-10d20", description="Makes a link to use Discord's built in dice roller with 10d20 (10 20-sided dice).")
 async def d20(interaction: discord.Interaction):
     await interaction.response.defer()
+    if interaction.guild_id is None or interaction.channel_id is None:
+        await interaction.edit_original_response(content="This command can only be used in a server channel. (The built in roll-dice feature only works in a channel!)")
+        return
     await interaction.edit_original_response(content=f"https://discord.com/channels/{interaction.guild_id}/{interaction.channel_id}/roll-dice/10d20")
 
 # koko amusement linking
