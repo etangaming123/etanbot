@@ -126,7 +126,7 @@ async def ping(interaction: discord.Interaction):
 async def whoami(interaction: discord.Interaction):
     await interaction.response.defer()
     embed = discord.Embed(title="etanbot info", description="funny discord bot", color=0x8649D7)
-    embed.add_field(name="Description", value="Funny Discord bot that can be added to your account and used anywhere within Discord.", inline=False)
+    embed.add_field(name="Description", value="Funny Discord bot that can be added to your account and used anywhere within Discord.\n [webpage](https://etanbot.etangaming.xyz/) • [terms of service](https://etanbot.etangaming.xyz/termsofservice.html) • [privacy policy](https://etanbot.etangaming.xyz/privacypolicy.html)", inline=False)
     embed.add_field(name="Commit", value=getLatestCommitHash(), inline=False)
     embed.add_field(name="Developer", value=f"[etangaming123]({developergithub})", inline=False)
     embed.add_field(name="Repository", value=repositoryurl, inline=False)
