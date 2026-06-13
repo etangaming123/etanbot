@@ -81,11 +81,17 @@ def truncateMessage(message, length):
     else:
         return message[:length-20] + f"... [{len(message)-length+20} more characters]"
 
+cachedcommithash = None
+
 def getLatestCommitHash():
+    global cachedcommithash
+    if cachedcommithash is not None:
+        return cachedcommithash
     try:
         response = requests.get("https://api.github.com/repos/etangaming123/etanbot/commits/main")
         if response.status_code == 200:
             data = response.json()
+            cachedcommithash = data['sha'][:7] # Cache the commit hash for future use
             return data['sha'][:7] # Return the first 7 characters of the commit hash
         else:
             print(f"Error fetching latest commit: Received status code {response.status_code}")
