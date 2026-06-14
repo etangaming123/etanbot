@@ -216,10 +216,16 @@ async def coinflip(interaction: discord.Interaction):
     await interaction.edit_original_response(content=f"{result}!")
 
 def cleanLink(url, toremove):
+    if toremove == "*": # if toremove is *, remove all parameters from the link
+        if "?" not in url:
+            return url.split("&")[0] # Tiktok is known to use & instead of ? for their parameters sometimes, so we check for both and split by the one that exists
+        return url.split("?")[0]
     cleaned_link = url
     for item in toremove:
         cleaned_link = re.sub(r'([&?])' + re.escape(item) + r'=[^&]*', '', cleaned_link)
     cleaned_link = re.sub(r'[?&]+$', '', cleaned_link) # remove trailing ? or &
+    for item in toremove:
+        cleaned_link = re.sub(r'([&])' + re.escape(item) + r'=[^&]*', '', cleaned_link) # run again, this time removing & params
     return cleaned_link
 
 @bot.tree.command(name="etanbot-clean-link", description="Remove stinky link trackers.")
@@ -230,6 +236,8 @@ async def clean_link(interaction: discord.Interaction, link: str, additional: st
     if additional:
         toremove.extend(additional.split(","))
     cleaned_link = cleanLink(link, toremove)
+    if "tiktok.com" in cleaned_link and "vt.tiktok.com" not in cleaned_link: # Fuck you tiktok, we're removing ALL your parameters
+        cleaned_link = cleanLink(link, "*")
     if "vt.tiktok" in cleaned_link: # wow tiktok that's slack
         await interaction.edit_original_response(content=f"URL seems to have embedded trackers, just a sec...")
         response = requests.get(cleaned_link) # make a request to the link to get the final URL after tiktok's trackers redirect it
