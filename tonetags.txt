@@ -8,16 +8,20 @@
 /calm	calm / calmly
 /cb	clickbait
 /cel	celebratory
-/co or /cf	comforting
+/co	comforting
+/cf	comforting
 /curi	curious/curiously
 /f	fake
 /fam	familial
 /fl	flirting
 /fx	flex (see also: /br)
-/g or /gen	genuine
+/gen	genuine
+/g	genuine
 /gentle	gentle / gently
-/gq or /genq	genuine question
-/gs or /gens	genuine suggestion
+/gq	genuine question
+/genq	genuine question
+/gs	genuine suggestion
+/gens	genuine suggestion
 /hj	half joking
 /hyp	hyperbole
 /info	information or informing
@@ -27,7 +31,9 @@
 /jw	just wondering
 /lh	light hearted
 /li	literally
-/l or /ly or /lyr	lyrics
+/l	lyrics
+/ly	lyrics
+/lyr	lyrics
 /lu	little upset
 /m	metaphorically / metaphor
 /nabr	not a brag (see also: /nafx)
@@ -39,7 +45,8 @@
 /nay	not at you
 /nbh	nobody here
 /nbr	not being rude
-/neg or /nc	negative connotation
+/nc	negative connotation
+/neg	negative connotation
 /neu	neutral connotation
 /nf	not fake
 /nfl or	not flirting
@@ -48,7 +55,8 @@
 /npa	not passive aggressive
 /nsb	not subtweeting
 /nsrs	not serious
-/nsx or /nx	nonsexual or not sexual intent
+/nsx	nonsexual or not sexual intent
+/nx	nonsexual or not sexual intent
 /ny	not yelling
 /ot	off topic
 /p	platonic
@@ -59,13 +67,16 @@
 /q	quote
 /qp	queerplatonic
 /r	romantic
-/rh or /rt	rhetorical question
-/s or /sarc	sarcastic / sarcastically
+/rh	rhetorical question
+/rt	rhetorical question
+/s	sarcastic / sarcastically
+/sarc	sarcastic / sarcastically
 /sbh	somebody here
 /sbtw	subtweeting
 /srs	serious
-/st or /state	statement (see also: /naq)
-/sx or /x	sexual intent
+/st	statement (see also: /naq)
+/state	statement (see also: /naq)
+/sx	sexual intent
 /t	teasing
 /tan	tangent
 /th	threat
@@ -76,3 +87,4 @@
 /unre	unrelated
 /vu	very upset
 /w	warm / warmth
+/x	sexual intent

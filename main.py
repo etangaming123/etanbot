@@ -303,9 +303,9 @@ async def tonetag(interaction: discord.Interaction, tonetag: str):
     await interaction.response.defer()
     tonetags = readTonetags()
     if tonetag in tonetags:
-        await interaction.edit_original_response(content=f"Information for tonetag `{tonetag}`:\n{tonetags[tonetag]}")
+        await interaction.edit_original_response(content=f"`{tonetag}` >> {tonetags[tonetag]}")
     else:
-        await interaction.edit_original_response(content=f"No information found for tonetag `{tonetag}`.")
+        await interaction.edit_original_response(content=f"Couldn't find anything for `{tonetag}`.")
 
 @tonetag.autocomplete("tonetag")
 async def tonetag_autocomplete(interaction: discord.Interaction, current: str):

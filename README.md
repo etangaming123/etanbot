@@ -28,6 +28,7 @@ These are fun commands and should not be taken seriously.
 * Random birthday message (for any user in a server/dm)
 * Prediction (predicting when something will happen)
 * Lie detector
+* Tonetag searcher
 
 ### Useful
 
