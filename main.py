@@ -299,7 +299,7 @@ def readTonetags():
 
 @bot.tree.command(name="etanbot-tonetag", description="Get information for a tonetag! Definitions from https://tonetaglist.carrd.co/.")
 @app_commands.describe(tonetag="The tonetag you wish to view information for. (remove /)")
-async def tonetag(interaction: discord.Interaction, tonetag=str):
+async def tonetag(interaction: discord.Interaction, tonetag: str):
     await interaction.response.defer()
     tonetags = readTonetags()
     if tonetag in tonetags:
