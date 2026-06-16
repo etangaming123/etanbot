@@ -11,6 +11,7 @@
 /co	comforting
 /cf	comforting
 /curi	curious/curiously
+/dir	directed (at someone)
 /f	fake
 /fam	familial
 /fl	flirting
@@ -48,7 +49,7 @@
 /nc	negative connotation
 /neg	negative connotation
 /neu	neutral connotation
-/nf	not fake
+/nf	not fake, or not forced
 /nfl or	not flirting
 /nm	not mad
 /nmay	not mad at you, to specify that someone isnt mad at someone else
@@ -63,7 +64,8 @@
 /pa	passive aggressive
 /para	paraphrase
 /pf	playful
-/pos or /pc	positive connotation
+/pos	positive connotation
+/pc	positive connotation
 /q	quote
 /qp	queerplatonic
 /r	romantic

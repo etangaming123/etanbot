@@ -297,7 +297,7 @@ def readTonetags():
             tonetags[key.strip().lstrip("/")] = value.strip()
         return tonetags
 
-@bot.tree.command(name="etanbot-tonetag", description="Get information for a tonetag! Definitions from https://tonetaglist.carrd.co/.")
+@bot.tree.command(name="etanbot-tonetag", description="Get information for a tonetag! Most definitions from https://tonetaglist.carrd.co/.")
 @app_commands.describe(tonetag="The tonetag you wish to view information for. (remove /)")
 async def tonetag(interaction: discord.Interaction, tonetag: str):
     await interaction.response.defer()
