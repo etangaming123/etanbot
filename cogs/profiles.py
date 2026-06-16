@@ -160,3 +160,6 @@ class Profiles(commands.Cog):
             await interaction.edit_original_response(content=f"An error occurred while removing the link from your profile. Please try again later.")
             return
         await interaction.edit_original_response(content=f"Link removed successfully!")
+
+async def setup(bot: commands.Bot):
+    await bot.add_cog(Profiles(bot))
