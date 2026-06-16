@@ -6,3 +6,5 @@ etanbot.code-workspace
 .venv
 __pycache__
 *.json
+startetanbot.bat
+updateetanbot.bat
