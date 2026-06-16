@@ -1,6 +1,7 @@
 # etanbot
 
 Funny Discord bot that can be added to your account and used anywhere within Discord.
+
 [Website](https://etanbot.etangaming.xyz/ "etanbot website") • [Terms of Service](https://etanbot.etangaming.xyz/termsofservice.html "etanbot terms of service") • [Privacy Policy](https://etanbot.etangaming.xyz/privacypolicy.html "etanbot privacy policy")
 
 [Add to your Discord](https://discord.com/oauth2/authorize?client_id=1505906056222605352 "Add etan bot to your Discord account")
