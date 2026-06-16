@@ -8,28 +8,10 @@ import random
 import requests # type: ignore
 import re
 
-from common import developergithub, ensure_datastores, loadData, repositoryurl, saveData
+from common import developergithub, ensure_datastores, loadData, repositoryurl, saveData, formatUsername, getDisplay, truncateMessage
 
 intents = discord.Intents.default()
 ensure_datastores()
-
-def formatUsername(user: discord.User): # Fancy formatting for usernames // displayname (@username)
-    if user.display_name == None:
-        return f"{user.name}"
-    else:
-        return f"{user.display_name} (@{user.name})"
-
-def getDisplay(user: discord.User): # incase we only want to get display name and the users display is same as username
-    if user.display_name == None:
-        return user.name
-    else:
-        return user.display_name
-
-def truncateMessage(message, length): 
-    if len(message) <= length:
-        return message
-    else:
-        return message[:length-20] + f"... [{len(message)-length+20} more characters]"
 
 cachedcommithash = None
 

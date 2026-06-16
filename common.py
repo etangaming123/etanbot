@@ -2,6 +2,7 @@ import json
 import os
 import pickle
 import traceback
+import discord
 
 kokocreditdefaulturl = "https://estore.kokoamusement.com.au/BalanceMobile/BalanceMobile.aspx?i="
 repositoryurl = "https://github.com/etangaming123/etanbot"
@@ -56,3 +57,21 @@ def loadData(store: str):
     except Exception:
         traceback.print_exc()
         return ""
+
+def formatUsername(user: discord.User): # Fancy formatting for usernames // displayname (@username)
+    if user.display_name == None:
+        return f"{user.name}"
+    else:
+        return f"{user.display_name} (@{user.name})"
+
+def getDisplay(user: discord.User): # incase we only want to get display name and the users display is same as username
+    if user.display_name == None:
+        return user.name
+    else:
+        return user.display_name
+
+def truncateMessage(message, length): 
+    if len(message) <= length:
+        return message
+    else:
+        return message[:length-20] + f"... [{len(message)-length+20} more characters]"
