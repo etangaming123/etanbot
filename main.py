@@ -62,6 +62,7 @@ with open('config.json') as f:
 class etanBot(commands.Bot):
     async def setup_hook(self):
         await self.load_extension("cogs.kokolinking")
+        await self.load_extension("cogs.profiles")
 
 bot = etanBot(command_prefix='!', intents=intents)
 bot.tree.allowed_installs = app_commands.AppInstallationType(guild=True, user=True)
