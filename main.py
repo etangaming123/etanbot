@@ -281,4 +281,42 @@ async def liedetector(interaction: discord.Interaction, user: discord.User = Non
     else:
         await interaction.edit_original_response(content=random.choice(truthstrings).replace("USER", formatUsername(user)))
 
+def readTonetags():
+    with open("tonetags.txt", "r") as f:
+        tonetags = {}
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "\t" in line:
+                key, value = line.split("\t", 1)
+            elif " " in line:
+                key, value = line.split(None, 1)
+            else:
+                continue
+            tonetags[key.strip().lstrip("/")] = value.strip()
+        return tonetags
+
+@bot.tree.command(name="etanbot-tonetag", description="Get information for a tonetag! Definitions from https://tonetaglist.carrd.co/.")
+@app_commands.describe(tonetag="The tonetag you wish to view information for. (remove /)")
+async def tonetag(interaction: discord.Interaction, tonetag=str):
+    await interaction.response.defer()
+    tonetags = readTonetags()
+    if tonetag in tonetags:
+        await interaction.edit_original_response(content=f"Information for tonetag `{tonetag}`:\n{tonetags[tonetag]}")
+    else:
+        await interaction.edit_original_response(content=f"No information found for tonetag `{tonetag}`.")
+
+@tonetag.autocomplete("tonetag")
+async def tonetag_autocomplete(interaction: discord.Interaction, current: str):
+    tonetags = readTonetags()
+    thingtoreturn = [app_commands.Choice(name=key, value=key)
+        for key in tonetags.keys()
+        if current.lower() in key.lower()
+    ][:25]
+    if thingtoreturn:
+        return thingtoreturn
+    else:
+        return [app_commands.Choice(name="No matching tonetags found", value="")]
+
 bot.run(config['token'])

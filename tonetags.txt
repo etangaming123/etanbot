@@ -1,0 +1,78 @@
+/!	excited
+/a	alterous
+/ao	an order
+/av	a vent
+/ay	at you
+/br	bragging (see also: /fx)
+/c	copypasta
+/calm	calm / calmly
+/cb	clickbait
+/cel	celebratory
+/co or /cf	comforting
+/curi	curious/curiously
+/f	fake
+/fam	familial
+/fl	flirting
+/fx	flex (see also: /br)
+/g or /gen	genuine
+/gentle	gentle / gently
+/gq or /genq	genuine question
+/gs or /gens	genuine suggestion
+/hj	half joking
+/hyp	hyperbole
+/info	information or informing
+/irre	irrelevant
+/j	joke or joking
+/jk	just kidding
+/jw	just wondering
+/lh	light hearted
+/li	literally
+/l or /ly or /lyr	lyrics
+/lu	little upset
+/m	metaphorically / metaphor
+/nabr	not a brag (see also: /nafx)
+/nfl	not flirting
+/nafx	not a flex (see also: /nabr)
+/nao	not an order
+/naq	not a question (see also: /st or /state)
+/nav	not a vent
+/nay	not at you
+/nbh	nobody here
+/nbr	not being rude
+/neg or /nc	negative connotation
+/neu	neutral connotation
+/nf	not fake
+/nfl or	not flirting
+/nm	not mad
+/nmay	not mad at you, to specify that someone isnt mad at someone else
+/npa	not passive aggressive
+/nsb	not subtweeting
+/nsrs	not serious
+/nsx or /nx	nonsexual or not sexual intent
+/ny	not yelling
+/ot	off topic
+/p	platonic
+/pa	passive aggressive
+/para	paraphrase
+/pf	playful
+/pos or /pc	positive connotation
+/q	quote
+/qp	queerplatonic
+/r	romantic
+/rh or /rt	rhetorical question
+/s or /sarc	sarcastic / sarcastically
+/sbh	somebody here
+/sbtw	subtweeting
+/srs	serious
+/st or /state	statement (see also: /naq)
+/sx or /x	sexual intent
+/t	teasing
+/tan	tangent
+/th	threat
+/tic	tic, for when something typed out was unintentional due to being a tic
+/ts	to self
+/u	upset
+/unin	unintentional
+/unre	unrelated
+/vu	very upset
+/w	warm / warmth
