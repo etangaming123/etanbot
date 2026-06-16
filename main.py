@@ -228,7 +228,7 @@ async def shexonmyytilliz(interaction: discord.Interaction, x: str, y: str, z: s
     await interaction.response.defer()
     await interaction.edit_original_response(content=f"she {x} on my {y} till i {z}")
 
-@bot.tree.command(name="etanbot-predict", description="Predict when something will happen!")
+@bot.tree.command(name="etanbot-predict", description="[event] will happen [unspecified date/time]")
 @app_commands.describe(event="The event you want to predict.")
 async def predict(interaction: discord.Interaction, event: str):
     await interaction.response.defer()
@@ -256,5 +256,29 @@ async def d20(interaction: discord.Interaction):
         await interaction.edit_original_response(content="This command can only be used in a server channel. (The built in roll-dice feature only works in a channel!)")
         return
     await interaction.edit_original_response(content=f"https://discord.com/channels/{interaction.guild_id}/{interaction.channel_id}/roll-dice/10d20")
+
+@bot.tree.command(name="etanbot-lie-detector", description="Check if someone is lying!")
+@app_commands.describe(user="The user who you think is lying. (Leave blank for yourself!)")
+async def liedetector(interaction: discord.Interaction, user: discord.User = None):
+    if user == None:
+        user = interaction.user
+    await interaction.response.defer()
+    liestrings = [
+        "USER is LYING!!!",
+        "Nah, USER isn't telling the truth.",
+        "❌ Nope, USER!",
+        "I wouldn't trust USER if I were you..."
+    ]
+    truthstrings = [
+        "✅ True, USER!",
+        "Confirmed, USER is telling the truth.",
+        "Yeah, I'd say USER is being truthful here.",
+        "Trust USER!"
+    ]
+
+    if random.randint(0, 1) == 0:
+        await interaction.edit_original_response(content=random.choice(liestrings).replace("USER", formatUsername(user)))
+    else:
+        await interaction.edit_original_response(content=random.choice(truthstrings).replace("USER", formatUsername(user)))
 
 bot.run(config['token'])
