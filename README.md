@@ -1,18 +1,23 @@
 # etanbot
 
 Funny Discord bot that can be added to your account and used anywhere within Discord.
+[Website](https://etanbot.etangaming.xyz/ "etanbot website") • [Terms of Service](https://etanbot.etangaming.xyz/termsofservice.html "etanbot terms of service") • [Privacy Policy](https://etanbot.etangaming.xyz/privacypolicy.html "etanbot privacy policy")
+
+[Add to your Discord](https://discord.com/oauth2/authorize?client_id=1505906056222605352 "Add etan bot to your Discord account")
 
 > [!NOTE]
-> Uptime of this bot is flaky. 
-You are free to selfhost the bot and run it on your own bot account.
+> Uptime of this bot is flaky.
+> You are free to selfhost the bot and run it on your own bot account.
 
 > [!WARNING]
 > This bot is intended for self hosting. etangaming123 is not responsible for sensitive data on this bot being leaked.
-The only data stored on this bot is your profile (if you wish to use the profiles feature, which is public anyway), and your KOKO Amusement Token - both features are completely optional.
+> The only data stored on this bot is your profile (if you wish to use the profiles feature, which is public anyway), and your KOKO Amusement Token - both features are completely optional.
 
 ## Features
 
 ### Fun
+
+These are fun commands and should not be taken seriously.
 
 * 8-ball command
 * Braincell count (or random number generator)
@@ -20,19 +25,27 @@ The only data stored on this bot is your profile (if you wish to use the profile
 * "Puppet" command (makes the bot say something!)
 * Random number generator
 * Random birthday message (for any user in a server/dm)
+* Prediction (predicting when something will happen)
+* Lie detector
 
 ### Useful
+
+Various utility commands.
 
 * Link cleaner (removes *most* url trackers within links)
 * (unnofficial) Linkage with Koko Amusement Cards (so you can see how much credit you have left, from the comfort of Discord)
 
 ### Cosmetic
 
+If you want to spice up your Discord experience, kinda!
+
 * Built in profiles (for fun!)
 
 ## Quickstart
 
-Open [this link](https://discord.com/oauth2/authorize?client_id=1505906056222605352) to authorise the "officially hosted" etan bot with your Discord account, and you're all good to go! You will be able to use commands in servers (where External Apps are allowed), and in DMs with other people (if the bot is online).
+Open [this link](https://discord.com/oauth2/authorize?client_id=1505906056222605352 "Add etan bot to your Discord account") to authorise the official instance of etan bot with your Discord account, and you're all good to go! You will be able to use commands in servers and in DMs with other people (if the bot is online).
+
+Do note that if you lack the "External Apps" permission in servers, you will be able to use etanbot's commands, however they will only be visible to you.
 
 ## Selfhosting
 
@@ -44,7 +57,7 @@ Open [this link](https://discord.com/oauth2/authorize?client_id=1505906056222605
 
 ### Discord Bot
 
-1. Log on to the [Discord Developer Portal](https://discord.com/developers/applications).
+1. Log on to the [Discord Developer Portal](https://discord.com/developers/applications "Leads you to the Discord Developer Portal").
 2. Create a new application using the button on the top right.
 3. Add a new app icon. This will be the bot's profile picture.
 4. Under the Overview tab, click on "Bot", and reset the bot's token. Copy the new token and keep it somewhere, you'll need it later.
@@ -52,6 +65,9 @@ Open [this link](https://discord.com/oauth2/authorize?client_id=1505906056222605
 6. Paste the url into your favourite browser, and add the bot to your account.
 
 ### Python Code
+
+Ensure you have everything with:
+`git clone https://github.com/etangaming123/etanbot`
 
 Get all the required modules with:
 `pip install -r requirements.txt`
@@ -65,9 +81,15 @@ Then, create a `config.json` file in the same directory as `main.py` with the fo
 }
 ```
 
+You might want to change some items in `common.py` before starting!
+
 Finally, run the bot with:
 `python main.py`
 
 Refresh your Discord client, and press `/` on your keyboard. You should see the bot's commands in the list, and you can start using it!
 
 Do note that the program has to be continuously running for the bot to work. If you close the terminal or stop the program, the bot will go offline and become unusable until you run it again.
+
+## License
+
+etan bot is licenced under the **[MIT License](./LICENSE "Leads you to the license for this repository").**
