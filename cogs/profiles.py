@@ -30,7 +30,7 @@ class Profiles(commands.Cog):
         self.bot = bot
 
     @app_commands.command(name="etanbot-profile-create", description="Creates a profile for you, viewable using /etanbot-profile!")
-    async def create_profile(interaction: discord.Interaction):
+    async def create_profile(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
         profiles = loadData("profiles")
         if str(interaction.user.id) in profiles.keys():
@@ -47,7 +47,7 @@ class Profiles(commands.Cog):
 
     @app_commands.command(name="etanbot-profile", description="View your profile or someone else's!")
     @app_commands.describe(user="The user to view the profile of. Defaults to yourself.", viewprivately="Want to make it so only you can see the profile? (defaults to nah)")
-    async def viewprofile(interaction: discord.Interaction, user: discord.User = None, viewprivately: bool = False):
+    async def viewprofile(self, interaction: discord.Interaction, user: discord.User = None, viewprivately: bool = False):
         containsatsymbol = ["tiktok", "youtube"] # these platforms require an @ symbol in the url
         await interaction.response.defer(ephemeral=viewprivately)
         if user is None:
@@ -74,7 +74,7 @@ class Profiles(commands.Cog):
         await interaction.edit_original_response(embed=embed)
 
     @app_commands.command(name="etanbot-profile-edit", description="Edit your profile's bio!")
-    async def editprofile(interaction: discord.Interaction):
+    async def editprofile(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
         profiles = loadData("profiles")
         if str(interaction.user.id) not in profiles.keys():
@@ -84,7 +84,7 @@ class Profiles(commands.Cog):
         await interaction.response.send_modal(ProfileEditModal(profile))
 
     @app_commands.command(name="etanbot-profile-delete", description="Delete your profile! This cannot be undone.")
-    async def deleteprofile(interaction: discord.Interaction):
+    async def deleteprofile(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
         profiles = loadData("profiles")
         if str(interaction.user.id) not in profiles.keys():
@@ -98,7 +98,7 @@ class Profiles(commands.Cog):
 
     @app_commands.command(name="etanbot-profile-color", description="Change the color of your profile embed! (hex code, no #, default is green)")
     @app_commands.describe(color="The hex code of the color you want to set for your profile embed (no #, default is green)")
-    async def changeprofilecolor(interaction: discord.Interaction, color: str):
+    async def changeprofilecolor(self, interaction: discord.Interaction, color: str):
         await interaction.response.defer(ephemeral=True)
         profiles = loadData("profiles")
         if str(interaction.user.id) not in profiles.keys():
@@ -123,7 +123,7 @@ class Profiles(commands.Cog):
         discord.app_commands.Choice(name="Twitter", value="twitter"),
         discord.app_commands.Choice(name="YouTube", value="youtube")
     ])
-    async def addprofilelink(interaction: discord.Interaction, platform: discord.app_commands.Choice[str], username: str):
+    async def addprofilelink(self, interaction: discord.Interaction, platform: discord.app_commands.Choice[str], username: str):
         await interaction.response.defer(ephemeral=True)
         profiles = loadData("profiles")
         if str(interaction.user.id) not in profiles.keys():
@@ -146,7 +146,7 @@ class Profiles(commands.Cog):
         discord.app_commands.Choice(name="Twitter", value="twitter"),
         discord.app_commands.Choice(name="YouTube", value="youtube")
     ])
-    async def removeprofilelink(interaction: discord.Interaction, platform: discord.app_commands.Choice[str]):
+    async def removeprofilelink(self, interaction: discord.Interaction, platform: discord.app_commands.Choice[str]):
         await interaction.response.defer(ephemeral=True)
         profiles = loadData("profiles")
         if str(interaction.user.id) not in profiles.keys():
