@@ -239,7 +239,7 @@ async def shexonmyytilliz(interaction: discord.Interaction, x: str, y: str, z: s
 async def predict(interaction: discord.Interaction, event: str):
     await interaction.response.defer()
     times = [
-        "right now,"
+        "right now",
         "in a few seconds",
         "in a few minutes",
         "in a few hours",
