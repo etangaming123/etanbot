@@ -332,24 +332,24 @@ async def mbti(interaction: discord.Interaction, mbti: str):
         return
     stringo = f"{mbti} means:\n"
     if mbti[0] == "I":
-        stringo = stringo + "`I` >> **I**ntrovert\n"
+        stringo = stringo + "`I` >> **I**ntrovert (prefers to fly solo)\n"
     else:
-        stringo = stringo + "`E` >> **E**xtrovert\n"
+        stringo = stringo + "`E` >> **E**xtrovert (enjoys company)\n"
     
     if mbti[1] == "S":
-        stringo = stringo + "`S` >> **S**ensing\n"
+        stringo = stringo + "`S` >> **S**ensing (relies on raw senses)\n"
     else:
-        stringo = stringo + "`N` >> I**n**tuition\n"
+        stringo = stringo + "`N` >> I**n**tuition (relies on patterns and insights)\n"
 
     if mbti[2] == "F":
-        stringo = stringo + "`F` >> **F**eeling\n"
+        stringo = stringo + "`F` >> **F**eeling (makes decisions based on personal values)\n"
     else:
-        stringo = stringo + "`T` >> **T**hinking\n"
+        stringo = stringo + "`T` >> **T**hinking (makes decisions based on logic and objective criteria)\n"
 
     if mbti[3] == "P":
-        stringo = stringo + "`P` >> **P**erception\n"
+        stringo = stringo + "`P` >> **P**erception (takes in information through the senses)\n"
     else:
-        stringo = stringo + "`J` >> **J**udgement\n"
+        stringo = stringo + "`J` >> **J**udgement (makes decisions and organizes their environment)\n"
     await interaction.edit_original_response(content=stringo)
 
 @bot.tree.command(name="etanbot-status", description="Are we running the latest commit?")
