@@ -76,6 +76,8 @@
 /sbh	somebody here
 /sbtw	subtweeting
 /srs	serious
+/silly	(it's pretty self explanatory. silly)
+/sil	silly
 /st	statement (see also: /naq)
 /state	statement (see also: /naq)
 /sx	sexual intent
