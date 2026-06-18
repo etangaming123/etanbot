@@ -9,6 +9,7 @@ repositoryurl = "https://github.com/etangaming123/etanbot"
 developergithub = "https://github.com/etangaming123"
 inviteurl = "https://discord.com/oauth2/authorize?client_id=1505906056222605352"
 supportserver = "https://etanbot.etangaming.xyz/supportserver.html"
+website = "https://etanbot.etangaming.xyz"
 
 datastores = ["linkedkokocards", "profiles"]
 datastoresbuttheseonesarelists = []

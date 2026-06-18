@@ -8,7 +8,7 @@ import random
 import requests # type: ignore
 import re
 
-from common import developergithub, ensure_datastores, loadData, repositoryurl, saveData, formatUsername, getDisplay, truncateMessage, inviteurl, supportserver
+from common import developergithub, ensure_datastores, loadData, repositoryurl, saveData, formatUsername, getDisplay, truncateMessage, inviteurl, supportserver, website
 
 intents = discord.Intents.default()
 ensure_datastores()
@@ -83,7 +83,7 @@ async def ping(interaction: discord.Interaction):
 async def whoami(interaction: discord.Interaction):
     await interaction.response.defer()
     embed = discord.Embed(title="etanbot info", description="funny discord bot", color=0x8649D7)
-    embed.add_field(name="Description", value="Funny Discord bot that can be added to your account and used anywhere within Discord.\n [webpage](https://etanbot.etangaming.xyz/) • [terms of service](https://etanbot.etangaming.xyz/termsofservice.html) • [privacy policy](https://etanbot.etangaming.xyz/privacypolicy.html)", inline=False)
+    embed.add_field(name="Description", value=f"Funny Discord bot that can be added to your account and used anywhere within Discord.\n [webpage]({website}) • [terms of service]({website}/termsofservice.html) • [privacy policy]({website}/privacypolicy.html) • [add to discord]({inviteurl})", inline=False)
     embed.add_field(name="Features", value="Various commands - link cleaner, 8ball, coinflip, random number generator, built-in profiles, (unofficial) KOKO Amusement card linking, with more to come.")
     embed.add_field(name="Commit", value=currentcommithash, inline=False)
     embed.add_field(name="Developer", value=f"[etangaming123]({developergithub})", inline=False)
