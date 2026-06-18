@@ -367,9 +367,9 @@ async def mbti(interaction: discord.Interaction, mbti: str):
 
     if len(mbti) == 6:
         if mbti[5] == "A":
-            stringo = stringo + "`-A` >> Assertive (self-assured, even under stress)\n"
+            stringo = stringo + "`-A` >> **A**ssertive (self-assured, even under stress)\n"
         else:
-            stringo = stringo + "`-T` >> Turbulent (sensitive to stress, success-driven, perfectionistic, and eager to improve)\n"
+            stringo = stringo + "`-T` >> **T**urbulent (sensitive to stress, success-driven, perfectionistic, and eager to improve)\n"
 
     await interaction.edit_original_response(content=stringo)
 
