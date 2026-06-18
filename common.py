@@ -7,6 +7,8 @@ import discord
 kokocreditdefaulturl = "https://estore.kokoamusement.com.au/BalanceMobile/BalanceMobile.aspx?i="
 repositoryurl = "https://github.com/etangaming123/etanbot"
 developergithub = "https://github.com/etangaming123"
+inviteurl = "https://discord.com/oauth2/authorize?client_id=1505906056222605352"
+supportserver = "https://etanbot.etangaming.xyz/supportserver.html"
 
 datastores = ["linkedkokocards", "profiles"]
 datastoresbuttheseonesarelists = []

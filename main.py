@@ -8,7 +8,7 @@ import random
 import requests # type: ignore
 import re
 
-from common import developergithub, ensure_datastores, loadData, repositoryurl, saveData, formatUsername, getDisplay, truncateMessage
+from common import developergithub, ensure_datastores, loadData, repositoryurl, saveData, formatUsername, getDisplay, truncateMessage, inviteurl, supportserver
 
 intents = discord.Intents.default()
 ensure_datastores()
@@ -79,6 +79,11 @@ async def whoami(interaction: discord.Interaction):
     if bot.user.banner:
         embed.set_image(url=bot.user.banner.url)
     await interaction.edit_original_response(embed=embed)
+
+@bot.tree.command(name="etanbot-invite", description="Get the invite link for the bot!")
+async def invite(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
+    await interaction.edit_original_response(content=f"[Let's get started!]({inviteurl}) • [Support server]({supportserver})")
 
 @bot.tree.command(name="etanbot-8ball", description="Ask the magic 8ball a question!") # use with caution. its completely random yet can be scarily accurate at times
 @app_commands.describe(question="The question to ask the 8ball. (a yes or no question, and keep it short!)")
