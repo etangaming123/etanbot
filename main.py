@@ -13,12 +13,7 @@ from common import developergithub, ensure_datastores, loadData, repositoryurl, 
 intents = discord.Intents.default()
 ensure_datastores()
 
-cachedcommithash = None
-
 def getLatestCommitHash():
-    global cachedcommithash
-    if cachedcommithash is not None:
-        return cachedcommithash
     try:
         response = requests.get("https://api.github.com/repos/etangaming123/etanbot/commits/main")
         if response.status_code == 200:
@@ -32,6 +27,8 @@ def getLatestCommitHash():
         print(f"Error fetching latest commit: {e}")
         traceback.print_exc()
         return "unknown"
+
+currentcommithash = getLatestCommitHash()
 
 if not os.path.exists("config.json"):
     with open("config.json", "w") as f:
@@ -71,7 +68,7 @@ async def whoami(interaction: discord.Interaction):
     embed = discord.Embed(title="etanbot info", description="funny discord bot", color=0x8649D7)
     embed.add_field(name="Description", value="Funny Discord bot that can be added to your account and used anywhere within Discord.\n [webpage](https://etanbot.etangaming.xyz/) • [terms of service](https://etanbot.etangaming.xyz/termsofservice.html) • [privacy policy](https://etanbot.etangaming.xyz/privacypolicy.html)", inline=False)
     embed.add_field(name="Features", value="Various commands - link cleaner, 8ball, coinflip, random number generator, built-in profiles, (unofficial) KOKO Amusement card linking, with more to come.")
-    embed.add_field(name="Commit", value=getLatestCommitHash(), inline=False)
+    embed.add_field(name="Commit", value=currentcommithash, inline=False)
     embed.add_field(name="Developer", value=f"[etangaming123]({developergithub})", inline=False)
     embed.add_field(name="Repository", value=repositoryurl, inline=False)
     embed.set_footer(text=f"etan • etangaming123 • etangamingxyz")
@@ -324,5 +321,44 @@ async def tonetag_autocomplete(interaction: discord.Interaction, current: str):
         return thingtoreturn
     else:
         return [app_commands.Choice(name="No matching tonetags found", value="")]
+
+@bot.tree.command(name="etanbot-mbti", description="Lookup an mbti type/acronym! (ENTP, INTP, INTJ, ISFJ, etc.)")
+@app_commands.describe(mbti="The mbti type you want to look up (ENTP, INTP, INTJ, ISFJ, etc.)")
+async def mbti(interaction: discord.Interaction, mbti: str):
+    await interaction.response.defer()
+    mbti = mbti.upper()
+    if len(mbti) != 4 or any(letter not in "EI" for letter in mbti[0]) or any(letter not in "NS" for letter in mbti[1]) or any(letter not in "FT" for letter in mbti[2]) or any(letter not in "JP" for letter in mbti[3]):
+        await interaction.edit_original_response(content="That doesn't look like a valid MBTI type. Please enter a valid type like ENTP, INTP, INTJ, ISFJ, etc.")
+        return
+    stringo = f"{mbti} means:\n"
+    if mbti[0] == "I":
+        stringo = stringo + "`I` >> **I**ntrovert\n"
+    else:
+        stringo = stringo + "`E` >> **E**xtrovert\n"
+    
+    if mbti[1] == "S":
+        stringo = stringo + "`S` >> **S**ensing\n"
+    else:
+        stringo = stringo + "`N` >> I**n**tuition\n"
+
+    if mbti[2] == "F":
+        stringo = stringo + "`F` >> **F**eeling\n"
+    else:
+        stringo = stringo + "`T` >> **T**hinking\n"
+
+    if mbti[3] == "P":
+        stringo = stringo + "`P` >> **P**erception\n"
+    else:
+        stringo = stringo + "`J` >> **J**udgement\n"
+    await interaction.edit_original_response(content=stringo)
+
+@bot.tree.command(name="etanbot-status", description="Are we running the latest commit?")
+async def status(interaction: discord.Interaction):
+    await interaction.response.defer()
+    latesthash = getLatestCommitHash()
+    if latesthash == currentcommithash:
+        await interaction.edit_original_response(content=f"etanbot is up to date! Running commit: {currentcommithash}")
+    else:
+        await interaction.edit_original_response(content=f"etanbot is not up to date. Running commit: {currentcommithash}, latest commit: {latesthash}. Please contact the developer to update the bot!")
 
 bot.run(config['token'])
