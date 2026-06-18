@@ -28,6 +28,23 @@ def getLatestCommitHash():
         traceback.print_exc()
         return "unknown"
 
+def readTonetags():
+    with open("tonetags.txt", "r") as f:
+        tonetags = {}
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "\t" in line:
+                key, value = line.split("\t", 1)
+            elif " " in line:
+                key, value = line.split(None, 1)
+            else:
+                continue
+            tonetags[key.strip().lstrip("/")] = value.strip()
+        return tonetags
+
+tonetags = readTonetags()
 currentcommithash = getLatestCommitHash()
 
 if not os.path.exists("config.json"):
@@ -284,27 +301,10 @@ async def liedetector(interaction: discord.Interaction, user: discord.User = Non
     else:
         await interaction.edit_original_response(content=random.choice(truthstrings).replace("USER", formatUsername(user)))
 
-def readTonetags():
-    with open("tonetags.txt", "r") as f:
-        tonetags = {}
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            if "\t" in line:
-                key, value = line.split("\t", 1)
-            elif " " in line:
-                key, value = line.split(None, 1)
-            else:
-                continue
-            tonetags[key.strip().lstrip("/")] = value.strip()
-        return tonetags
-
-@bot.tree.command(name="etanbot-tonetag", description="Get information for a tonetag! Most definitions from https://tonetaglist.carrd.co/.")
+@bot.tree.command(name="etanbot-tonetag", description="Get information for a tonetag or toneindicator! Most definitions from https://tonetaglist.carrd.co/.")
 @app_commands.describe(tonetag="The tonetag you wish to view information for. (remove /)")
 async def tonetag(interaction: discord.Interaction, tonetag: str):
     await interaction.response.defer()
-    tonetags = readTonetags()
     if tonetag in tonetags:
         await interaction.edit_original_response(content=f"`{tonetag}` >> {tonetags[tonetag]}")
     else:
@@ -312,7 +312,6 @@ async def tonetag(interaction: discord.Interaction, tonetag: str):
 
 @tonetag.autocomplete("tonetag")
 async def tonetag_autocomplete(interaction: discord.Interaction, current: str):
-    tonetags = readTonetags()
     thingtoreturn = [app_commands.Choice(name=key, value=key)
         for key in tonetags.keys()
         if current.lower() in key.lower()
@@ -322,13 +321,28 @@ async def tonetag_autocomplete(interaction: discord.Interaction, current: str):
     else:
         return [app_commands.Choice(name="No matching tonetags found", value="")]
 
-@bot.tree.command(name="etanbot-mbti", description="Lookup an mbti type/acronym! (ENTP, INTP, INTJ, ISFJ, etc.)")
-@app_commands.describe(mbti="The mbti type you want to look up (ENTP, INTP, INTJ, ISFJ, etc.)")
+def checkValidMBTI(mbti):
+    if len(mbti) != 4 and len(mbti) != 6:
+        return False
+    if mbti[0] not in "EI":
+        return False
+    if mbti[1] not in "NS":
+        return False
+    if mbti[2] not in "FT":
+        return False
+    if mbti[3] not in "JP":
+        return False
+    if mbti[5] not in "AT" and len(mbti) == 6:
+        return False
+    return True
+
+@bot.tree.command(name="etanbot-mbti", description="Lookup an mbti type/acronym! (ENTP, INTP, INTJ-T, ISFJ-A, etc.)")
+@app_commands.describe(mbti="The mbti type you want to look up (ENTP, INTP, INTJ-T, ISFJ-A, etc.)")
 async def mbti(interaction: discord.Interaction, mbti: str):
     await interaction.response.defer()
     mbti = mbti.upper()
-    if len(mbti) != 4 or any(letter not in "EI" for letter in mbti[0]) or any(letter not in "NS" for letter in mbti[1]) or any(letter not in "FT" for letter in mbti[2]) or any(letter not in "JP" for letter in mbti[3]):
-        await interaction.edit_original_response(content="That doesn't look like a valid MBTI type. Please enter a valid type like ENTP, INTP, INTJ, ISFJ, etc.")
+    if not checkValidMBTI(mbti):
+        await interaction.edit_original_response(content="That doesn't look like a valid MBTI type. Please enter a valid type like ENTP, INTP, INTJ-T, ISFJ-A, etc.")
         return
     stringo = f"{mbti} means:\n"
     if mbti[0] == "I":
@@ -350,6 +364,13 @@ async def mbti(interaction: discord.Interaction, mbti: str):
         stringo = stringo + "`P` >> **P**erception (takes in information through the senses)\n"
     else:
         stringo = stringo + "`J` >> **J**udgement (makes decisions and organizes their environment)\n"
+
+    if len(mbti) == 6:
+        if mbti[5] == "A":
+            stringo = stringo + "`-A` >> Assertive (self-assured, even under stress)\n"
+        else:
+            stringo = stringo + "`-T` >> Turbulent (sensitive to stress, success-driven, perfectionistic, and eager to improve)\n"
+
     await interaction.edit_original_response(content=stringo)
 
 @bot.tree.command(name="etanbot-status", description="Are we running the latest commit?")
