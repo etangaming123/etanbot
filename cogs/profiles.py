@@ -71,6 +71,8 @@ class Profiles(commands.Cog):
             stringystringy = "No social links set."
         embed.add_field(name="Links", value=stringystringy, inline=False)
         embed.set_thumbnail(url=user.avatar.url if user.avatar else "https://cdn.discordapp.com/embed/avatars/0.png")
+        if user.banner:
+            embed.set_image(url=user.banner.url)
         await interaction.edit_original_response(embed=embed)
 
     @app_commands.command(name="etanbot-profile-edit", description="Edit your profile's bio!")
