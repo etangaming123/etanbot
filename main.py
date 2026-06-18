@@ -82,7 +82,7 @@ async def whoami(interaction: discord.Interaction):
 
 @bot.tree.command(name="etanbot-invite", description="Get the invite link for the bot!")
 async def invite(interaction: discord.Interaction):
-    await interaction.response.defer(ephemeral=True)
+    await interaction.response.defer()
     await interaction.edit_original_response(content=f"[Let's get started!]({inviteurl}) • [Support server]({supportserver})")
 
 @bot.tree.command(name="etanbot-8ball", description="Ask the magic 8ball a question!") # use with caution. its completely random yet can be scarily accurate at times
