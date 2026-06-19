@@ -70,6 +70,8 @@ async def on_ready():
     try:
         synced = await bot.tree.sync()
         print(f'Synced {len(synced)} command(s)')
+        await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="commands | etanbot.etangaming.xyz"))
+        print("Changed presence")
     except Exception as e:
         print(f'Error syncing commands: {e}')
 
