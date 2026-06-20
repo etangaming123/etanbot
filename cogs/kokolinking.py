@@ -81,7 +81,8 @@ class KokoLinking(commands.Cog):
         await interaction.edit_original_response(content=f"Successfully linked koko amusement card! {thingo}\nYou can always rerun this command to update your card!")
 
     @app_commands.command(name="etanbot-koko-balance", description="Check your koko amusement balance if you have linked your card using /etanbot-koko-link-card!")
-    async def my_koko_balance(self, interaction: discord.Interaction):
+    @app_commands.describe(creditcost="Credit cost of an arcade game (e.g. 4 for a $4 game)")
+    async def my_koko_balance(self, interaction: discord.Interaction, creditcost: float = None):
         await interaction.response.defer()
         linkedkokocards = loadData("linkedkokocards")
         if linkedkokocards == "":
@@ -98,6 +99,27 @@ class KokoLinking(commands.Cog):
         if thingo == "ERROR_NET":
             await interaction.edit_original_response(content=f"An error occurred while sending request. Please try again later. (if issue persists, check the card balance manually, and if it does work, [report a bug](<{repositoryurl}>).)")
             return
+        if creditcost is not None:
+            totalbalance = 0
+            for line in thingo.splitlines():
+                print(line)
+                if line.startswith("Cash Balance:"):
+                    balance_str = line.split(":", 1)[1].strip().replace(",", "")
+                    print(balance_str[2:])
+                    try:
+                        balance = float(balance_str[2:])
+                        totalbalance += balance
+                    except ValueError:
+                        pass
+                elif line.startswith("Cash Bonus:"):
+                    balance_str = line.split(":", 1)[1].strip().replace(",", "")
+                    print(balance_str[2:])
+                    try:
+                        balance = float(balance_str[2:])
+                        totalbalance += balance
+                    except ValueError:
+                        pass
+            thingo += f"\nYou have approximately {totalbalance / creditcost:.2f} credits, if a credit is worth ${creditcost:.2f}." if creditcost > 0 else "\nInvalid credit cost provided, cannot calculate credits."
         await interaction.edit_original_response(content=thingo)
 
     @app_commands.command(name="etanbot-koko-unlink-card", description="Unlink your koko amusement card from your discord account.")
