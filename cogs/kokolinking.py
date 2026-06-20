@@ -102,10 +102,8 @@ class KokoLinking(commands.Cog):
         if creditcost is not None:
             totalbalance = 0
             for line in thingo.splitlines():
-                print(line)
                 if line.startswith("Cash Balance:"):
                     balance_str = line.split(":", 1)[1].strip().replace(",", "")
-                    print(balance_str[2:])
                     try:
                         balance = float(balance_str[2:])
                         totalbalance += balance
@@ -113,7 +111,6 @@ class KokoLinking(commands.Cog):
                         pass
                 elif line.startswith("Cash Bonus:"):
                     balance_str = line.split(":", 1)[1].strip().replace(",", "")
-                    print(balance_str[2:])
                     try:
                         balance = float(balance_str[2:])
                         totalbalance += balance
