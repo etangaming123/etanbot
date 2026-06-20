@@ -385,4 +385,10 @@ async def status(interaction: discord.Interaction):
     else:
         await interaction.edit_original_response(content=f"etanbot is not up to date. Running commit: {currentcommithash}, latest commit: {latesthash}. Please contact the developer to update the bot!")
 
+@bot.tree.command(name="etanbot-reference", description="IS THAT A [something] REFERENCE?!")
+@app_commands.describe(reference="The thing being referenced")
+async def isthatareference(interaction: discord.Interaction, reference: str):
+    await interaction.response.defer()
+    await interaction.edit_original_response(content=f"IS THAT A {reference} REFERENCE?!")
+
 bot.run(config['token'])
