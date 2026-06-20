@@ -95,3 +95,5 @@ Do note that the program has to be continuously running for the bot to work. If 
 ## License
 
 etan bot is licenced under the **[MIT License](./LICENSE "Leads you to the license for this repository").**
+
+All other assets, such as the bot profile picture and the NEEDY STREAMER OVERLOAD Task Manager, are not owned by etangaming123.
