@@ -73,7 +73,7 @@ class NSOTaskManager(commands.Cog):
 
     @app_commands.command(name="etanbot-nso-taskmanager", description="Make a NEEDY STREAMER OVERLOAD based task manager based on your mood!")
     @app_commands.describe(followers="Number of followers", stress="Stress level (0-100)", affection="Affection level (0-100)", md="MD level (0-100)")
-    async def nso_taskmanager(self, interaction: discord.Interaction, followers: app_commands.Range[0, 8000000000], stress: app_commands.Range[int, 0, 100], affection: app_commands.Range[int, 0, 100], md: app_commands.Range[int, 0, 100]):
+    async def nso_taskmanager(self, interaction: discord.Interaction, followers: app_commands.Range[int, 0, 8000000000], stress: app_commands.Range[int, 0, 100], affection: app_commands.Range[int, 0, 100], md: app_commands.Range[int, 0, 100]):
         await interaction.response.defer()
         try:
             img = generate_task_manager_image(followers, stress, affection, md)
