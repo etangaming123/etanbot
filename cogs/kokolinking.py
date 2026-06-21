@@ -11,7 +11,12 @@ from common import kokocreditdefaulturl, loadData, repositoryurl, saveData
 
 def get_koko_balance(token: str):
     try:
-        response = requests.get(f"{kokocreditdefaulturl}{token}")
+        try:
+            response = requests.get(f"{kokocreditdefaulturl}{token}")
+        except Exception as e:
+            print(f"Error sending request to koko amusement: {e}")
+            traceback.print_exc()
+            return "ERROR_NET"
         if response.status_code != 200:
             print(f"Error fetching koko balance: Received status code {response.status_code}")
             return "ERROR_NET"
