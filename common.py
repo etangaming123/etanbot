@@ -77,4 +77,4 @@ def truncateMessage(message, length):
     if len(message) <= length:
         return message
     else:
-        return message[:length-20] + f"... [{len(message)-length+20} more characters]"
+        return message[:length-19] + f"... [{len(message)-length+19} more characters]"
