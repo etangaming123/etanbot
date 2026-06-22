@@ -191,9 +191,15 @@ def cleanLink(url, toremove):
     return cleaned_link
 
 @bot.tree.command(name="etanbot-clean-link", description="Remove stinky link trackers.")
-@app_commands.describe(link="The link you want to clean.", additional="Any additional parameters to remove, separated by commas (optional).")
+@app_commands.describe(link="The link you want to clean [Valid url with http:// or https://]", additional="Any additional parameters to remove, separated by commas (optional).")
 async def clean_link(interaction: discord.Interaction, link: str, additional: str = None):
     await interaction.response.defer()
+    if not (link.startswith("http://") or link.startswith("https://")):
+        await interaction.edit_original_response(content="Please enter a valid URL that starts with http:// or https://")
+        return
+    if len(link) > 2000:
+        await interaction.edit_original_response(content="There's no way that's a real link. [Please enter a valid URL under 2000 characters.]")
+        return
     toremove = ["igsh", "si", "fbclid", "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "is", "mibextid", "gclid", "dclid", "is_from_webapp", "sender_device", "_t", "_r"] # common link trackers to remove
     if additional:
         toremove.extend(additional.split(","))
@@ -248,8 +254,12 @@ async def birthday(interaction: discord.Interaction, user: discord.User = None):
     await interaction.edit_original_response(content=random.choice(bdaystrings).replace("USER", user.mention))
 
 @bot.tree.command(name="etanbot-shexonmyytilliz", description="she [x] on my [y] till i [z]")
-@app_commands.describe(x="she does what", y="on your what", z="until you what")
+@app_commands.describe(x="she does what [100 chars]", y="on your what [100 chars]", z="until you what [100 chars]")
 async def shexonmyytilliz(interaction: discord.Interaction, x: str, y: str, z: str):
+    if len(x) > 100 or len(y) > 100 or len(z) > 100:
+        await interaction.response.defer()
+        await interaction.edit_original_response(content="Please keep each input under 100 characters.")
+        return
     await interaction.response.defer()
     await interaction.edit_original_response(content=f"she {x} on my {y} till i {z}")
 
@@ -272,7 +282,8 @@ async def predict(interaction: discord.Interaction, event: str):
         "in a few years",
         "never"
     ]
-    await interaction.edit_original_response(content=f"{event} will happen {random.choice(times)}!")
+    event = truncateMessage(event, 750)
+    await interaction.edit_original_response(content=f"Predicting when {event} will happen...\n{event} will happen {random.choice(times)}!")
 
 @bot.tree.command(name="etanbot-10d20", description="Makes a link to use Discord's built in dice roller with 10d20 (10 20-sided dice).")
 async def d20(interaction: discord.Interaction):
@@ -389,9 +400,12 @@ async def status(interaction: discord.Interaction):
         await interaction.edit_original_response(content=f"etanbot is not up to date. Running commit: {currentcommithash}, latest commit: {latesthash}. Please contact the developer to update the bot!")
 
 @bot.tree.command(name="etanbot-reference", description="IS THAT A [something] REFERENCE?!")
-@app_commands.describe(reference="The thing being referenced")
+@app_commands.describe(reference="The thing being referenced [200 character limit]")
 async def isthatareference(interaction: discord.Interaction, reference: str):
     await interaction.response.defer()
+    if len(reference) > 200:
+        await interaction.edit_original_response(content="Please keep the reference under 200 characters.")
+        return
     await interaction.edit_original_response(content=f"IS THAT A {reference} REFERENCE?!")
 
 bot.run(config['token'])
