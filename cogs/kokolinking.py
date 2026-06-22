@@ -7,7 +7,7 @@ import traceback
 import requests  # type: ignore
 from bs4 import BeautifulSoup  # type: ignore
 
-from common import kokocreditdefaulturl, loadData, repositoryurl, saveData
+from common import kokocreditdefaulturl, loadData, repositoryurl, saveData, supportserver
 
 def get_koko_balance(token: str):
     try:
@@ -78,10 +78,10 @@ class KokoLinking(commands.Cog):
         saveData("linkedkokocards", linkedkokocards)
         thingo = get_koko_balance(token)
         if thingo == "ERROR":
-            await interaction.edit_original_response(content=f"An error occurred while fetching your koko amusement balance. Please make sure your token is correct and try again later. If this error persists, please [report a bug](<{repositoryurl}>).")
+            await interaction.edit_original_response(content=f"An error occurred while fetching your koko amusement balance. Please make sure your token is correct and try again later. If this error persists, please join our [support server](<{supportserver}>) or [report a bug](<{repositoryurl}/issues>).")
             return
         if thingo == "ERROR_NET":
-            await interaction.edit_original_response(content=f"An error occurred while sending request. Please try again later. (if issue persists, check the card balance manually, and if it does work, [report a bug](<{repositoryurl}>).)")
+            await interaction.edit_original_response(content=f"An error occurred while sending request. Please try again later. (if issue persists, check the card balance manually, and if it does work, please join our [support server](<{supportserver}>) or [report a bug](<{repositoryurl}/issues>).")
             return
         await interaction.edit_original_response(content=f"Successfully linked koko amusement card! {thingo}\nYou can always rerun this command to update your card!")
 
@@ -99,10 +99,10 @@ class KokoLinking(commands.Cog):
             return
         thingo = get_koko_balance(token)
         if thingo == "ERROR":
-            await interaction.edit_original_response(content=f"An error occurred while fetching your koko amusement balance. Please make sure your token is correct and try again later. If this error persists, please [report a bug](<{repositoryurl}>).")
+            await interaction.edit_original_response(content=f"An error occurred while fetching your koko amusement balance. Please make sure your token is correct and try again later. If this error persists, please join our [support server](<{supportserver}>) or [report a bug](<{repositoryurl}/issues>).")
             return
         if thingo == "ERROR_NET":
-            await interaction.edit_original_response(content=f"An error occurred while sending request. Please try again later. (if issue persists, check the card balance manually, and if it does work, [report a bug](<{repositoryurl}>).)")
+            await interaction.edit_original_response(content=f"An error occurred while sending request. Please try again later. (if issue persists, check the card balance manually, and if it does work, please join our [support server](<{supportserver}>) or [report a bug](<{repositoryurl}/issues>).)")
             return
         if creditcost is not None:
             totalbalance = 0

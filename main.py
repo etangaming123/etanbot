@@ -76,6 +76,17 @@ async def on_ready():
     except Exception as e:
         print(f'Error syncing commands: {e}')
 
+@bot.event
+async def on_app_command_error(interaction: discord.Interaction, error):
+    print(f"Error in command {interaction.command.name if interaction.command else 'unknown'}: {error}")
+    traceback.print_exc()
+    try:
+        await interaction.response.defer()
+        await interaction.edit_original_response(content=f"An error occurred while processing your command. If trying again does not work, please join our [support server](<{supportserver}>) or [report a bug](<{repositoryurl}/issues>).")
+    except Exception as e:
+        print(f"Error sending error message: {e}")
+        traceback.print_exc()
+
 # general
 @bot.tree.command(name="etanbot-ping", description="Ping the bot")
 async def ping(interaction: discord.Interaction):
