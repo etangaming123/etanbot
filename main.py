@@ -168,7 +168,8 @@ async def pp_size(interaction: discord.Interaction, user: discord.User = None):
 @app_commands.describe(say="The thing to say.")
 async def puppet(interaction: discord.Interaction, say: str):
     await interaction.response.defer()
-    await interaction.edit_original_response(content=truncateMessage(say, 2000))
+    realthing = truncateMessage(say, 2000)
+    await interaction.edit_original_response(content=realthing)
 
 @bot.tree.command(name="etanbot-coinflip", description="Flip a coin!")
 async def coinflip(interaction: discord.Interaction):
