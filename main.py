@@ -336,8 +336,9 @@ def checkValidMBTI(mbti):
         return False
     if mbti[3] not in "JP":
         return False
-    if mbti[5] not in "AT" and len(mbti) == 6:
-        return False
+    if len(mbti) != 4:
+        if mbti[5] not in "AT":
+            return False
     return True
 
 @bot.tree.command(name="etanbot-mbti", description="Lookup an mbti type/acronym! (ENTP, INTP, INTJ-T, ISFJ-A, etc.)")
