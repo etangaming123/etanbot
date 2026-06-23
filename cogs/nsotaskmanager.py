@@ -52,6 +52,8 @@ def generate_task_manager_image(followers, stress, affection, md):
     }
 
     def draw_fill_bar(bounds, value):
+        if value <= 0:
+            return  # Don't draw anything for 0 or negative values
         x1, y1, x2, y2 = bounds
         bar_height = y2 - y1
         fill_height = max(1, int(bar_height * max(0, min(value, 100)) / 100))
