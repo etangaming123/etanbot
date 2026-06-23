@@ -47,6 +47,11 @@ def generate_task_manager_image(followers, stress, affection, md):
     else:
         draw.multiline_text(positions["MD"], str(md), fill=(77, 33, 203), font=font, align="right")
 
+    if affection <= 20:
+        draw.multiline_text((75, 210), str(affection), fill=(216, 72, 85), font=font, align="right")
+    else:
+        draw.multiline_text((75, 210), str(affection), fill=(77, 33, 203), font=font, align="right")
+
     # Define the three stat bars on the right side of the template
     bar_positions = {
         "Stress": (228, 115, 350, 167),
