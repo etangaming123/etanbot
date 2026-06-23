@@ -1,6 +1,6 @@
 # etanbot
 
-Funny Discord bot that can be added to your account and used anywhere within Discord.
+Funny Open Source Discord bot that can be added to your account and used anywhere within Discord. Has various commands, from fun, to utility, to cosmetic.
 
 [Website](https://etanbot.etangaming.xyz/ "etanbot website") • [Terms of Service](https://etanbot.etangaming.xyz/termsofservice.html "etanbot terms of service") • [Privacy Policy](https://etanbot.etangaming.xyz/privacypolicy.html "etanbot privacy policy")
 
@@ -29,6 +29,7 @@ These are fun commands and should not be taken seriously.
 * Prediction (predicting when something will happen)
 * Lie detector
 * Tonetag searcher
+* MBTI
 
 ### Useful
 
@@ -42,12 +43,21 @@ Various utility commands.
 If you want to spice up your Discord experience, kinda!
 
 * Built in profiles (for fun!)
+* NEEDY STREAMER OVERLOAD Task Manager generator
+
+## Screenshots/Showcase
+
+![NEEDY STREAMER OVERLOAD Task Manager Generator](./images/preview_nsotm.png)
+
+![MBTI Personality search](./images/preview_mbti.png)
+
+![Profiles](./images/preview_profiles.png)
 
 ## Quickstart
 
 Open [this link](https://discord.com/oauth2/authorize?client_id=1505906056222605352 "Add etan bot to your Discord account") to authorise the official instance of etan bot with your Discord account, and you're all good to go! You will be able to use commands in servers and in DMs with other people (if the bot is online).
 
-Do note that if you lack the "External Apps" permission in servers, you will be able to use etanbot's commands, however they will only be visible to you.
+Do note that if you lack the "External Apps" permission in servers, you will still be able to use etanbot's commands, however they will only be visible to you.
 
 ## Selfhosting
 
