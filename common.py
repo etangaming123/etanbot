@@ -12,7 +12,7 @@ inviteurl = "https://discord.com/oauth2/authorize?client_id=1505906056222605352"
 supportserver = "https://etanbot.etangaming.xyz/supportserver.html"
 website = "https://etanbot.etangaming.xyz"
 
-datastores = ["linkedkokocards", "profiles"]
+datastores = ["linkedkokocards", "profiles", "gifs"]
 datastoresbuttheseonesarelists = []
 
 cooldowns = {}
@@ -86,7 +86,7 @@ def truncateMessage(message, length):
         return message[:length-30] + f"... [{len(message)-length+30} more characters]"
 
 def checkIfCooldown(userid: int, commandname: str): # Don't like cooldowns? If running a selfhosted instance, just make this return -1! Simple as that!
-    if poweruserid != None and userid == poweruserid:
+    if poweruserid != None and userid == int(poweruserid):
         return -1 # no cooldown for power user
     if not userid in cooldowns:
         cooldowns[userid] = {}
@@ -99,7 +99,7 @@ def checkIfCooldown(userid: int, commandname: str): # Don't like cooldowns? If r
         return -1
 
 def setCooldown(userid: int, commandname: str, cooldowntime: int):
-    if poweruserid != None and userid == poweruserid:
+    if poweruserid != None and userid == int(poweruserid):
         return # no cooldown for power user
     if not userid in cooldowns:
         cooldowns[userid] = {}
