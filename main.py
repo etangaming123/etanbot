@@ -86,6 +86,11 @@ async def ping(interaction: discord.Interaction):
 @bot.tree.command(name="etanbot-who-am-i", description="Information about the bot!")
 async def whoami(interaction: discord.Interaction):
     await interaction.response.defer()
+    cooldown = checkIfCooldown(interaction.user.id, "whoami")
+    if cooldown != -1:
+        await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>")
+        return
+    setCooldown(interaction.user.id, "whoami", 10)
     embed = discord.Embed(title="etanbot info", description="funny discord bot", color=0x8649D7)
     embed.add_field(name="Description", value=f"Funny Discord bot that can be added to your account and used anywhere within Discord.", inline=False)
     embed.add_field(name="Features", value="Various commands - link cleaner, 8ball, coinflip, random number generator, built-in profiles, (unofficial) KOKO Amusement card linking, with more to come.", inline=False)
@@ -156,6 +161,11 @@ async def pizoelectric(interaction: discord.Interaction, thing: str = None, some
 @app_commands.describe(user="Whose pp size do you want to check? (defaults to yourself)")
 async def pp_size(interaction: discord.Interaction, user: discord.User = None):
     await interaction.response.defer()
+    cooldown = checkIfCooldown(interaction.user.id, "pp_size")
+    if cooldown != -1:
+        await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>, or when the bot restarts, whichever comes first.\nHave fun.")
+        return
+    setCooldown(interaction.user.id, "pp_size", 9999999999999999999) # LMFAO
     if user is None:
         user = interaction.user
     if str(user.id) == config["poweruserid"]:
@@ -420,6 +430,11 @@ async def mbti(interaction: discord.Interaction, mbti: str):
 @bot.tree.command(name="etanbot-status", description="Are we running the latest commit?")
 async def status(interaction: discord.Interaction):
     await interaction.response.defer()
+    cooldown = checkIfCooldown(interaction.user.id, "status")
+    if cooldown != -1:
+        await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>")
+        return
+    setCooldown(interaction.user.id, "status", 10)
     latesthash = getLatestCommitHash()
     if latesthash == currentcommithash:
         await interaction.edit_original_response(content=f"etanbot is up to date! Running commit: {currentcommithash}")
