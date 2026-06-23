@@ -165,7 +165,7 @@ async def pp_size(interaction: discord.Interaction, user: discord.User = None):
     if cooldown != -1:
         await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>, or when the bot restarts, whichever comes first.\nHave fun.")
         return
-    setCooldown(interaction.user.id, "pp_size", 9999999999999999999) # LMFAO
+    setCooldown(interaction.user.id, "pp_size", 22941904104) # LMFAO
     if user is None:
         user = interaction.user
     if str(user.id) == config["poweruserid"]:
