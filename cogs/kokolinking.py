@@ -7,7 +7,7 @@ import traceback
 import requests  # type: ignore
 from bs4 import BeautifulSoup  # type: ignore
 
-from common import kokocreditdefaulturl, loadData, repositoryurl, saveData, supportserver
+from common import kokocreditdefaulturl, loadData, repositoryurl, saveData, supportserver, checkIfCooldown, setCooldown
 
 def get_koko_balance(token: str):
     try:
@@ -55,6 +55,11 @@ class KokoLinking(commands.Cog):
     @app_commands.command(name="etanbot-koko-help", description="Need help on linking your Koko Amusement card?")
     async def koko_help(self, interaction: discord.Interaction):
         await interaction.response.defer()
+        cooldown = checkIfCooldown(interaction.user.id, "koko_help")
+        if cooldown != -1:
+            await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>")
+            return
+        setCooldown(interaction.user.id, "koko_help", 10)
         things = [
             "To link your Koko Amusement card, you need to get your token from the Koko Amusement website. Here's how you can do it:",
             "1. Scan the QR code on the back of your Koko Amusement card using your phone.",
@@ -70,6 +75,11 @@ class KokoLinking(commands.Cog):
     @app_commands.describe(token="/BalanceMobile.aspx?i=[this set of characters]")
     async def link_card(self, interaction: discord.Interaction, token: str):
         await interaction.response.defer(ephemeral=True)
+        cooldown = checkIfCooldown(interaction.user.id, "link_card")
+        if cooldown != -1:
+            await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>")
+            return
+        setCooldown(interaction.user.id, "link_card", 15)
         linkedkokocards = loadData("linkedkokocards")
         if linkedkokocards == "":
             await interaction.edit_original_response(content="An error occurred while accessing the database. Please try again later.")
@@ -89,6 +99,11 @@ class KokoLinking(commands.Cog):
     @app_commands.describe(creditcost="Credit cost of an arcade game (e.g. 4 for a $4 game)")
     async def my_koko_balance(self, interaction: discord.Interaction, creditcost: float = None):
         await interaction.response.defer()
+        cooldown = checkIfCooldown(interaction.user.id, "my_koko_balance")
+        if cooldown != -1:
+            await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>")
+            return
+        setCooldown(interaction.user.id, "my_koko_balance", 15)
         linkedkokocards = loadData("linkedkokocards")
         if linkedkokocards == "":
             await interaction.edit_original_response(content="An error occurred while accessing the database. Please try again later.")

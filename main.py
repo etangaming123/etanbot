@@ -1,3 +1,4 @@
+import time
 import discord # type: ignore
 from discord.ext import commands # type: ignore
 from discord import app_commands # type: ignore
@@ -8,7 +9,7 @@ import random
 import requests # type: ignore
 import re
 
-from common import developergithub, ensure_datastores, loadData, repositoryurl, saveData, formatUsername, getDisplay, truncateMessage, inviteurl, supportserver, website
+from common import developergithub, ensure_datastores, loadData, repositoryurl, saveData, formatUsername, getDisplay, truncateMessage, inviteurl, supportserver, website, checkIfCooldown, setCooldown
 
 intents = discord.Intents.default()
 ensure_datastores()
@@ -71,7 +72,7 @@ async def on_ready():
     try:
         synced = await bot.tree.sync()
         print(f'Synced {len(synced)} command(s)')
-        await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="commands | etanbot.etangaming.xyz"))
+        await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.playing, name="etanbot.etangaming.xyz | /etanbot-who-am-i"))
         print("Changed presence")
     except Exception as e:
         print(f'Error syncing commands: {e}')
@@ -168,8 +169,26 @@ async def pp_size(interaction: discord.Interaction, user: discord.User = None):
 @app_commands.describe(say="The thing to say.")
 async def puppet(interaction: discord.Interaction, say: str):
     await interaction.response.defer()
+    cooldown = checkIfCooldown(interaction.user.id, "puppet")
+    if cooldown != -1:
+        await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>")
+        return
     realthing = truncateMessage(say, 2000)
     await interaction.edit_original_response(content=realthing)
+    setCooldown(interaction.user.id, "puppet", 10)
+
+@bot.tree.command(name="etanbot-puppet-v2", description="Make the bot say something, but better (kinda)")
+@app_commands.describe(say="<nl> gets replaced with a new line")
+async def puppet(interaction: discord.Interaction, say: str):
+    await interaction.response.defer()
+    say = say.replace("<nl>", "\n")
+    cooldown = checkIfCooldown(interaction.user.id, "puppet")
+    if cooldown != -1:
+        await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>")
+        return
+    realthing = truncateMessage(say, 2000)
+    await interaction.edit_original_response(content=realthing)
+    setCooldown(interaction.user.id, "puppet", 10)
 
 @bot.tree.command(name="etanbot-coinflip", description="Flip a coin!")
 async def coinflip(interaction: discord.Interaction):
@@ -194,18 +213,25 @@ def cleanLink(url, toremove):
 @app_commands.describe(link="The link you want to clean [Valid url with http:// or https://]", additional="Any additional parameters to remove, separated by commas (optional).")
 async def clean_link(interaction: discord.Interaction, link: str, additional: str = None):
     await interaction.response.defer()
+    cooldown = checkIfCooldown(interaction.user.id, "clean_link")
+    if cooldown != -1:
+        await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>")
+        return
+    setCooldown(interaction.user.id, "clean_link", 5)
     if not (link.startswith("http://") or link.startswith("https://")):
         await interaction.edit_original_response(content="Please enter a valid URL that starts with http:// or https://")
         return
     if len(link) > 2000:
         await interaction.edit_original_response(content="There's no way that's a real link. [Please enter a valid URL under 2000 characters.]")
         return
-    toremove = ["igsh", "si", "fbclid", "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "is", "mibextid", "gclid", "dclid", "is_from_webapp", "sender_device", "_t", "_r"] # common link trackers to remove
+    toremove = ["igsh", "si", "fbclid", "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "is", "mibextid", "gclid", "dclid", "is_from_webapp", "sender_device", "_t", "_r", "t"] # common link trackers to remove
     if additional:
         toremove.extend(additional.split(","))
     cleaned_link = cleanLink(link, toremove)
+
     if "tiktok.com" in cleaned_link and "vt.tiktok.com" not in cleaned_link: # Fuck you tiktok, we're removing ALL your parameters
         cleaned_link = cleanLink(link, "*")
+    
     if "vt.tiktok" in cleaned_link: # wow tiktok that's slack
         await interaction.edit_original_response(content=f"URL seems to have embedded trackers, just a sec...")
         try:
@@ -232,6 +258,7 @@ async def random_number(interaction: discord.Interaction, minimum: int, maximum:
     await interaction.edit_original_response(content=f"Your random number between {minimum} and {maximum} is: {number}")
 
 @bot.tree.command(name="etanbot-birthday", description="Whose birthday is it?")
+@app_commands.describe(user="The user whose birthday it is (defaults to yourself).")
 async def birthday(interaction: discord.Interaction, user: discord.User = None):
     await interaction.response.defer()
     bdaystrings = [

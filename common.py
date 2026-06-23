@@ -3,6 +3,7 @@ import os
 import pickle
 import traceback
 import discord
+import time
 
 kokocreditdefaulturl = "https://estore.kokoamusement.com.au/BalanceMobile/BalanceMobile.aspx?i="
 repositoryurl = "https://github.com/etangaming123/etanbot"
@@ -13,6 +14,8 @@ website = "https://etanbot.etangaming.xyz"
 
 datastores = ["linkedkokocards", "profiles"]
 datastoresbuttheseonesarelists = []
+
+cooldowns = {}
 
 def ensure_datastores():
     for item in datastores:
@@ -61,6 +64,9 @@ def loadData(store: str):
         traceback.print_exc()
         return ""
 
+config = loadData("config")
+poweruserid = config["poweruserid"] # to bypass cooldowns if you're cool B)
+
 def formatUsername(user: discord.User): # Fancy formatting for usernames // displayname (@username)
     if user.display_name == None:
         return f"{user.name}"
@@ -78,3 +84,23 @@ def truncateMessage(message, length):
         return message
     else:
         return message[:length-30] + f"... [{len(message)-length+30} more characters]"
+
+def checkIfCooldown(userid: int, commandname: str): # Don't like cooldowns? If running a selfhosted instance, just make this return -1! Simple as that!
+    if poweruserid != None and userid == poweruserid:
+        return -1 # no cooldown for power user
+    if not userid in cooldowns:
+        cooldowns[userid] = {}
+    if not commandname in cooldowns[userid]:
+        return -1
+    if time.time() < cooldowns[userid][commandname]:
+        return round(cooldowns[userid][commandname]) # return timestamp of when they can use command again
+    else:
+        del cooldowns[userid][commandname] # remove cooldown since it's expired
+        return -1
+
+def setCooldown(userid: int, commandname: str, cooldowntime: int):
+    if poweruserid != None and userid == poweruserid:
+        return # no cooldown for power user
+    if not userid in cooldowns:
+        cooldowns[userid] = {}
+    cooldowns[userid][commandname] = round(time.time() + cooldowntime)

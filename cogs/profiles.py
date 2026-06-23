@@ -4,7 +4,7 @@ from discord.ext import commands  # type: ignore
 import re
 import traceback
 
-from common import loadData, saveData, formatUsername
+from common import checkIfCooldown, loadData, saveData, setCooldown, checkIfCooldown, formatUsername
 
 class ProfileEditModal(discord.ui.Modal, title="Edit Your Profile"):
     def __init__(self, profile):
@@ -78,6 +78,11 @@ class Profiles(commands.Cog):
     @app_commands.command(name="etanbot-profile-edit", description="Edit your profile's bio!")
     async def editprofile(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
+        cooldown = checkIfCooldown(interaction.user.id, "editprofile")
+        if cooldown != -1:
+            await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>")
+            return
+        setCooldown(interaction.user.id, "editprofile", 10)
         profiles = loadData("profiles")
         if str(interaction.user.id) not in profiles.keys():
             await interaction.edit_original_response(content=f"You don't have a profile yet! Use /etanbot-profile-create to create one.")
@@ -102,6 +107,11 @@ class Profiles(commands.Cog):
     @app_commands.describe(color="The hex code of the color you want to set for your profile embed (no #, default is green)")
     async def changeprofilecolor(self, interaction: discord.Interaction, color: str):
         await interaction.response.defer(ephemeral=True)
+        cooldown = checkIfCooldown(interaction.user.id, "changeprofilecolor")
+        if cooldown != -1:
+            await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>")
+            return
+        setCooldown(interaction.user.id, "changeprofilecolor", 10)
         profiles = loadData("profiles")
         if str(interaction.user.id) not in profiles.keys():
             await interaction.edit_original_response(content=f"You don't have a profile yet! Use /etanbot-profile-create to create one.")
@@ -127,6 +137,11 @@ class Profiles(commands.Cog):
     ])
     async def addprofilelink(self, interaction: discord.Interaction, platform: discord.app_commands.Choice[str], username: str):
         await interaction.response.defer(ephemeral=True)
+        cooldown = checkIfCooldown(interaction.user.id, "addprofilelink")
+        if cooldown != -1:
+            await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>")
+            return
+        setCooldown(interaction.user.id, "addprofilelink", 10)
         profiles = loadData("profiles")
         if str(interaction.user.id) not in profiles.keys():
             await interaction.edit_original_response(content=f"You don't have a profile yet! Use /etanbot-profile-create to create one.")
@@ -150,6 +165,11 @@ class Profiles(commands.Cog):
     ])
     async def removeprofilelink(self, interaction: discord.Interaction, platform: discord.app_commands.Choice[str]):
         await interaction.response.defer(ephemeral=True)
+        cooldown = checkIfCooldown(interaction.user.id, "removeprofilelink")
+        if cooldown != -1:
+            await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>")
+            return
+        setCooldown(interaction.user.id, "removeprofilelink", 10)
         profiles = loadData("profiles")
         if str(interaction.user.id) not in profiles.keys():
             await interaction.edit_original_response(content=f"You don't have a profile yet! Use /etanbot-profile-create to create one.")

@@ -7,6 +7,9 @@ from discord import app_commands  # type: ignore
 from discord.ext import commands  # type: ignore
 import re
 import traceback
+import time
+
+from common import setCooldown, checkIfCooldown
 
 def parent_dir(path, levels=1):
     for _ in range(levels):
@@ -77,6 +80,11 @@ class NSOTaskManager(commands.Cog):
     @app_commands.describe(followers="Number of followers", stress="Stress level (0-100)", affection="Affection level (0-100)", md="MD level (0-100)")
     async def nso_taskmanager(self, interaction: discord.Interaction, followers: app_commands.Range[int, 0, 999999999], stress: app_commands.Range[int, 0, 100], affection: app_commands.Range[int, 0, 100], md: app_commands.Range[int, 0, 100]):
         await interaction.response.defer()
+        cooldown = checkIfCooldown(interaction.user.id, "nso_taskmanager")
+        if cooldown != -1:
+            await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>")
+            return
+        setCooldown(interaction.user.id, "nso_taskmanager", 10)
         try:
             img = generate_task_manager_image(followers, stress, affection, md)
             with BytesIO() as image_binary:
