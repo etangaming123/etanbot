@@ -5,7 +5,10 @@ import traceback
 
 from common import loadData, saveData, formatUsername, checkIfCooldown, setCooldown, poweruserid
 
+gifs = loadData("gifs")
+
 class Gifs(commands.Cog):
+    global gifs
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
@@ -48,7 +51,13 @@ class Gifs(commands.Cog):
         gifs = loadData("gifs")
         if len(gifs.keys()) == 0:
             return ["No gifs found!"]
-        return [app_commands.Choice(name=key, value=key) for key in gifs.keys() if current.lower() in key.lower()][:25]
+        return [app_commands.Choice(name=key, value=key) for key in sorted(gifs.keys()) if current.lower() in key.lower()][:25]
+
+    @app_commands.command(name="z-admin-gif-refresh", description="Refreshes the gif collection from the data file.")
+    async def refresh_gifs(self, interaction: discord.Interaction):
+        global gifs
+        gifs = loadData("gifs")
+        await interaction.response.send_message("Gif collection refreshed!", ephemeral=True)
 
     @app_commands.command(name="etanbot-gif", description="Send a gif from the shared collection!")
     @app_commands.describe(name="The name of the gif you want to view.")
@@ -59,7 +68,6 @@ class Gifs(commands.Cog):
             await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>.")
             return
         setCooldown(interaction.user.id, "view_gif", 10)
-        gifs = loadData("gifs")
         if name not in gifs.keys():
             await interaction.edit_original_response(content=f"No gif found with that name!")
             return
@@ -67,10 +75,9 @@ class Gifs(commands.Cog):
     
     @view_gif.autocomplete("name")
     async def view_gif_autocomplete(self, interaction: discord.Interaction, current: str):
-        gifs = loadData("gifs")
         if len(gifs.keys()) == 0:
             return ["No gifs found!"]
-        return [app_commands.Choice(name=key, value=key) for key in gifs.keys() if current.lower() in key.lower()][:25]
+        return [app_commands.Choice(name=key, value=key) for key in sorted(gifs.keys()) if current.lower() in key.lower()][:25]
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Gifs(bot))
