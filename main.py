@@ -243,7 +243,7 @@ async def clean_link(interaction: discord.Interaction, link: str, additional: st
     if "tiktok.com" in cleaned_link and "vt.tiktok.com" not in cleaned_link: # Fuck you tiktok, we're removing ALL your parameters
         cleaned_link = cleanLink(link, "*")
     
-    if "vt.tiktok" in cleaned_link: # wow tiktok that's slack
+    if "https://vt.tiktok" in cleaned_link[:17]: # wow tiktok that's slack
         await interaction.edit_original_response(content=f"vt.tiktok links redirect you to a URL with trackers! Please wait as we get the real URL and clean that...")
         try:
             response = requests.get(cleaned_link) # make a request to the link to get the final URL after tiktok's trackers redirect it
@@ -304,7 +304,7 @@ async def clean_link_v2(interaction: discord.Interaction, link: str, whitelist: 
 
     cleaned_link = cleanLinkV2(link, whitelist_list)
 
-    if "vt.tiktok" in cleaned_link: # wow tiktok that's slack
+    if "https://vt.tiktok" in cleaned_link[:17]: # wow tiktok that's slack
         await interaction.edit_original_response(content=f"vt.tiktok links redirect you to a URL with trackers! Please wait as we get the real URL and clean that...")
         try:
             response = requests.get(cleaned_link) # make a request to the link to get the final URL after tiktok's trackers redirect it
