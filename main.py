@@ -94,7 +94,7 @@ async def whoami(interaction: discord.Interaction):
     setCooldown(interaction.user.id, "whoami", 10)
     embed = discord.Embed(title="etanbot info", description="funny discord bot", color=0x8649D7)
     embed.add_field(name="Description", value=f"Funny Discord bot that can be added to your account and used anywhere within Discord.", inline=False)
-    embed.add_field(name="Features", value="Various commands - link cleaner, 8ball, coinflip, random number generator, built-in profiles, (unofficial) KOKO Amusement card linking, with more to come.", inline=False)
+    embed.add_field(name="Features", value="Various commands - link cleaner, MBTI personality type lookup, tonetag lookup, NEEDY STREAMER OVERLOAD Task Manager Generator, with more to come.", inline=False)
     embed.add_field(name="Links", value=f"[webpage]({website}) • [terms of service]({website}/termsofservice.html) • [privacy policy]({website}/privacypolicy.html) • [add to discord]({inviteurl}) • [support server]({supportserver})", inline=False)
     embed.add_field(name="Commit", value=currentcommithash, inline=True)
     embed.add_field(name="Developer", value=f"[etangaming123]({developergithub})", inline=True)
