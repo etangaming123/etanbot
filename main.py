@@ -244,13 +244,13 @@ async def clean_link(interaction: discord.Interaction, link: str, additional: st
         cleaned_link = cleanLink(link, "*")
     
     if "vt.tiktok" in cleaned_link: # wow tiktok that's slack
-        await interaction.edit_original_response(content=f"URL seems to have embedded trackers, just a sec...")
+        await interaction.edit_original_response(content=f"vt.tiktok links redirect you to a URL with trackers! Please wait as we get the real URL and clean that...")
         try:
             response = requests.get(cleaned_link) # make a request to the link to get the final URL after tiktok's trackers redirect it
             if response.status_code != 200:
                 await interaction.edit_original_response(content=f"Couldn't get real video link - status code {response.status_code}.")
             actuallink = response.url
-            cleaned_link = cleanLink(actuallink, toremove)
+            cleaned_link = cleanLink(actuallink, "*")
             await interaction.edit_original_response(content=f"We are using a different method to remove trackers from this link, as this tiktok link has embedded trackers: {cleaned_link}")
             return
         except Exception:
@@ -258,6 +258,68 @@ async def clean_link(interaction: discord.Interaction, link: str, additional: st
             await interaction.edit_original_response(content="Something went wrong whilst trying to remove trackers. (Check your URL!)")
             return
     await interaction.edit_original_response(content=f"Removed stinky link trackers: {cleaned_link}")
+
+def cleanLinkV2(url, whitelist):
+    if whitelist is None or len(whitelist) == 0:
+        if "?" not in url:
+            return url.split("&")[0]  # If no parameters, just return the base URL (Tiktok is known to use & instead of ? for their parameters sometimes, so we check for both and split by the one that exists)
+        return url.split("?")[0]  # If no whitelist is provided, remove all parameters
+    if "?" not in url:
+        return url
+    base_url, query_string = url.split("?", 1)
+    params = query_string.split("&")
+    cleaned_params = []
+    for param in params:
+        key = param.split("=")[0]
+        if key in whitelist:
+            cleaned_params.append(param)
+    if cleaned_params:
+        return f"{base_url}?{'&'.join(cleaned_params)}"
+    else:
+        return base_url
+
+@bot.tree.command(name="etanbot-clean-link-v2", description="Remove even more link trackers. May break some links.")
+@app_commands.describe(link="The link you want to clean [Valid url with http:// or https://]", whitelist="Any parameters you want to keep, separated by commas (optional). (overrides default whitelist)")
+async def clean_link_v2(interaction: discord.Interaction, link: str, whitelist: str = None):
+    await interaction.response.defer()
+    cooldown = checkIfCooldown(interaction.user.id, "clean_link_v2")
+    if cooldown != -1:
+        await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>")
+        return
+    setCooldown(interaction.user.id, "clean_link_v2", 5)
+    if not (link.startswith("http://") or link.startswith("https://")):
+        await interaction.edit_original_response(content="Please enter a valid URL that starts with http:// or https://")
+        return
+    if len(link) > 2000:
+        await interaction.edit_original_response(content="There's no way that's a real link. [Please enter a valid URL under 2000 characters.]")
+        return
+    defaultwhitelist = []
+    whitelist_list = whitelist.split(",") if whitelist else defaultwhitelist
+    if "steamcommunity.com" in link:
+        whitelist_list.append("id") # id for sharedfiles
+    if "youtube.com" in link or "youtu.be" in link:
+        whitelist_list.append("v") # video id
+        whitelist_list.append("t") # timestamp
+        whitelist_list.append("list") # playlist
+
+    cleaned_link = cleanLinkV2(link, whitelist_list)
+
+    if "vt.tiktok" in cleaned_link: # wow tiktok that's slack
+        await interaction.edit_original_response(content=f"vt.tiktok links redirect you to a URL with trackers! Please wait as we get the real URL and clean that...")
+        try:
+            response = requests.get(cleaned_link) # make a request to the link to get the final URL after tiktok's trackers redirect it
+            if response.status_code != 200:
+                await interaction.edit_original_response(content=f"Couldn't get real video link - status code {response.status_code}.")
+            actuallink = response.url
+            cleaned_link = cleanLink(actuallink, "*")
+            await interaction.edit_original_response(content=f"We are using a different method to remove trackers from this link, as this tiktok link has embedded trackers: {cleaned_link}")
+            return
+        except Exception:
+            traceback.print_exc()
+            await interaction.edit_original_response(content="Something went wrong whilst trying to remove trackers. (Check your URL!)")
+            return
+
+    await interaction.edit_original_response(content=f"Removed a BUNCH of query parameters: {cleaned_link}")
 
 @bot.tree.command(name="etanbot-randomnumber", description="Generate a random number between a specified range.")
 @app_commands.describe(minimum="The minimum number (inclusive).", maximum="The maximum number (inclusive).")

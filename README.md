@@ -4,7 +4,7 @@ Funny Open Source Discord bot that can be added to your account and used anywher
 
 [Website](https://etanbot.etangaming.xyz/ "etanbot website") • [Terms of Service](https://etanbot.etangaming.xyz/termsofservice.html "etanbot terms of service") • [Privacy Policy](https://etanbot.etangaming.xyz/privacypolicy.html "etanbot privacy policy")
 
-[Add to your Discord](https://discord.com/oauth2/authorize?client_id=1505906056222605352 "Add etan bot to your Discord account")
+[Add to your Discord](https://discord.com/oauth2/authorize?client_id=1505906056222605352 "Add etan bot to your Discord account") • [Discord Discovery Page](https://discord.com/discovery/applications/1505906056222605352 "etan bot's Discord Discovery Page")
 
 > [!NOTE]
 > Uptime of this bot is flaky.
@@ -29,7 +29,7 @@ These are fun commands and should not be taken seriously.
 * Prediction (predicting when something will happen)
 * Lie detector
 * Tonetag searcher
-* MBTI
+* MBTI personality lookup
 
 ### Useful
 
@@ -44,6 +44,7 @@ If you want to spice up your Discord experience, kinda!
 
 * Built in profiles (for fun!)
 * NEEDY STREAMER OVERLOAD Task Manager generator
+* Preset GIFS to choose from
 
 ## Screenshots/Showcase
 
@@ -67,6 +68,11 @@ Do note that if you lack the "External Apps" permission in servers, you will sti
 * Python (3.0 or above)
 * The required Python libraries in `requirements.txt`
 
+The following are optional, but recommended:
+
+* A device capable of running the Python program for a while (if you plan on leaving the bot online most of the time)
+*  
+
 ### Discord Bot
 
 1. Log on to the [Discord Developer Portal](https://discord.com/developers/applications "Leads you to the Discord Developer Portal").
@@ -75,6 +81,13 @@ Do note that if you lack the "External Apps" permission in servers, you will sti
 4. Under the Overview tab, click on "Bot", and reset the bot's token. Copy the new token and keep it somewhere, you'll need it later.
 5. Go to the Installation tab, and make sure the installation context is set to "User Install". Select "Discord Provided Link" for the Install link, then copy the generated URL.
 6. Paste the url into your favourite browser, and add the bot to your account.
+
+Optional steps, for if you wish to add your bot to servers: 
+
+1. If you wish to add your bot to servers, go to the Installation tab, and select "Guild Install" as well.
+2. Under "Default Install Settings", select "bot" from "Guild Install" (in the Scopes tab).
+3. Re-open the Discord Provided Link - there should be an "Add to server" option.
+4. You can now add your bot to servers. 
 
 ### Python Code
 
