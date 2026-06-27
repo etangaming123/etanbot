@@ -77,7 +77,6 @@ class Profiles(commands.Cog):
 
     @app_commands.command(name="etanbot-profile-edit", description="Edit your profile's bio!")
     async def editprofile(self, interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=True)
         cooldown = checkIfCooldown(interaction.user.id, "editprofile")
         if cooldown != -1:
             await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>")
@@ -85,7 +84,7 @@ class Profiles(commands.Cog):
         setCooldown(interaction.user.id, "editprofile", 10)
         profiles = loadData("profiles")
         if str(interaction.user.id) not in profiles.keys():
-            await interaction.edit_original_response(content=f"You don't have a profile yet! Use /etanbot-profile-create to create one.")
+            await interaction.response.send_message(content=f"You don't have a profile yet! Use /etanbot-profile-create to create one.", ephemeral=True)
             return
         profile = profiles[str(interaction.user.id)]
         await interaction.response.send_modal(ProfileEditModal(profile))
