@@ -37,6 +37,7 @@ Various utility commands.
 
 * Link cleaner (removes *most* url trackers within links)
 * (unnofficial) Linkage with Koko Amusement Cards (so you can see how much credit you have left, from the comfort of Discord)
+* Calculator and unit conversion (cm to inches, kg to pounds, etc.)
 
 ### Cosmetic
 
@@ -71,7 +72,6 @@ Do note that if you lack the "External Apps" permission in servers, you will sti
 The following are optional, but recommended:
 
 * A device capable of running the Python program for a while (if you plan on leaving the bot online most of the time)
-*  
 
 ### Discord Bot
 
@@ -82,12 +82,12 @@ The following are optional, but recommended:
 5. Go to the Installation tab, and make sure the installation context is set to "User Install". Select "Discord Provided Link" for the Install link, then copy the generated URL.
 6. Paste the url into your favourite browser, and add the bot to your account.
 
-Optional steps, for if you wish to add your bot to servers: 
+Optional steps, for if you wish to add your bot to servers:
 
 1. If you wish to add your bot to servers, go to the Installation tab, and select "Guild Install" as well.
 2. Under "Default Install Settings", select "bot" from "Guild Install" (in the Scopes tab).
 3. Re-open the Discord Provided Link - there should be an "Add to server" option.
-4. You can now add your bot to servers. 
+4. You can now add your bot to servers.
 
 ### Python Code
 

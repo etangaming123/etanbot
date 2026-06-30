@@ -62,6 +62,7 @@ class etanBot(commands.Bot):
         await self.load_extension("cogs.profiles")
         await self.load_extension("cogs.nsotaskmanager")
         await self.load_extension("cogs.gifs")
+        await self.load_extension("cogs.math")
 
 bot = etanBot(command_prefix='!', intents=intents)
 bot.tree.allowed_installs = app_commands.AppInstallationType(guild=True, user=True)
