@@ -383,7 +383,7 @@ async def predict(interaction: discord.Interaction, event: str):
         "never"
     ]
     event = truncateMessage(event, 750)
-    await interaction.edit_original_response(content=f"Predicting when {event} will happen...\n{event} will happen {random.choice(times)}!")
+    await interaction.edit_original_response(content=f"Predicting when \"{event}\" will happen...\n\"{event}\" will happen {random.choice(times)}!")
 
 @bot.tree.command(name="etanbot-10d20", description="Makes a link to use Discord's built in dice roller with 10d20 (10 20-sided dice).")
 async def d20(interaction: discord.Interaction):
