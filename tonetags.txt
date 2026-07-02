@@ -50,7 +50,6 @@
 /neg	negative connotation
 /neu	neutral connotation
 /nf	not fake, or not forced
-/nfl or	not flirting
 /nm	not mad
 /nmay	not mad at you, to specify that someone isnt mad at someone else
 /npa	not passive aggressive
@@ -69,6 +68,7 @@
 /q	quote
 /qp	queerplatonic
 /r	romantic
+/ref	reference (a reference to something)
 /rh	rhetorical question
 /rt	rhetorical question
 /s	sarcastic / sarcastically
