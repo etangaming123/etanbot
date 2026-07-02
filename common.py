@@ -50,8 +50,8 @@ def saveData(store: str, newdata: dict):
             json.dump(newdata, file)
         os.remove(f"{store}_backup.json")
         return True
-    except Exception:
-        traceback.print_exc()
+    except Exception as e:
+        print(f"Error saving data, restoring backup: {e}")
         with open(f"{store}.json", "w") as file:
             json.dump(backup, file)
         return False
@@ -60,8 +60,8 @@ def loadData(store: str):
     try:
         with open(f"{store}.json", "r") as file:
             return json.load(file)
-    except Exception:
-        traceback.print_exc()
+    except Exception as e:
+        print(f"Error loading data: {e}")
         return ""
 
 config = loadData("config")

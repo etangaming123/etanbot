@@ -98,7 +98,6 @@ class NSOTaskManager(commands.Cog):
                 await interaction.followup.send(file=discord.File(fp=image_binary, filename='taskmanager.png'))
         except Exception as e:
             print(f"Error generating task manager image: {e}")
-            traceback.print_exc()
             await interaction.followup.send("Something went wrong while generating your task manager image.")
 
 async def setup(bot: commands.Bot):

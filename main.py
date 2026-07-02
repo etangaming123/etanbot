@@ -1,12 +1,12 @@
 import time
-import discord # type: ignore
-from discord.ext import commands # type: ignore
-from discord import app_commands # type: ignore
-import os # type: shit
+import discord
+from discord.ext import commands 
+from discord import app_commands
+import os 
 import json
 import traceback
 import random
-import requests # type: ignore
+import requests
 import re
 
 from common import developergithub, ensure_datastores, loadData, repositoryurl, saveData, formatUsername, getDisplay, truncateMessage, inviteurl, supportserver, website, checkIfCooldown, setCooldown
@@ -19,14 +19,12 @@ def getLatestCommitHash():
         response = requests.get("https://api.github.com/repos/etangaming123/etanbot/commits/main")
         if response.status_code == 200:
             data = response.json()
-            cachedcommithash = data['sha'][:7] # Cache the commit hash for future use
             return data['sha'][:7] # Return the first 7 characters of the commit hash
         else:
             print(f"Error fetching latest commit: Received status code {response.status_code}")
             return "unknown"
     except Exception as e:
         print(f"Error fetching latest commit: {e}")
-        traceback.print_exc()
         return "unknown"
 
 def readTonetags():
@@ -167,7 +165,7 @@ async def pp_size(interaction: discord.Interaction, user: discord.User = None):
     if cooldown != -1:
         await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>, or when the bot restarts, whichever comes first.\nHave fun.")
         return
-    setCooldown(interaction.user.id, "pp_size", 22941904104) # LMFAO
+    setCooldown(interaction.user.id, "pp_size", 22941904104) # Sets cooldown to 727 years (when you see it)
     if user is None:
         user = interaction.user
     if str(user.id) == config["poweruserid"]:
@@ -254,8 +252,8 @@ async def clean_link(interaction: discord.Interaction, link: str, additional: st
             cleaned_link = cleanLink(actuallink, "*")
             await interaction.edit_original_response(content=f"We are using a different method to remove trackers from this link, as this tiktok link has embedded trackers: {cleaned_link}")
             return
-        except Exception:
-            traceback.print_exc()
+        except Exception as e:
+            print(f"Error cleaning link: {e}")
             await interaction.edit_original_response(content="Something went wrong whilst trying to remove trackers. (Check your URL!)")
             return
     await interaction.edit_original_response(content=f"Removed stinky link trackers: {cleaned_link}")
@@ -315,8 +313,8 @@ async def clean_link_v2(interaction: discord.Interaction, link: str, whitelist: 
             cleaned_link = cleanLink(actuallink, "*")
             await interaction.edit_original_response(content=f"We are using a different method to remove trackers from this link, as this tiktok link has embedded trackers: {cleaned_link}")
             return
-        except Exception:
-            traceback.print_exc()
+        except Exception as e:
+            print(f"Error cleaning link: {e}")
             await interaction.edit_original_response(content="Something went wrong whilst trying to remove trackers. (Check your URL!)")
             return
 
@@ -419,9 +417,9 @@ async def liedetector(interaction: discord.Interaction, user: discord.User = Non
         await interaction.edit_original_response(content=random.choice(truthstrings).replace("USER", formatUsername(user)))
 
 @bot.tree.command(name="etanbot-tonetag", description="Get information for a tonetag or toneindicator! Most definitions from https://tonetaglist.carrd.co/.")
-@app_commands.describe(tonetag="The tonetag you wish to view information for. (remove /)")
-async def tonetag(interaction: discord.Interaction, tonetag: str):
-    await interaction.response.defer()
+@app_commands.describe(tonetag="The tonetag you wish to view information for. (remove /)", viewprivate="Whether to view the result privately or not. (defaults to public)")
+async def tonetag(interaction: discord.Interaction, tonetag: str, viewprivate: bool = False):
+    await interaction.response.defer(ephemeral=viewprivate)
     if tonetag in tonetags:
         await interaction.edit_original_response(content=f"`{tonetag}` >> {tonetags[tonetag]}")
     else:
@@ -455,12 +453,12 @@ def checkValidMBTI(mbti):
     return True
 
 @bot.tree.command(name="etanbot-mbti", description="Lookup an mbti type/acronym! (ENTP, INTP, INTJ-T, ISFJ-A, etc.)")
-@app_commands.describe(mbti="The mbti type you want to look up (ENTP, INTP, INTJ-T, ISFJ-A, etc.)")
-async def mbti(interaction: discord.Interaction, mbti: str):
-    await interaction.response.defer()
+@app_commands.describe(mbti="The mbti type you want to look up (ENTP, INTP, INTJ-T, ISFJ-A, etc.)", viewprivate="Whether to view the result privately or not. (defaults to public)")
+async def mbti(interaction: discord.Interaction, mbti: str, viewprivate: bool = False):
+    await interaction.response.defer(ephemeral=viewprivate)
     mbti = mbti.upper()
     if not checkValidMBTI(mbti):
-        await interaction.edit_original_response(content="That doesn't look like a valid MBTI type. Please enter a valid type like ENTP, INTP, INTJ-T, ISFJ-A, etc.")
+        await interaction.edit_original_response(content="That doesn't look like a valid MBTI type. Please enter a valid type like ENTP, INTP, INTJ-T, ISFJ-A, etc.\nThe format is `E/I`, `N/S`, `F/T`, `J/P`, and optionally `-A` or `-T` for assertive or turbulent. Do not include spaces, but include the - if adding `-A` or `-T`.")
         return
     stringo = f"{mbti} means:\n"
     if mbti[0] == "I":

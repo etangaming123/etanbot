@@ -15,7 +15,6 @@ def get_koko_balance(token: str):
             response = requests.get(f"{kokocreditdefaulturl}{token}")
         except Exception as e:
             print(f"Error sending request to koko amusement: {e}")
-            traceback.print_exc()
             return "ERROR_NET"
         if response.status_code != 200:
             print(f"Error fetching koko balance: Received status code {response.status_code}")
@@ -45,7 +44,6 @@ def get_koko_balance(token: str):
         return "Your koko amusement balance:\n" + "\n".join(thingo)
     except Exception as e:
         print(f"Error fetching koko balance: {e}")
-        traceback.print_exc()
         return "ERROR"
 
 class KokoLinking(commands.Cog):
