@@ -86,6 +86,7 @@ class KokoLinking(commands.Cog):
             return
         linkedkokocards[str(interaction.user.id)] = token
         saveData("linkedkokocards", linkedkokocards)
+        await interaction.edit_original_response(content="Token linked to your Discord account! Checking balance...")
         thingo = get_koko_balance(token)
         if thingo == "ERROR":
             await interaction.edit_original_response(content=f"An error occurred while fetching your koko amusement balance. Please make sure your token is correct and try again later. If this error persists, please join our [support server](<{supportserver}>) or [report a bug](<{repositoryurl}/issues>).")
@@ -112,6 +113,7 @@ class KokoLinking(commands.Cog):
         if not token:
             await interaction.edit_original_response(content="You have not linked a koko amusement card yet! Use /etanbot-koko-link-card to link your card and check your balance. If you need help, use /etanbot-koko-help for instructions on how to link your card.")
             return
+        await interaction.edit_original_response(content="Checking balance...")
         thingo = get_koko_balance(token)
         if thingo == "ERROR":
             await interaction.edit_original_response(content=f"An error occurred while fetching your koko amusement balance. Please make sure your token is correct and try again later. If this error persists, please join our [support server](<{supportserver}>) or [report a bug](<{repositoryurl}/issues>).")
