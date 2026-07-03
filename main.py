@@ -511,4 +511,13 @@ async def isthatareference(interaction: discord.Interaction, reference: str):
         return
     await interaction.edit_original_response(content=f"IS THAT A {reference} REFERENCE?!")
 
+@bot.tree.command(name="etanbot-headpat", description="Give someone a headpat, or headpats!") # dedicated to ruigoonr
+@app_commands.describe(user="The user to give headpats to", amount="The amount of headpats to give.")
+async def headpat(interaction: discord.Interaction, user: discord.User, amount: int):
+    await interaction.response.defer()
+    if interaction.user == user:
+        await interaction.edit_original_response(f"You gave yourself {str(amount)} headpats!")
+        return
+    await interaction.edit_original_response(f"You gave {user.mention} {str(amount)} headpats!")
+
 bot.run(config['token'])
