@@ -122,6 +122,10 @@ class Math(commands.Cog):
                 "quarts": 0.946353,
                 "pints": 0.473176,
             }
+            temperature_to_celsius = {
+                "celsius": 1,
+                "fahrenheit": lambda f: (f - 32) * 5/9
+            }
             
             from_unit_lower = from_unit.value.lower()
             to_unit_lower = to_unit.value.lower()
@@ -137,6 +141,13 @@ class Math(commands.Cog):
             # Check if both units are fluid units
             elif from_unit_lower in fluid_to_liters and to_unit_lower in fluid_to_liters:
                 converted_value = valuereal * fluid_to_liters[from_unit_lower] / fluid_to_liters[to_unit_lower]
+                await interaction.edit_original_response(content=f"{valuereal} {from_unit_lower} is equal to {converted_value:.2f} {to_unit_lower}.")
+            # Check if both units are temperature units
+            elif from_unit_lower in temperature_to_celsius and to_unit_lower in temperature_to_celsius:
+                if from_unit_lower == "fahrenheit" and to_unit_lower == "celsius":
+                    converted_value = temperature_to_celsius[from_unit_lower](valuereal)
+                elif from_unit_lower == "celsius" and to_unit_lower == "fahrenheit":
+                    converted_value = valuereal * 9/5 + 32
                 await interaction.edit_original_response(content=f"{valuereal} {from_unit_lower} is equal to {converted_value:.2f} {to_unit_lower}.")
             else:
                 await interaction.edit_original_response(content=f"Conversion from {from_unit_lower} to {to_unit_lower} is not supported.")
