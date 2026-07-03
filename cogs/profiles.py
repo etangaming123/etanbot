@@ -1,9 +1,6 @@
-import discord  # type: ignore
-from discord import app_commands  # type: ignore
-from discord.ext import commands  # type: ignore
-import re
-import traceback
-
+import discord
+from discord import app_commands
+from discord.ext import commands
 from common import checkIfCooldown, loadData, saveData, setCooldown, checkIfCooldown, formatUsername
 
 class ProfileEditModal(discord.ui.Modal, title="Edit Your Profile"):

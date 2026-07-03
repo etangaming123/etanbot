@@ -1,14 +1,9 @@
 from io import BytesIO
-
 from PIL import Image, ImageDraw, ImageFont
 import os
-import discord  # type: ignore
-from discord import app_commands  # type: ignore
-from discord.ext import commands  # type: ignore
-import re
-import traceback
-import time
-
+import discord
+from discord import app_commands
+from discord.ext import commands
 from common import setCooldown, checkIfCooldown
 
 def parent_dir(path, levels=1):

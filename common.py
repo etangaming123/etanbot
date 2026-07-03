@@ -1,7 +1,6 @@
 import json
 import os
 import pickle
-import traceback
 import discord
 import time
 

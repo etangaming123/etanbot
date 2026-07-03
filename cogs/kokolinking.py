@@ -1,11 +1,9 @@
-import discord  # type: ignore
-from discord import app_commands  # type: ignore
-from discord.ext import commands  # type: ignore
+import discord
+from discord import app_commands
+from discord.ext import commands
 import re
-import traceback
-
-import requests  # type: ignore
-from bs4 import BeautifulSoup  # type: ignore
+import requests
+from bs4 import BeautifulSoup 
 
 from common import kokocreditdefaulturl, loadData, repositoryurl, saveData, supportserver, checkIfCooldown, setCooldown
 

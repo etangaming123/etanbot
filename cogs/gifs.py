@@ -1,9 +1,8 @@
-import discord  # type: ignore
-from discord import app_commands  # type: ignore
-from discord.ext import commands  # type: ignore
-import traceback
+import discord
+from discord import app_commands
+from discord.ext import commands
 
-from common import loadData, saveData, formatUsername, checkIfCooldown, setCooldown, poweruserid
+from common import loadData, saveData, checkIfCooldown, setCooldown, poweruserid
 
 gifs = loadData("gifs")
 

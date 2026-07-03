@@ -4,12 +4,11 @@ from discord.ext import commands
 from discord import app_commands
 import os 
 import json
-import traceback
 import random
 import requests
 import re
 
-from common import developergithub, ensure_datastores, loadData, repositoryurl, saveData, formatUsername, getDisplay, truncateMessage, inviteurl, supportserver, website, checkIfCooldown, setCooldown
+from common import developergithub, ensure_datastores, repositoryurl, formatUsername, truncateMessage, inviteurl, supportserver, website, checkIfCooldown, setCooldown
 
 intents = discord.Intents.default()
 ensure_datastores()

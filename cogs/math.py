@@ -1,9 +1,9 @@
-import discord  # type: ignore
-from discord import app_commands  # type: ignore
-from discord.ext import commands  # type: ignore
+import discord
+from discord import app_commands
+from discord.ext import commands
 import ast
 
-from common import loadData, saveData, formatUsername, checkIfCooldown, setCooldown, poweruserid
+from common import checkIfCooldown, setCooldown
 
 units = ["inches", "centimeters", "pounds", "kilograms", "meters", "kilometers", "miles", "feet", "yards", "grams", "ounces", "tons", "liters", "milliliters", "gallons", "quarts", "pints"]
 
