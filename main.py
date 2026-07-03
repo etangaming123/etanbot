@@ -516,8 +516,8 @@ async def isthatareference(interaction: discord.Interaction, reference: str):
 async def headpat(interaction: discord.Interaction, user: discord.User, amount: int):
     await interaction.response.defer()
     if interaction.user == user:
-        await interaction.edit_original_response(f"You gave yourself {str(amount)} headpats!")
+        await interaction.edit_original_response(content=f"You gave yourself {str(amount)} headpats!")
         return
-    await interaction.edit_original_response(f"You gave {user.mention} {str(amount)} headpats!")
+    await interaction.edit_original_response(content=f"You gave {user.mention} {str(amount)} headpats!")
 
 bot.run(config['token'])
