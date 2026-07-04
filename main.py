@@ -520,4 +520,23 @@ async def headpat(interaction: discord.Interaction, user: discord.User, amount: 
         return
     await interaction.edit_original_response(content=f"You gave {user.mention} {str(amount)} headpats!")
 
+@bot.tree.command(name="etanbot-sleep", description="Use this for when someone doesn't want to sleep but should!")
+@app_commands.describe(user="The user that should head to sleep", customstring="A custom message, add USER to replace with a mention (required)")
+async def etanbotsleep(interaction: discord.Interaction, user: discord.User, customstring: str = None):
+    await interaction.response.defer()
+    if customstring == None:
+        if "USER" in customstring:
+            await interaction.edit_original_response(content=customstring.replace("USER", user.mention))
+            return
+        else:
+            await interaction.edit_original_response(content="You must include the word USER if using a custom string!")
+            return
+    sleepstrings = [
+        "USER, you should head off to sleep now!",
+        "It's quite late, USER...",
+        "GO TO SLEEP USER!!!",
+        "Staying up late isn't good for you USER..."
+    ]
+    await interaction.edit_original_response(content=random.choice(sleepstrings).replace("USER", user.mention))
+
 bot.run(config['token'])
