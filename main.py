@@ -524,7 +524,7 @@ async def headpat(interaction: discord.Interaction, user: discord.User, amount: 
 @app_commands.describe(user="The user that should head to sleep", customstring="A custom message, add USER to replace with a mention (required)")
 async def etanbotsleep(interaction: discord.Interaction, user: discord.User, customstring: str = None):
     await interaction.response.defer()
-    if customstring == None:
+    if customstring != None:
         if "USER" in customstring:
             await interaction.edit_original_response(content=customstring.replace("USER", user.mention))
             return
