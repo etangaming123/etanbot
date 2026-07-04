@@ -5,7 +5,7 @@ import ast
 
 from common import checkIfCooldown, setCooldown
 
-units = ["inches", "centimeters", "pounds", "kilograms", "meters", "kilometers", "miles", "feet", "yards", "grams", "ounces", "tons", "liters", "milliliters", "gallons", "quarts", "pints", "farenheit", "celsius"]
+units = ["inches", "centimeters", "pounds", "kilograms", "meters", "kilometers", "miles", "feet", "yards", "grams", "ounces", "tons", "liters", "milliliters", "gallons", "quarts", "pints", "fahrenheit", "celsius"]
 
 def safe_eval(node): # dude i never knew using eval() was so risky
     if isinstance(node, ast.Expression):
