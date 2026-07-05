@@ -173,6 +173,9 @@ async def eight_ball(interaction: discord.Interaction, question: str, flavour: d
     elif flavour.value == "casual":
         responses = responses_casual
 
+    if flavour == None:
+        await interaction.edit_original_response(content=f"You asked the classic 8ball \"{question}\"...\nThe 8ball says... {random.choice(responses)}")
+        return  
     await interaction.edit_original_response(content=f"You asked the {flavour.value} 8ball \"{question}\"...\nThe 8ball says... {random.choice(responses)}")
 
 @bot.tree.command(name="etanbot-braincells", description="Check how many braincells you (or someone else) has left. (highest is 1000)")
