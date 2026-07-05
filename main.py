@@ -164,15 +164,15 @@ async def eight_ball(interaction: discord.Interaction, question: str, flavour: d
     ]
 
     # this is probably the worst way to do this but i cba finding a better one
-    if flavour.value == "classic":
+    if not flavour.value: # mfw i fix the bot but do it wrongly FAH
+        flavour.value = "classic"
+    elif flavour.value == "classic":
         responses = responses_classic
     elif flavour.value == "tsundere":
         responses = responses_tsundere
     elif flavour.value == "casual":
         responses = responses_casual
-    
-    if not flavour.value: # friend broke the bot update on day 1 LMAOO
-        await interaction.edit_original_response(content=f"You asked the classic 8ball \"{question}\"...\nThe 8ball says... {random.choice(responses)}")
+
     await interaction.edit_original_response(content=f"You asked the {flavour.value} 8ball \"{question}\"...\nThe 8ball says... {random.choice(responses)}")
 
 @bot.tree.command(name="etanbot-braincells", description="Check how many braincells you (or someone else) has left. (highest is 1000)")
