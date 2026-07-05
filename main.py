@@ -109,10 +109,15 @@ async def invite(interaction: discord.Interaction):
     await interaction.edit_original_response(content=f"[Let's get started!]({inviteurl}) • [Support server]({supportserver})")
 
 @bot.tree.command(name="etanbot-8ball", description="Ask the magic 8ball a question!") # use with caution. its completely random yet can be scarily accurate at times
-@app_commands.describe(question="The question to ask the 8ball. (a yes or no question, and keep it short!)")
-async def eight_ball(interaction: discord.Interaction, question: str):
+@app_commands.describe(question="The question to ask the 8ball. (a yes or no question, and keep it short!)", flavour="The flavour of the 8ball. (optional, defaults to classic)")
+@app_commands.choices(flavour=[
+    discord.app_commands.Choice(name="classic", value="classic"),
+    discord.app_commands.Choice(name="casual", value="casual"),
+    discord.app_commands.Choice(name="tsundere", value="tsundere"),
+])
+async def eight_ball(interaction: discord.Interaction, question: str, flavour: discord.app_commands.Choice[str] = "classic"):
     await interaction.response.defer()
-    responses = [
+    responses_classic = [
         "It is certain.",
         "It is decidedly so.",
         "Without a doubt.",
@@ -134,7 +139,39 @@ async def eight_ball(interaction: discord.Interaction, question: str):
         "Outlook not so good.",
         "Very doubtful."
     ]
-    await interaction.edit_original_response(content=f"You asked the 8ball \"{question}\"...\nThe 8ball says... {random.choice(responses)}")
+    responses_tsundere = [
+        "Ask again... but not b-because I told y-you to, baka!",
+        "Y-yes... Don't get any w-weird ideas, baka!",
+        "Whaaat?! N-no!",
+        "I can't p-predict that... not like I-I wanted to!",
+        "I'm gonna say y-yes... but not b-because of y-you or anything!",
+        "N-no! But it's not like I w-wanted to say yes!",
+        "I don't know! D-don't get any weird ideas, b-baka!",
+        "No! Hmph!",
+        "Yes! Hmph!",
+        "Maybe! Hmph!"
+    ]
+    responses_casual = [
+        "yea",
+        "nah",
+        "prolly not",
+        "prolly should",
+        "why not",
+        "hell nah",
+        "idk",
+        "didn't catch that, ask again",
+        "can't tell ya",
+    ]
+
+    # this is probably the worst way to do this but i cba finding a better one
+    if flavour.value == "classic":
+        responses = responses_classic
+    elif flavour.value == "tsundere":
+        responses = responses_tsundere
+    elif flavour.value == "casual":
+        responses = responses_casual
+    
+    await interaction.edit_original_response(content=f"You asked the {flavour} 8ball \"{question}\"...\nThe 8ball says... {random.choice(responses)}")
 
 @bot.tree.command(name="etanbot-braincells", description="Check how many braincells you (or someone else) has left. (highest is 1000)")
 @app_commands.describe(user="The user to check braincells for (defaults to yourself).")
@@ -403,12 +440,10 @@ async def liedetector(interaction: discord.Interaction, user: discord.User = Non
         "❌ Nope, USER!",
         "I wouldn't trust USER if I were you..."
     ]
-    truthstrings = [
-        "✅ True, USER!",
+    truthstrings = [        "✅ True, USER!",
         "Confirmed, USER is telling the truth.",
         "Yeah, I'd say USER is being truthful here.",
-        "Trust USER!"
-    ]
+        "Trust USER!"   ]
 
     if random.randint(0, 1) == 0 or str(bot.user.id) != user.id: # the bot never lies.
         await interaction.edit_original_response(content=random.choice(liestrings).replace("USER", formatUsername(user)))
