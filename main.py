@@ -115,7 +115,7 @@ async def invite(interaction: discord.Interaction):
     discord.app_commands.Choice(name="casual", value="casual"),
     discord.app_commands.Choice(name="tsundere", value="tsundere"),
 ])
-async def eight_ball(interaction: discord.Interaction, question: str, flavour: discord.app_commands.Choice[str] = "classic"):
+async def eight_ball(interaction: discord.Interaction, question: str, flavour: discord.app_commands.Choice[str] = None):
     await interaction.response.defer()
     responses_classic = [
         "It is certain.",
@@ -164,8 +164,8 @@ async def eight_ball(interaction: discord.Interaction, question: str, flavour: d
     ]
 
     # this is probably the worst way to do this but i cba finding a better one
-    if not flavour: # mfw i fix the bot but do it wrongly FAH
-        responses = responses_classic # if this doesn't work i'm deleting this bot 🤣
+    if flavour == None: # attempt 4 of fixing this stupid ass bug holy shit
+        responses = responses_classic
     elif flavour.value == "classic":
         responses = responses_classic
     elif flavour.value == "tsundere":
