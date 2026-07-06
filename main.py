@@ -579,4 +579,14 @@ async def etanbotsleep(interaction: discord.Interaction, user: discord.User, cus
     ]
     await interaction.edit_original_response(content=random.choice(sleepstrings).replace("USER", user.mention))
 
+@bot.tree.command(name="etanbot-preview", description="Preview a message before sending it.")
+async def preview(interaction: discord.Interaction):
+    class previewForm(discord.ui.Modal, title="Preview a message"):
+        message = discord.ui.TextInput(label="Message", style=discord.TextStyle.paragraph, placeholder="Enter your message here. Max 1800 characters.", required=True, max_length=1800)
+
+        async def on_submit(self, interaction: discord.Interaction):
+            await interaction.response.send_message(f"This is a preview of your message:\n\n{self.message.value}", ephemeral=True)
+        
+    await interaction.response.send_modal(previewForm())
+
 bot.run(config['token'])
