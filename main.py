@@ -589,4 +589,53 @@ async def preview(interaction: discord.Interaction):
         
     await interaction.response.send_modal(previewForm())
 
+@bot.tree.command(name="etanbot-random-list", description="Picks a random choice in a list!")
+@app_commands.describe(list="The list of names or otherwise, separated by commas [,] (max 100 characters for each, up to 15 entries)", reroll="The amount of times to reroll", replacement="If rerolling multiple times, whether to make rolling the same item allowed")
+async def randomList(interaction: discord.Interaction, list: str, reroll: int = None, replacement: bool = False):
+    await interaction.response.defer()
+    cooldown = checkIfCooldown(interaction.user.id, "randomlist")
+    if cooldown != -1:
+        await interaction.edit_original_response(content=f"You can use this command <t:{cooldown}:R>")
+    setCooldown(interaction.user.id, "randomlist", 10)
+    try:
+        actuallist = list.split(",")
+    except Exception:
+        await interaction.edit_original_response(content="That doesn't seem to be a valid list! Please separate your valies with commas. --> `,`")
+        return
+    if len(actuallist) < 2:
+        await interaction.edit_original_response(content="Your list must have 2 or more entries!")
+        return
+
+    if len(actuallist) > 15:
+        await interaction.edit_original_response(content="Your list must have less than 15 entries!")
+
+    for item in actuallist:
+        if len(item) > 100:
+            await interaction.edit_original_response(content="One or more items in your list is over 100 characters!")
+            return
+
+    if reroll == None or reroll < 1:
+        reroll = 1
+
+    if reroll > len(actuallist) and reroll == False:
+        reroll = len(actuallist) - 1
+
+    rolleditems = []
+
+    for _ in range(reroll):
+        selecteditemindex = random.randint(0, len(actuallist) - 1)
+        rolleditems.append(actuallist[selecteditemindex])
+        if replacement == False:
+            actuallist.pop(selecteditemindex)
+    
+    string = ""
+
+    for item in sorted(rolleditems):
+        if item[0] == " ":
+            item = item[1:]
+        string = string + f"{item}, "
+    indeexo = len(string) - 2
+    string = string[:indeexo]
+    await interaction.edit_original_response(content=f"The choice(s) picked are:\n{string}")
+
 bot.run(config['token'])
