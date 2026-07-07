@@ -590,7 +590,7 @@ async def preview(interaction: discord.Interaction):
     await interaction.response.send_modal(previewForm())
 
 @bot.tree.command(name="etanbot-random-list", description="Picks a random choice in a list!")
-@app_commands.describe(list="The list of names or otherwise, separated by commas [,] (max 100 characters for each, up to 15 entries)", reroll="The amount of times to reroll", replacement="If rerolling multiple times, whether to make rolling the same item allowed")
+@app_commands.describe(list="The list of names or otherwise, separated by commas [,] (max 50 characters for each, up to 15 entries)", reroll="The amount of times to reroll", replacement="If rerolling multiple times, whether to make rolling the same item allowed")
 async def randomList(interaction: discord.Interaction, list: str, reroll: int = None, replacement: bool = False):
     await interaction.response.defer()
     cooldown = checkIfCooldown(interaction.user.id, "randomlist")
@@ -610,8 +610,8 @@ async def randomList(interaction: discord.Interaction, list: str, reroll: int = 
         await interaction.edit_original_response(content="Your list must have less than 15 entries!")
 
     for item in actuallist:
-        if len(item) > 100:
-            await interaction.edit_original_response(content="One or more items in your list is over 100 characters!")
+        if len(item) > 50:
+            await interaction.edit_original_response(content="One or more items in your list is over 50 characters!")
             return
 
     if reroll == None or reroll < 1:
@@ -636,6 +636,6 @@ async def randomList(interaction: discord.Interaction, list: str, reroll: int = 
         string = string + f"{item}, "
     indeexo = len(string) - 2
     string = string[:indeexo]
-    await interaction.edit_original_response(content=f"The choice(s) picked are:\n{string}")
+    await interaction.edit_original_response(content=f"Rolling from `{list}`\nChoices picked: \n`{string}`")
 
 bot.run(config['token'])
