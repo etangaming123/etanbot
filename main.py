@@ -638,4 +638,13 @@ async def randomList(interaction: discord.Interaction, list: str, reroll: int = 
     string = string[:indeexo]
     await interaction.edit_original_response(content=f"Rolling from `{list}`\nChoices picked: \n`{string}`")
 
+@bot.tree.command(name="etanbot-scan", description="Scan a user for a percentage of how much of something they are!")
+@app_commands.describe(user="The user to scan", scanfor="What to scan for (preferrably in one word, i.e goat, unemployed etc.)")
+async def scanuser(interaction: discord.Interaction, user: discord.User, scanfor: str):
+    await interaction.response.defer()
+    if len(scanfor) > 100:
+        await interaction.edit_original_response(content="Please keep your `scanfor` field short! Less than 100 characters, please.")
+    percentage = random.randint(0, 100)
+    await interaction.edit_original_response(content=f"{formatUsername(user)} is **{str(percentage)}%** `{scanfor}`!")
+
 bot.run(config['token'])
