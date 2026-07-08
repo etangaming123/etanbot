@@ -25,6 +25,7 @@
 /gens	genuine suggestion
 /hj	half joking
 /hyp	hyperbole
+/ij	inside joke
 /info	information or informing
 /irre	irrelevant
 /j	joke or joking
