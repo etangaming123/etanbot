@@ -66,17 +66,23 @@ def loadData(store: str):
 config = loadData("config")
 poweruserid = config["poweruserid"] # to bypass cooldowns if you're cool B)
 
+def removeFormatting(string: str): # Remove Discord formatting from a string (using backslashes to escape formatting characters)
+    formatting_chars = ['*', '_', '~', '`', '>', '|']
+    for char in formatting_chars:
+        string = string.replace(char, f'\{char}')
+    return string
+
 def formatUsername(user: discord.User): # Fancy formatting for usernames // displayname (@username)
     if user.display_name == None:
-        return f"{user.name}"
+        return f"{removeFormatting(user.name)}"
     else:
-        return f"{user.display_name} (@{user.name})"
+        return f"{user.display_name} (@{removeFormatting(user.name)})"
 
 def getDisplay(user: discord.User): # incase we only want to get display name and the users display is same as username
     if user.display_name == None:
-        return user.name
+        return removeFormatting(user.name)
     else:
-        return user.display_name
+        return removeFormatting(user.display_name)
 
 def truncateMessage(message, length): 
     if len(message) <= length:

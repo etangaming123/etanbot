@@ -8,7 +8,7 @@ import random
 import requests
 import re
 
-from common import developergithub, ensure_datastores, repositoryurl, formatUsername, truncateMessage, inviteurl, supportserver, website, checkIfCooldown, setCooldown
+from common import developergithub, ensure_datastores, repositoryurl, formatUsername, truncateMessage, inviteurl, supportserver, website, checkIfCooldown, setCooldown, getDisplay
 
 intents = discord.Intents.default()
 ensure_datastores()
@@ -646,5 +646,57 @@ async def scanuser(interaction: discord.Interaction, user: discord.User, scanfor
         await interaction.edit_original_response(content="Please keep your `scanfor` field short! Less than 100 characters, please.")
     percentage = random.randint(0, 100)
     await interaction.edit_original_response(content=f"{formatUsername(user)} is **{str(percentage)}%** `{scanfor}`!")
+
+@bot.tree.command(name="etanbot-ship", description="Ship 2 users with each other!")
+@app_commands.describe(user1="The first user", user2="The second user (defaults to yourself)")
+async def ship(interaction: discord.Interaction, user1: discord.User, user2: discord.User = None):
+    await interaction.response.defer()
+
+    textvalues = {
+        0: "Enemies",
+        10: "Terrible",
+        20: "Awful",
+        30: "Not Too Great",
+        40: "Worse than average",
+        50: "Barely",
+        60: "Not Bad",
+        70: "Pretty Good",
+        80: "Great",
+        90: "Amazing",
+        100: "ALL PERFECT!",
+    }
+
+    if user2 == None:
+        user2 = interaction.user
+
+    if interaction.user.id == user1.id and interaction.user.id == user2.id:
+        await interaction.edit_original_response(content="You can't ship yourself with yourself!")
+        return
+    if user1.id == user2.id:
+        await interaction.edit_original_response(content="You can't ship a user with themselves!")
+        return
+
+    percentage = random.randint(0, 100)
+    extratext = ""
+    for index, value in textvalues.items():
+        if percentage == index or percentage > index:
+            extratext = value
+    embed = discord.Embed(title=f"{percentage}% // {extratext}")
+    embed.add_field(name=f"{getDisplay(user1)}", value=f"@{user1.name}", inline=True)
+    embed.add_field(name=f"{getDisplay(user2)}", value=f"@{user2.name}", inline=True)
+
+    # cba finding a better way to do this
+    if percentage < 30:
+        embed.color = discord.Colour.red()
+    elif percentage < 50:
+        embed.color = discord.Colour.orange()
+    elif percentage < 70:
+        embed.color = discord.Colour.yellow()
+    elif percentage < 101:
+        embed.color = discord.Colour.green()
+    else:
+        embed.color = discord.Colour.pink()
+
+    await interaction.edit_original_response(content=f"Shipping `{formatUsername(user1)}` and `{formatUsername(user2)}`...", embed=embed)
 
 bot.run(config['token'])
