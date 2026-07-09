@@ -675,7 +675,11 @@ async def ship(interaction: discord.Interaction, user1: discord.User, user2: dis
     if user1.id == user2.id:
         await interaction.edit_original_response(content="You can't ship a user with themselves!")
         return
-
+    
+    if user1.id > user2.id:
+        random.seed(str(user1.id) + str(user2.id)) # make the result consistent for the same pair of users
+    else:
+        random.seed(str(user2.id) + str(user1.id)) # same as above but we swap the values so it's still consistent
     percentage = random.randint(0, 100)
     extratext = ""
     for index, value in textvalues.items():
@@ -697,6 +701,7 @@ async def ship(interaction: discord.Interaction, user1: discord.User, user2: dis
     else:
         embed.color = discord.Colour.pink()
 
+    random.seed() # reset the seed so other random commands aren't affected by this one
     await interaction.edit_original_response(content=f"Shipping `{formatUsername(user1)}` and `{formatUsername(user2)}`...", embed=embed)
 
 bot.run(config['token'])
