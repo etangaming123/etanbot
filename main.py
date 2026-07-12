@@ -26,8 +26,8 @@ def getLatestCommitHash():
         print(f"Error fetching latest commit: {e}")
         return "unknown"
 
-def readTonetags():
-    with open("tonetags.txt", "r") as f:
+def readTextFile(textfile: str):
+    with open(f"{textfile}.txt", "r") as f:
         tonetags = {}
         for line in f:
             line = line.strip()
@@ -42,7 +42,8 @@ def readTonetags():
             tonetags[key.strip().lstrip("/")] = value.strip()
         return tonetags
 
-tonetags = readTonetags()
+tonetags = readTextFile("tonetags")
+deretypes = readTextFile("deretypes")
 currentcommithash = getLatestCommitHash()
 
 if not os.path.exists("config.json"):
@@ -703,5 +704,25 @@ async def ship(interaction: discord.Interaction, user1: discord.User, user2: dis
 
     random.seed() # reset the seed so other random commands aren't affected by this one
     await interaction.edit_original_response(content=f"Shipping `{formatUsername(user1)}` and `{formatUsername(user2)}`...", embed=embed)
+
+@bot.tree.command(name="etanbot-deretype", description="Get information for a deretype! Most definitions from https://the-dere-types.fandom.com .")
+@app_commands.describe(deretype="The deretype you wish to view information for.", viewprivate="Whether to view the result privately or not. (defaults to public)")
+async def deretype(interaction: discord.Interaction, deretype: str, viewprivate: bool = False):
+    await interaction.response.defer(ephemeral=viewprivate)
+    if deretype in deretypes:
+        await interaction.edit_original_response(content=f"`{deretype}` >> {deretypes[deretype]}")
+    else:
+        await interaction.edit_original_response(content=f"Couldn't find anything for `{deretype}`.")
+
+@deretype.autocomplete("deretype")
+async def deretype_autocomplete(interaction: discord.Interaction, current: str):
+    thingtoreturn = [app_commands.Choice(name=key, value=key)
+        for key in deretypes.keys()
+        if current.lower() in key.lower()
+    ][:25]
+    if thingtoreturn:
+        return thingtoreturn
+    else:
+        return [app_commands.Choice(name="No matching deretypes found", value="")]
 
 bot.run(config['token'])
