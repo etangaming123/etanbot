@@ -1,4 +1,3 @@
-import time
 import discord
 from discord.ext import commands 
 from discord import app_commands
@@ -724,5 +723,10 @@ async def deretype_autocomplete(interaction: discord.Interaction, current: str):
         return thingtoreturn
     else:
         return [app_commands.Choice(name="No matching deretypes found", value="")]
+
+@bot.tree.command(name="paro", description="paro") # paro
+async def paro(paro: discord.Interaction): # paro
+    await paro.response.defer() # paro
+    await paro.edit_original_response(content="paro") # paro
 
 bot.run(config['token'])
