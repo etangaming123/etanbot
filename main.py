@@ -696,7 +696,7 @@ async def ship(interaction: discord.Interaction, user1: discord.User, user2: dis
         embed.color = discord.Colour.orange()
     elif percentage < 70:
         embed.color = discord.Colour.yellow()
-    elif percentage < 101:
+    elif percentage < 100:
         embed.color = discord.Colour.green()
     else:
         embed.color = discord.Colour.pink()
