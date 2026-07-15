@@ -724,9 +724,33 @@ async def deretype_autocomplete(interaction: discord.Interaction, current: str):
     else:
         return [app_commands.Choice(name="No matching deretypes found", value="")]
 
+@bot.tree.command(name="etanbot-regional-indicator", description="Turn a sentence into regional indicator emojis!")
+@app_commands.describe(text="The text to turn into emojis. Alphabet only please (no symbols or numbers). Max 90 chars.", copyable="(click to copy on mobile) Whether to make the result copyable (defaults to false).")
+async def regionalIndicators(interaction: discord.Interaction, text: str, copyable: bool = False):
+    await interaction.response.defer()
+    if len(text) > 90:
+        await interaction.edit_original_response(content="Please keep your text under 90 characters.")
+        return
+    text = text.lower()
+    result = ""
+    for char in text:
+        if char.isalpha():
+            result += f":regional_indicator_{char}: "
+        elif char == " ":
+            result += "   "
+        else:
+            await interaction.edit_original_response(content="Please only use letters and spaces.")
+            return
+    if copyable:
+        await interaction.edit_original_response(content=f"`{result}`")
+    else:
+        await interaction.edit_original_response(content=result)
+
 @bot.tree.command(name="paro", description="paro") # paro
 async def paro(paro: discord.Interaction): # paro
     await paro.response.defer() # paro
+    if random.randint(1, 100) == 100: # paro but 1 in 100
+        await paro.edit_original_response(content="Parousia") # Parousia
     await paro.edit_original_response(content="paro") # paro
 
 bot.run(config['token'])
