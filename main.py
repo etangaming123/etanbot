@@ -751,6 +751,7 @@ async def paro(paro: discord.Interaction): # paro
     await paro.response.defer() # paro
     if random.randint(1, 100) == 100: # paro but 1 in 100
         await paro.edit_original_response(content="Parousia") # Parousia
+        return
     await paro.edit_original_response(content="paro") # paro
 
 bot.run(config['token'])
