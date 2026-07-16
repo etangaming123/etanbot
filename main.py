@@ -747,7 +747,8 @@ async def regionalIndicators(interaction: discord.Interaction, text: str, copyab
         await interaction.edit_original_response(content=result)
 
 @bot.tree.command(name="paro", description="paro") # paro
-async def paro(paro: discord.Interaction): # paro
+@app_commands.describe(detailed="Whether to return detailed RNG results (defaults to false).")
+async def paro(paro: discord.Interaction, detailed: bool = False): # paro
     await paro.response.defer() # paro
     randomnumber = random.randint(1, 1000)
     extrarandomnum = random.randint(1, 20)
@@ -761,6 +762,9 @@ async def paro(paro: discord.Interaction): # paro
         extrastring = "*TEXT*"
     else:
         extrastring = "TEXT"
+    
+    if detailed:
+        extrastring = extrastring + f"\nrng {randomnumber} (1-1000) // extra rng {extrarandomnum} (1-20) // (lower is better)"
 
     if randomnumber == 1: # paro but 1 in 1000
         await paro.edit_original_response(content=f"{extrastring.replace('TEXT', 'Paranoia')}") # Paranoia
