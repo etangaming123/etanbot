@@ -763,12 +763,12 @@ async def paro(paro: discord.Interaction): # paro
         extrastring = "TEXT"
 
     if randomnumber == 1: # paro but 1 in 1000
-        await paro.edit_original_response(content=f"{extrastring.replace("TEXT", "Paranoia")}") # Paranoia
+        await paro.edit_original_response(content=f"{extrastring.replace('TEXT', 'Paranoia')}") # Paranoia
     elif randomnumber < 10: # paro but 1 in 100
-        await paro.edit_original_response(content=f"{extrastring.replace("TEXT", "Parousia")}") # Parousia
+        await paro.edit_original_response(content=f"{extrastring.replace('TEXT', 'Parousia')}") # Parousia
     elif randomnumber < 100: # paro but 1 in 10
-        await paro.edit_original_response(content=f"{extrastring.replace("TEXT", "Paro")}") # Paro
+        await paro.edit_original_response(content=f"{extrastring.replace('TEXT', 'Paro')}") # Paro
     else: # the default
-        await paro.edit_original_response(content=f"{extrastring.replace("TEXT", "paro")}") # paro
+        await paro.edit_original_response(content=f"{extrastring.replace('TEXT', 'paro')}") # paro
 
 bot.run(config['token'])
