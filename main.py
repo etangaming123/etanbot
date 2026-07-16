@@ -749,24 +749,24 @@ async def regionalIndicators(interaction: discord.Interaction, text: str, copyab
 @bot.tree.command(name="paro", description="paro") # paro
 async def paro(paro: discord.Interaction): # paro
     await paro.response.defer() # paro
-    randomnumber = random.randint(1, 2000)
+    randomnumber = random.randint(1, 1000)
     extrarandomnum = random.randint(1, 20)
     extrastring = ""
 
     if extrarandomnum == 1: # big for 1 in 20
         extrastring = "# TEXT"
-    elif extrarandomnum < 5: # bold for 1 in 5
+    elif extrarandomnum < 2: # bold for 1 in 10
         extrastring = "**TEXT**"
-    elif extrarandomnum < 10: # italics for 1 in 10
+    elif extrarandomnum < 5: # italics for 1 in 4
         extrastring = "*TEXT*"
     else:
         extrastring = "TEXT"
 
-    if randomnumber == 1: # paro but 1 in 2000
+    if randomnumber == 1: # paro but 1 in 1000
         await paro.edit_original_response(content=f"{extrastring.replace("TEXT", "Paranoia")}") # Paranoia
-    elif randomnumber < 20: # paro but 1 in 100
+    elif randomnumber < 10: # paro but 1 in 100
         await paro.edit_original_response(content=f"{extrastring.replace("TEXT", "Parousia")}") # Parousia
-    elif randomnumber < 200: # paro but 1 in 20
+    elif randomnumber < 100: # paro but 1 in 10
         await paro.edit_original_response(content=f"{extrastring.replace("TEXT", "Paro")}") # Paro
     else: # the default
         await paro.edit_original_response(content=f"{extrastring.replace("TEXT", "paro")}") # paro
