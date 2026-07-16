@@ -754,23 +754,23 @@ async def paro(paro: discord.Interaction, detailed: bool = False): # paro
     extrarandomnum = random.randint(1, 20)
     extrastring = ""
 
-    if extrarandomnum == 1: # big for 1 in 20
+    if extrarandomnum == 1: # 1 (1 in 20)
         extrastring = "# TEXT"
-    elif extrarandomnum < 3: # bold for 1 in 10
+    elif extrarandomnum < 4: # 2-3 (roughly 1 in 10)
         extrastring = "**TEXT**"
-    elif extrarandomnum < 6: # italics for 1 in 4
+    elif extrarandomnum < 9: # 4-8 (roughly 1 in 4)
         extrastring = "*TEXT*"
     else:
         extrastring = "TEXT"
     
     if detailed:
-        extrastring = extrastring + f"\nrng {randomnumber} (1-1000) // extra rng {extrarandomnum} (1-20) // (lower is better)"
+        extrastring = extrastring + f"\n-# rng `{randomnumber}` (1-1000) // extra rng `{extrarandomnum}` (1-20)"
 
-    if randomnumber == 1: # paro but 1 in 1000
+    if randomnumber == 1: # 1 (1 in 1000)
         await paro.edit_original_response(content=f"{extrastring.replace('TEXT', 'Paranoia')}") # Paranoia
-    elif randomnumber < 11: # paro but 1 in 100
+    elif randomnumber < 12: # 2-11 (roughly 1 in 100)
         await paro.edit_original_response(content=f"{extrastring.replace('TEXT', 'Parousia')}") # Parousia
-    elif randomnumber < 101: # paro but 1 in 10
+    elif randomnumber < 113: # 12-112 (roughly 1 in 10)
         await paro.edit_original_response(content=f"{extrastring.replace('TEXT', 'Paro')}") # Paro
     else: # the default
         await paro.edit_original_response(content=f"{extrastring.replace('TEXT', 'paro')}") # paro
