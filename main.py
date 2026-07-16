@@ -756,9 +756,9 @@ async def paro(paro: discord.Interaction, detailed: bool = False): # paro
 
     if extrarandomnum == 1: # big for 1 in 20
         extrastring = "# TEXT"
-    elif extrarandomnum < 2: # bold for 1 in 10
+    elif extrarandomnum < 3: # bold for 1 in 10
         extrastring = "**TEXT**"
-    elif extrarandomnum < 5: # italics for 1 in 4
+    elif extrarandomnum < 6: # italics for 1 in 4
         extrastring = "*TEXT*"
     else:
         extrastring = "TEXT"
@@ -768,9 +768,9 @@ async def paro(paro: discord.Interaction, detailed: bool = False): # paro
 
     if randomnumber == 1: # paro but 1 in 1000
         await paro.edit_original_response(content=f"{extrastring.replace('TEXT', 'Paranoia')}") # Paranoia
-    elif randomnumber < 10: # paro but 1 in 100
+    elif randomnumber < 11: # paro but 1 in 100
         await paro.edit_original_response(content=f"{extrastring.replace('TEXT', 'Parousia')}") # Parousia
-    elif randomnumber < 100: # paro but 1 in 10
+    elif randomnumber < 101: # paro but 1 in 10
         await paro.edit_original_response(content=f"{extrastring.replace('TEXT', 'Paro')}") # Paro
     else: # the default
         await paro.edit_original_response(content=f"{extrastring.replace('TEXT', 'paro')}") # paro
