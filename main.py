@@ -756,6 +756,11 @@ async def regionalIndicators(interaction: discord.Interaction, text: str, copyab
     else:
         await interaction.edit_original_response(content=result)
 
+@bot.tree.command(name="etanbot-read-indicator", description="Show a (barebones) indicator/message that you've read the message(s) in chat!")
+async def readIndicator(interaction: discord.Interaction):
+    await interaction.response.defer()
+    await interaction.edit_original_response(content=f"✓ Read by {formatUsername(interaction.user)}")
+
 @bot.tree.command(name="paro", description="paro") # paro
 @app_commands.describe(detailed="Whether to return detailed RNG results (defaults to false).")
 async def paro(paro: discord.Interaction, detailed: bool = False): # paro
