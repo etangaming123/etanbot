@@ -760,7 +760,7 @@ async def regionalIndicators(interaction: discord.Interaction, text: str, copyab
 @app_commands.describe(detailed="Whether to return detailed RNG results (defaults to false).")
 async def paro(paro: discord.Interaction, detailed: bool = False): # paro
     await paro.response.defer() # paro
-    cooldown = checkIfCooldown("paro")
+    cooldown = checkIfCooldown(paro.user.id, "paro")
     if cooldown != -1:
         await paro.edit_original_response(f"You can use this command again <t:{cooldown}:R>")
     setCooldown(paro.user.id, "paro", 1)
