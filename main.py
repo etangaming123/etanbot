@@ -230,7 +230,7 @@ async def puppet(interaction: discord.Interaction, say: str):
 
 @bot.tree.command(name="etanbot-puppet-v2", description="Make the bot say something, but better (kinda)")
 @app_commands.describe(say="<nl> gets replaced with a new line")
-async def puppet(interaction: discord.Interaction, say: str):
+async def puppetv2(interaction: discord.Interaction, say: str):
     await interaction.response.defer()
     say = say.replace("<nl>", "\n")
     cooldown = checkIfCooldown(interaction.user.id, "puppet")
@@ -240,6 +240,16 @@ async def puppet(interaction: discord.Interaction, say: str):
     realthing = truncateMessage(say, 2000)
     await interaction.edit_original_response(content=realthing)
     setCooldown(interaction.user.id, "puppet", 10)
+
+@bot.tree.command(name="etanbot-puppet-v3", description="Make the bot say something, but even better!")
+async def puppetv3(interaction: discord.Interaction):
+    class puppetForm(discord.ui.Modal, title="Make the bot say something!"):
+        say = discord.ui.TextInput(label="What should the bot say?", style=discord.TextStyle.paragraph, placeholder="Enter your message here. Max 2000 characters.", required=True, max_length=2000)
+
+        async def on_submit(self, interaction: discord.Interaction):
+            await interaction.response.send_message(f"{self.say.value}", ephemeral=False)
+        
+    await interaction.response.send_modal(puppetForm())
 
 @bot.tree.command(name="etanbot-coinflip", description="Flip a coin!")
 async def coinflip(interaction: discord.Interaction):
@@ -750,6 +760,10 @@ async def regionalIndicators(interaction: discord.Interaction, text: str, copyab
 @app_commands.describe(detailed="Whether to return detailed RNG results (defaults to false).")
 async def paro(paro: discord.Interaction, detailed: bool = False): # paro
     await paro.response.defer() # paro
+    cooldown = checkIfCooldown("paro")
+    if cooldown != -1:
+        await paro.edit_original_response(f"You can use this command again <t:{cooldown}:R>")
+    setCooldown(paro.user.id, "paro", 1)
     randomnumber = random.randint(1, 1000)
     extrarandomnum = random.randint(1, 20)
     extrastring = ""
