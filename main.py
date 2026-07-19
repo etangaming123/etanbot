@@ -763,6 +763,7 @@ async def paro(paro: discord.Interaction, detailed: bool = False): # paro
     cooldown = checkIfCooldown(paro.user.id, "paro")
     if cooldown != -1:
         await paro.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>")
+        return
     setCooldown(paro.user.id, "paro", 1)
     randomnumber = random.randint(1, 1000)
     extrarandomnum = random.randint(1, 20)
