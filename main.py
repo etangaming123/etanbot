@@ -658,8 +658,13 @@ async def scanuser(interaction: discord.Interaction, user: discord.User, scanfor
     await interaction.edit_original_response(content=f"{formatUsername(user)} is **{str(percentage)}%** `{scanfor}`!")
 
 @bot.tree.command(name="etanbot-ship", description="Ship 2 users with each other!")
-@app_commands.describe(user1="The first user", user2="The second user (defaults to yourself)")
-async def ship(interaction: discord.Interaction, user1: discord.User, user2: discord.User = None):
+@app_commands.describe(user1="The first user", user2="The second user (defaults to yourself)", method="The RNG method used to ship (defaults to set)")
+@app_commands.choices(methods=[
+    discord.app_commands.Choice(name="set", value="set"),
+    discord.app_commands.Choice(name="setInverse", value="setInverse"),
+    discord.app_commands.Choice(name="random", value="random"),
+])
+async def ship(interaction: discord.Interaction, user1: discord.User, user2: discord.User = None, method: discord.app_commands.Choice[str] = None):
     await interaction.response.defer()
 
     textvalues = {
@@ -686,10 +691,20 @@ async def ship(interaction: discord.Interaction, user1: discord.User, user2: dis
         await interaction.edit_original_response(content="You can't ship a user with themselves!")
         return
     
-    if user1.id > user2.id:
-        random.seed(str(user1.id) + str(user2.id)) # make the result consistent for the same pair of users
+    if method == None or method == "set":
+        if user1.id > user2.id:
+            random.seed(str(user1.id) + str(user2.id)) # make the result consistent for the same pair of users
+        else:
+            random.seed(str(user2.id) + str(user1.id)) # same as above but we swap the values so it's still consistent
+
+    elif method == "setInverse":
+        if user1.id < user2.id: # legit the same as set, but we use the inverse as the seed
+            random.seed(str(user1.id) + str(user2.id)) # make the result consistent for the same pair of users
+        else:
+            random.seed(str(user2.id) + str(user1.id)) # same as above but we swap the values so it's still consistent
     else:
-        random.seed(str(user2.id) + str(user1.id)) # same as above but we swap the values so it's still consistent
+        random.seed() # completely random for "random"
+
     percentage = random.randint(0, 100)
     extratext = ""
     for index, value in textvalues.items():
@@ -752,7 +767,7 @@ async def regionalIndicators(interaction: discord.Interaction, text: str, copyab
         elif char == " ":
             result += "   "
         else:
-            await interaction.edit_original_response(content="Please only use letters and spaces.")
+            await interaction.edit_original_response(content="Please only use letters, numbers, and spaces.")
             return
     if copyable:
         await interaction.edit_original_response(content=f"`{result}`")
