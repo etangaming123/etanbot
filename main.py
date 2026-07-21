@@ -659,7 +659,7 @@ async def scanuser(interaction: discord.Interaction, user: discord.User, scanfor
 
 @bot.tree.command(name="etanbot-ship", description="Ship 2 users with each other!")
 @app_commands.describe(user1="The first user", user2="The second user (defaults to yourself)", method="The RNG method used to ship (defaults to set)")
-@app_commands.choices(methods=[
+@app_commands.choices(method=[
     discord.app_commands.Choice(name="set", value="set"),
     discord.app_commands.Choice(name="setInverse", value="setInverse"),
     discord.app_commands.Choice(name="random", value="random"),
