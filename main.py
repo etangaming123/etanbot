@@ -779,6 +779,19 @@ async def readIndicator(interaction: discord.Interaction):
     await interaction.response.defer()
     await interaction.edit_original_response(content=f"✓ Read by {formatUsername(interaction.user)}")
 
+@bot.tree.command(name="etanbot-slop-or-gem", description="Check if something is slop or gem!")
+@app_commands.describe(scan="Let's see if this thing is slop or gem!")
+async def slopOrGem(interaction: discord.Interaction, scan: str):
+    await interaction.response.defer()
+    if len(scan) > 500:
+        await interaction.edit_original_response(content="Your \"scan\" object is WAY too long!")
+        return
+    randomnumber = random.randint(-100, 100)
+    if randomnumber < 0:
+        await interaction.edit_original_response(content=f"`{scan}` is {abs(randomnumber)}% **slop**!")
+    else:
+        await interaction.edit_original_response(content=f"`{scan}` is {abs(randomnumber)}% **gem**!")
+
 @bot.tree.command(name="paro", description="paro") # paro
 @app_commands.describe(detailed="Whether to return detailed RNG results (defaults to false).")
 async def paro(paro: discord.Interaction, detailed: bool = False): # paro
