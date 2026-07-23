@@ -460,7 +460,7 @@ async def liedetector(interaction: discord.Interaction, user: discord.User = Non
         "Yeah, I'd say USER is being truthful here.",
         "Trust USER!"   ]
 
-    if random.randint(0, 1) == 0 or str(bot.user.id) != user.id: # the bot never lies.
+    if random.randint(0, 1) == 0 and str(bot.user.id) != user.id: # the bot never lies.
         await interaction.edit_original_response(content=random.choice(liestrings).replace("USER", formatUsername(user)))
     else:
         await interaction.edit_original_response(content=random.choice(truthstrings).replace("USER", formatUsername(user)))
