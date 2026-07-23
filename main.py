@@ -6,6 +6,8 @@ import json
 import random
 import requests
 import re
+from git import Repo
+repo = Repo(os.curdir)
 
 from common import developergithub, ensure_datastores, repositoryurl, formatUsername, truncateMessage, inviteurl, supportserver, website, checkIfCooldown, setCooldown, getDisplay
 
@@ -43,7 +45,7 @@ def readTextFile(textfile: str):
 
 tonetags = readTextFile("tonetags")
 deretypes = readTextFile("deretypes")
-currentcommithash = getLatestCommitHash()
+currentcommithash = repo.head.object.hexsha[:7]
 
 if not os.path.exists("config.json"):
     with open("config.json", "w") as f:
@@ -453,12 +455,16 @@ async def liedetector(interaction: discord.Interaction, user: discord.User = Non
         "USER is LYING!!!",
         "Nah, USER isn't telling the truth.",
         "❌ Nope, USER!",
-        "I wouldn't trust USER if I were you..."
+        "I wouldn't trust USER if I were you...",
+        "That's straight lies, USER..."
     ]
-    truthstrings = [        "✅ True, USER!",
+    truthstrings = [        
+        "✅ True, USER!",
         "Confirmed, USER is telling the truth.",
         "Yeah, I'd say USER is being truthful here.",
-        "Trust USER!"   ]
+        "Trust USER!",
+        "USER sounds about right"
+    ]
 
     if random.randint(0, 1) == 0 and str(bot.user.id) != user.id: # the bot never lies.
         await interaction.edit_original_response(content=random.choice(liestrings).replace("USER", formatUsername(user)))
@@ -466,11 +472,11 @@ async def liedetector(interaction: discord.Interaction, user: discord.User = Non
         await interaction.edit_original_response(content=random.choice(truthstrings).replace("USER", formatUsername(user)))
 
 @bot.tree.command(name="etanbot-tonetag", description="Get information for a tonetag or toneindicator! Most definitions from https://tonetaglist.carrd.co/.")
-@app_commands.describe(tonetag="The tonetag you wish to view information for. (remove /)", viewprivate="Whether to view the result privately or not. (defaults to public)")
+@app_commands.describe(tonetag="The tonetag you wish to view information for. (do not include /)", viewprivate="Whether to view the result privately or not. (defaults to public)")
 async def tonetag(interaction: discord.Interaction, tonetag: str, viewprivate: bool = False):
     await interaction.response.defer(ephemeral=viewprivate)
     if tonetag in tonetags:
-        await interaction.edit_original_response(content=f"`{tonetag}` >> {tonetags[tonetag]}")
+        await interaction.edit_original_response(content=f"`/{tonetag}` >> {tonetags[tonetag]}")
     else:
         await interaction.edit_original_response(content=f"Couldn't find anything for `{tonetag}`.")
 
@@ -546,9 +552,14 @@ async def status(interaction: discord.Interaction):
         await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>")
         return
     setCooldown(interaction.user.id, "status", 10)
+    if repo.is_dirty():
+        await interaction.edit_original_response(content="etanbot is running on a modified commit!")
+        return
     latesthash = getLatestCommitHash()
     if latesthash == currentcommithash:
         await interaction.edit_original_response(content=f"etanbot is up to date! Running commit: {currentcommithash}")
+    elif latesthash == "unknown":
+        await interaction.edit_original_response(content=f"etanbot is running commit: {currentcommithash}, we couldn't get the latest commit")
     else:
         await interaction.edit_original_response(content=f"etanbot is not up to date. Running commit: {currentcommithash}, latest commit: {latesthash}. Please contact the developer to update the bot!")
 
