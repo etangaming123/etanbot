@@ -18,7 +18,7 @@ class slotMachine(commands.Cog):
         if cooldown != -1:
             await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>")
             return
-        setCooldown(interaction.user.id, "slotmachine", 10)
+        setCooldown(interaction.user.id, "slotmachine", 1)
         result = [random.choices(list(symbols.keys()), weights=list(symbols.values()))[0] for _ in range(3)]
 
         if result[0] == result[1] == result[2]: # All symbols are the same
