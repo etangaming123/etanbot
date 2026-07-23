@@ -227,6 +227,8 @@ async def puppet(interaction: discord.Interaction, say: str):
     if cooldown != -1:
         await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>")
         return
+    if interaction.user.id != int(config["poweruserid"]):
+        say = f"-# triggered by {interaction.user.mention}\n{say}"
     realthing = truncateMessage(say, 2000)
     await interaction.edit_original_response(content=realthing)
     setCooldown(interaction.user.id, "puppet", 10)
@@ -235,6 +237,8 @@ async def puppet(interaction: discord.Interaction, say: str):
 @app_commands.describe(say="<nl> gets replaced with a new line")
 async def puppetv2(interaction: discord.Interaction, say: str):
     await interaction.response.defer()
+    if interaction.user.id != int(config["poweruserid"]):
+        say = f"-# triggered by {interaction.user.mention}\n{say}"
     say = say.replace("<nl>", "\n")
     cooldown = checkIfCooldown(interaction.user.id, "puppet")
     if cooldown != -1:
@@ -250,6 +254,9 @@ async def puppetv3(interaction: discord.Interaction):
         say = discord.ui.TextInput(label="What should the bot say?", style=discord.TextStyle.paragraph, placeholder="Enter your message here. Max 2000 characters.", required=True, max_length=2000)
 
         async def on_submit(self, interaction: discord.Interaction):
+            if interaction.user.id != int(config["poweruserid"]):
+                say = f"-# triggered by {interaction.user.mention}\n{say}"
+            say = truncateMessage(self.say.value, 2000)
             await interaction.response.send_message(f"{self.say.value}", ephemeral=False)
         
     await interaction.response.send_modal(puppetForm())
