@@ -608,6 +608,25 @@ async def etanbotsleep(interaction: discord.Interaction, user: discord.User, cus
     ]
     await interaction.edit_original_response(content=random.choice(sleepstrings).replace("USER", user.mention))
 
+@bot.tree.command(name="etanbot-lock-in", description="Tell someone to lock in!")
+@app_commands.describe(user="The user that should lock in", customstring="A custom message, add USER to replace with a mention (required)")
+async def etanbotlockin(interaction: discord.Interaction, user: discord.User, customstring: str = None):
+    await interaction.response.defer()
+    if customstring != None:
+        if "USER" in customstring:
+            await interaction.edit_original_response(content=customstring.replace("USER", user.mention))
+            return
+        else:
+            await interaction.edit_original_response(content="You must include the word USER if using a custom string!")
+            return
+    lockinstrings = [
+        "Lock in USER!!!",
+        "Stop getting distracted, USER!!!",
+        "You know, you should really do that thing right now USER...",
+        "Stop geeking out and lock in USER!!!"
+    ]
+    await interaction.edit_original_response(content=random.choice(lockinstrings).replace("USER", user.mention))
+
 @bot.tree.command(name="etanbot-preview", description="Preview a message before sending it.")
 async def preview(interaction: discord.Interaction):
     class previewForm(discord.ui.Modal, title="Preview a message"):
@@ -768,6 +787,28 @@ async def deretype_autocomplete(interaction: discord.Interaction, current: str):
     else:
         return [app_commands.Choice(name="No matching deretypes found", value="")]
 
+@bot.tree.command(name="etanbot-random-dere", description="Get a random deretype based on a user!")
+@app_commands.describe(user="The user to get the random deretype of (defaults to yourself)", method="The method to use for finding deretype (defaults to set)")
+@app_commands.choices(method=[
+    discord.app_commands.Choice(name="set", value="set"),
+    discord.app_commands.Choice(name="random", value="random"),
+])
+async def randomDere(interaction: discord.Interaction, user: discord.User = None, method: discord.app_commands.Choice[str] = None):
+    await interaction.response.defer()
+    if user == None:
+        user = interaction.user
+    if method == None:
+        method = "set"
+
+    if method == "set":
+        random.seed(str(user.id)) # make the result consistent for the same user
+    else:
+        random.seed() # completely random for "random"
+
+    deretype = random.choice(list(deretypes.keys()))
+    random.seed() # reset the seed so other random commands aren't affected by this one
+    await interaction.edit_original_response(content=f"{formatUsername(user)}'s a `{deretype}` >> {deretypes[deretype]}")
+
 @bot.tree.command(name="etanbot-regional-indicator", description="Turn a sentence into regional indicator emojis!")
 @app_commands.describe(text="The text to turn into emojis, only letters or numbers. Max 90 chars.", copyable="(click to copy on mobile) Whether to make the result copyable (defaults to false).")
 async def regionalIndicators(interaction: discord.Interaction, text: str, copyable: bool = False):
@@ -794,9 +835,14 @@ async def regionalIndicators(interaction: discord.Interaction, text: str, copyab
         await interaction.edit_original_response(content=result)
 
 @bot.tree.command(name="etanbot-read-indicator", description="Show a (barebones) indicator/message that you've read the message(s) in chat!")
-async def readIndicator(interaction: discord.Interaction):
+async def readIndicator(interaction: discord.Interaction, fakeread: bool = None):
     await interaction.response.defer()
-    await interaction.edit_original_response(content=f"✓ Read by {formatUsername(interaction.user)}")
+    if fakeread is None:
+        fakeread = False
+    if fakeread:
+        await interaction.edit_original_response(content=f"⨯ Not read by {formatUsername(interaction.user)}")
+    else:
+        await interaction.edit_original_response(content=f"✓ Read by {formatUsername(interaction.user)}")
 
 @bot.tree.command(name="etanbot-slop-or-gem", description="Check if something is slop or gem!")
 @app_commands.describe(scan="Let's see if this thing is slop or gem!")
