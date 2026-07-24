@@ -797,17 +797,21 @@ async def randomDere(interaction: discord.Interaction, user: discord.User = None
     await interaction.response.defer()
     if user == None:
         user = interaction.user
-    if method == None:
-        method = "set"
 
-    if method == "set":
+    methodreal = ""
+    if method == None:
+        methodreal = "set"
+    else:
+        methodreal = method.value
+
+    if methodreal == "set":
         random.seed(str(user.id)) # make the result consistent for the same user
     else:
         random.seed() # completely random for "random"
 
     deretype = random.choice(list(deretypes.keys()))
     random.seed() # reset the seed so other random commands aren't affected by this one
-    await interaction.edit_original_response(content=f"{formatUsername(user)}'s a `{deretype}` >> {deretypes[deretype]}\n\n*This result is based on the `{method}` method.*")
+    await interaction.edit_original_response(content=f"{formatUsername(user)}'s a `{deretype}` >> {deretypes[deretype]}\n\n*This result is based on the `{methodreal}` method.*")
 
 @bot.tree.command(name="etanbot-regional-indicator", description="Turn a sentence into regional indicator emojis!")
 @app_commands.describe(text="The text to turn into emojis, only letters or numbers. Max 90 chars.", copyable="(click to copy on mobile) Whether to make the result copyable (defaults to false).")
