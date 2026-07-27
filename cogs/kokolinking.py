@@ -5,7 +5,9 @@ import re
 import requests
 from bs4 import BeautifulSoup 
 
-from common import kokocreditdefaulturl, loadData, repositoryurl, saveData, supportserver, checkIfCooldown, setCooldown
+from common import loadData, repositoryurl, saveData, supportserver, checkIfCooldown, setCooldown, handleCommandAccess
+
+kokocreditdefaulturl = "https://estore.kokoamusement.com.au/BalanceMobile/BalanceMobile.aspx?i="
 
 def get_koko_balance(token: str):
     try:
@@ -50,11 +52,9 @@ class KokoLinking(commands.Cog):
 
     @app_commands.command(name="etanbot-koko-help", description="Need help on linking your Koko Amusement card?")
     async def koko_help(self, interaction: discord.Interaction):
-        await interaction.response.defer()
-        cooldown = checkIfCooldown(interaction.user.id, "koko_help")
-        if cooldown != -1:
-            await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>")
+        if not await handleCommandAccess(interaction, interaction.user.id, "koko_help"):
             return
+        await interaction.response.defer()
         setCooldown(interaction.user.id, "koko_help", 10)
         things = [
             "To link your Koko Amusement card, you need to get your token from the Koko Amusement website. Here's how you can do it:",
@@ -70,11 +70,9 @@ class KokoLinking(commands.Cog):
     @app_commands.command(name="etanbot-koko-link-card", description="Link your Koko Amusement card to your discord account to check your balance and transactions!")
     @app_commands.describe(token="/BalanceMobile.aspx?i=[this set of characters]")
     async def link_card(self, interaction: discord.Interaction, token: str):
-        await interaction.response.defer(ephemeral=True)
-        cooldown = checkIfCooldown(interaction.user.id, "link_card")
-        if cooldown != -1:
-            await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>")
+        if not await handleCommandAccess(interaction, interaction.user.id, "link_card"):
             return
+        await interaction.response.defer(ephemeral=True)
         setCooldown(interaction.user.id, "link_card", 15)
         linkedkokocards = loadData("linkedkokocards")
         if linkedkokocards == "":
@@ -95,11 +93,9 @@ class KokoLinking(commands.Cog):
     @app_commands.command(name="etanbot-koko-balance", description="Check your koko amusement balance if you have linked your card using /etanbot-koko-link-card!")
     @app_commands.describe(creditcost="Credit cost of an arcade game (e.g. 4 for a $4 game)")
     async def my_koko_balance(self, interaction: discord.Interaction, creditcost: float = None):
-        await interaction.response.defer()
-        cooldown = checkIfCooldown(interaction.user.id, "my_koko_balance")
-        if cooldown != -1:
-            await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>")
+        if not await handleCommandAccess(interaction, interaction.user.id, "my_koko_balance"):
             return
+        await interaction.response.defer()
         setCooldown(interaction.user.id, "my_koko_balance", 15)
         linkedkokocards = loadData("linkedkokocards")
         if linkedkokocards == "":
@@ -139,6 +135,8 @@ class KokoLinking(commands.Cog):
 
     @app_commands.command(name="etanbot-koko-unlink-card", description="Unlink your koko amusement card from your discord account.")
     async def unlink_card(self, interaction: discord.Interaction):
+        if not await handleCommandAccess(interaction, interaction.user.id):
+            return
         await interaction.response.defer(ephemeral=True)
         linkedkokocards = loadData("linkedkokocards")
         if linkedkokocards == "":
@@ -150,7 +148,6 @@ class KokoLinking(commands.Cog):
             await interaction.edit_original_response(content="Successfully unlinked your koko amusement card.")
         else:
             await interaction.edit_original_response(content="You do not have a koko amusement card linked.")
-
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(KokoLinking(bot))

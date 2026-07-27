@@ -4,7 +4,7 @@ import os
 import discord
 from discord import app_commands
 from discord.ext import commands
-from common import setCooldown, checkIfCooldown
+from common import setCooldown, checkIfCooldown, handleCommandAccess
 
 def parent_dir(path, levels=1):
     for _ in range(levels):
@@ -79,11 +79,9 @@ class NSOTaskManager(commands.Cog):
     @app_commands.command(name="etanbot-nso-taskmanager", description="Make a NEEDY STREAMER OVERLOAD based task manager based on your mood!")
     @app_commands.describe(followers="Number of followers", stress="Stress level (0-100)", affection="Affection level (0-100)", md="MD level (0-100)")
     async def nso_taskmanager(self, interaction: discord.Interaction, followers: app_commands.Range[int, 0, 999999999], stress: app_commands.Range[int, 0, 100], affection: app_commands.Range[int, 0, 100], md: app_commands.Range[int, 0, 100]):
-        await interaction.response.defer()
-        cooldown = checkIfCooldown(interaction.user.id, "nso_taskmanager")
-        if cooldown != -1:
-            await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>")
+        if not await handleCommandAccess(interaction, interaction.user.id, "nso_taskmanager"):
             return
+        await interaction.response.defer()
         setCooldown(interaction.user.id, "nso_taskmanager", 10)
         try:
             img = generate_task_manager_image(followers, stress, affection, md)

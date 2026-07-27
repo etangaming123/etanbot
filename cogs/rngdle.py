@@ -1,9 +1,8 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-from common import setCooldown, checkIfCooldown
+from common import setCooldown, checkIfCooldown, handleCommandAccess
 import requests
-import time
 from datetime import datetime
 
 rngdleapiurl = "https://www.rngdle.com/api/users/"
@@ -33,11 +32,9 @@ class rngdle(commands.Cog):
     @app_commands.command(name="etanbot-rngdle-latest-roll", description="Get the latest roll of a user on rngdle.com")
     @app_commands.describe(username="The username of the user on rngdle.com")
     async def rngdle_latest_roll(self, interaction: discord.Interaction, username: str):
-        await interaction.response.defer()
-        cooldown = checkIfCooldown(interaction.user.id, "rngdle")
-        if cooldown != -1:
-            await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>")
+        if not await handleCommandAccess(interaction, interaction.user.id, "rngdle"):
             return
+        await interaction.response.defer()
         setCooldown(interaction.user.id, "rngdle", 10)
         data = getRngdleLatestRoll(username)
         if data is None:

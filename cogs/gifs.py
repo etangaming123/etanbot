@@ -2,7 +2,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from common import loadData, saveData, checkIfCooldown, setCooldown, poweruserid
+from common import loadData, saveData, checkIfCooldown, setCooldown, poweruserid, handleCommandAccess
 
 gifs = loadData("gifs")
 
@@ -14,6 +14,8 @@ class Gifs(commands.Cog):
     @app_commands.command(name="z-admin-gif-add", description="Adds a gif to the collection!")
     @app_commands.describe(name="The name of the gif you want to add.", gif_url="The url of the gif you want to add.")
     async def add_gif(self, interaction: discord.Interaction, name: str, gif_url: str):
+        if not await handleCommandAccess(interaction, interaction.user.id):
+            return
         await interaction.response.defer(ephemeral=True)
         if not interaction.user.id == int(poweruserid):
             await interaction.edit_original_response(content=f"You don't have permission to use this command.")
@@ -31,6 +33,8 @@ class Gifs(commands.Cog):
     @app_commands.command(name="z-admin-gif-remove", description="Removes a gif from the collection.")
     @app_commands.describe(name="The name of the gif you want to remove.")
     async def remove_gif(self, interaction: discord.Interaction, name: str):
+        if not await handleCommandAccess(interaction, interaction.user.id):
+            return
         await interaction.response.defer(ephemeral=True)
         if not interaction.user.id == int(poweruserid):
             await interaction.edit_original_response(content=f"You don't have permission to use this command.")
@@ -54,6 +58,8 @@ class Gifs(commands.Cog):
 
     @app_commands.command(name="z-admin-gif-refresh", description="Refreshes the gif collection from the data file.")
     async def refresh_gifs(self, interaction: discord.Interaction):
+        if not await handleCommandAccess(interaction, interaction.user.id):
+            return
         global gifs
         gifs = loadData("gifs")
         await interaction.response.send_message("Gif collection refreshed!", ephemeral=True)
@@ -61,11 +67,9 @@ class Gifs(commands.Cog):
     @app_commands.command(name="etanbot-gif", description="Send a gif from the shared collection!")
     @app_commands.describe(name="The name of the gif you want to view.")
     async def view_gif(self, interaction: discord.Interaction, name: str):
-        await interaction.response.defer()
-        cooldown = checkIfCooldown(interaction.user.id, "view_gif")
-        if cooldown != -1:
-            await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>.")
+        if not await handleCommandAccess(interaction, interaction.user.id, "view_gif"):
             return
+        await interaction.response.defer()
         setCooldown(interaction.user.id, "view_gif", 10)
         if name not in gifs.keys():
             await interaction.edit_original_response(content=f"No gif found with that name!")

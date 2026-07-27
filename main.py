@@ -9,7 +9,7 @@ import re
 from git import Repo
 repo = Repo(os.curdir)
 
-from common import developergithub, ensure_datastores, repositoryurl, formatUsername, truncateMessage, inviteurl, supportserver, website, checkIfCooldown, setCooldown, getDisplay
+from common import developergithub, ensure_datastores, repositoryurl, formatUsername, truncateMessage, inviteurl, supportserver, website, setCooldown, getDisplay, config, handleCommandAccess
 
 intents = discord.Intents.default()
 ensure_datastores()
@@ -64,6 +64,7 @@ class etanBot(commands.Bot):
         await self.load_extension("cogs.math")
         await self.load_extension("cogs.slotmachine")
         await self.load_extension("cogs.rngdle")
+        await self.load_extension("cogs.admin")
 
 bot = etanBot(command_prefix='!', intents=intents)
 bot.tree.allowed_installs = app_commands.AppInstallationType(guild=True, user=True)
@@ -83,16 +84,16 @@ async def on_ready():
 # general
 @bot.tree.command(name="etanbot-ping", description="Ping the bot")
 async def ping(interaction: discord.Interaction):
+    if not await handleCommandAccess(interaction, interaction.user.id):
+        return
     await interaction.response.defer()
     await interaction.edit_original_response(content=f"Pong! [{round(bot.latency * 1000)}ms]")
 
 @bot.tree.command(name="etanbot-who-am-i", description="Information about the bot!")
 async def whoami(interaction: discord.Interaction):
-    await interaction.response.defer()
-    cooldown = checkIfCooldown(interaction.user.id, "whoami")
-    if cooldown != -1:
-        await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>")
+    if not await handleCommandAccess(interaction, interaction.user.id, "whoami"):
         return
+    await interaction.response.defer()
     setCooldown(interaction.user.id, "whoami", 10)
     embed = discord.Embed(title="etanbot info", description="funny discord bot", color=0x8649D7)
     embed.add_field(name="Description", value=f"Funny Discord bot that can be added to your account and used anywhere within Discord.", inline=False)
@@ -109,6 +110,8 @@ async def whoami(interaction: discord.Interaction):
 
 @bot.tree.command(name="etanbot-invite", description="Get the invite link for the bot!")
 async def invite(interaction: discord.Interaction):
+    if not await handleCommandAccess(interaction, interaction.user.id):
+        return
     await interaction.response.defer()
     await interaction.edit_original_response(content=f"[Let's get started!]({inviteurl}) • [Support server]({supportserver})")
 
@@ -120,6 +123,8 @@ async def invite(interaction: discord.Interaction):
     discord.app_commands.Choice(name="tsundere", value="tsundere"),
 ])
 async def eight_ball(interaction: discord.Interaction, question: str, flavour: discord.app_commands.Choice[str] = None):
+    if not await handleCommandAccess(interaction, interaction.user.id):
+        return
     await interaction.response.defer()
     responses_classic = [
         "It is certain.",
@@ -185,6 +190,8 @@ async def eight_ball(interaction: discord.Interaction, question: str, flavour: d
 @bot.tree.command(name="etanbot-braincells", description="Check how many braincells you (or someone else) has left. (highest is 1000)")
 @app_commands.describe(user="The user to check braincells for (defaults to yourself).")
 async def braincells(interaction: discord.Interaction, user: discord.User = None):
+    if not await handleCommandAccess(interaction, interaction.user.id):
+        return
     await interaction.response.defer()
     if user is None:
         user = interaction.user
@@ -194,6 +201,8 @@ async def braincells(interaction: discord.Interaction, user: discord.User = None
 @bot.tree.command(name="etanbot-pizoelectric", description="[Thing] is turning [something else] into electricity!") # based off the infamous copypasta "Japan is turning footsteps into electricity! ⚡Using piezoelectric tiles, every step you take generates a small amount of energy. Millions of steps together can power LED lights and displays in busy places like Shibuya Station. A brilliant way to create a sustainable and smart city -- turning movement into clean, renewable energy 🌱💡"
 @app_commands.describe(thing="Who is turning something into electricity?", somethingelse="What is being turned into electricity?")
 async def pizoelectric(interaction: discord.Interaction, thing: str = None, somethingelse: str = None):
+    if not await handleCommandAccess(interaction, interaction.user.id):
+        return
     await interaction.response.defer()
     if thing is None:
         thing = "Japan"
@@ -202,32 +211,13 @@ async def pizoelectric(interaction: discord.Interaction, thing: str = None, some
 
     await interaction.edit_original_response(content=f"{thing} is turning {somethingelse} into electricity! ⚡Using piezoelectric tiles, every step you take generates a small amount of energy. Millions of steps together can power LED lights and displays in busy places like Shibuya Station. A brilliant way to create a sustainable and smart city -- turning movement into clean, renewable energy 🌱💡")
 
-@bot.tree.command(name="etanbot-pp-size", description="*wink*")
-@app_commands.describe(user="Whose pp size do you want to check? (defaults to yourself)")
-async def pp_size(interaction: discord.Interaction, user: discord.User = None):
-    await interaction.response.defer()
-    cooldown = checkIfCooldown(interaction.user.id, "pp_size")
-    if cooldown != -1:
-        await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>, or when the bot restarts, whichever comes first.\nHave fun.")
-        return
-    setCooldown(interaction.user.id, "pp_size", 22941904104) # Sets cooldown to 727 years (when you see it)
-    if user is None:
-        user = interaction.user
-    if str(user.id) == config["poweruserid"]:
-        size = random.randint(20, 30) # wink
-    else:
-        size = random.randint(0, 30)
-    string = "8" + "=" * size + "D"
-    await interaction.edit_original_response(content=f"{formatUsername(user)}: {string}")
-
 @bot.tree.command(name="etanbot-puppet", description="Make the bot say something (as a response to the command, not in the channel).")
 @app_commands.describe(say="The thing to say.")
 async def puppet(interaction: discord.Interaction, say: str):
-    await interaction.response.defer()
-    cooldown = checkIfCooldown(interaction.user.id, "puppet")
-    if cooldown != -1:
-        await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>")
+    if not await handleCommandAccess(interaction, interaction.user.id, "puppet"):
         return
+    await interaction.response.defer()
+    setCooldown(interaction.user.id, "puppet", 5)
     if interaction.user.id != int(config["poweruserid"]):
         say = f"-# triggered by {interaction.user.mention}\n{say}"
     realthing = truncateMessage(say, 2000)
@@ -237,20 +227,21 @@ async def puppet(interaction: discord.Interaction, say: str):
 @bot.tree.command(name="etanbot-puppet-v2", description="Make the bot say something, but better (kinda)")
 @app_commands.describe(say="<nl> gets replaced with a new line")
 async def puppetv2(interaction: discord.Interaction, say: str):
+    if not await handleCommandAccess(interaction, interaction.user.id, "puppet"):
+        return
     await interaction.response.defer()
+    setCooldown(interaction.user.id, "puppet", 5)
     if interaction.user.id != int(config["poweruserid"]):
         say = f"-# triggered by {interaction.user.mention}\n{say}"
     say = say.replace("<nl>", "\n")
-    cooldown = checkIfCooldown(interaction.user.id, "puppet")
-    if cooldown != -1:
-        await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>")
-        return
     realthing = truncateMessage(say, 2000)
     await interaction.edit_original_response(content=realthing)
     setCooldown(interaction.user.id, "puppet", 10)
 
 @bot.tree.command(name="etanbot-puppet-v3", description="Make the bot say something, but even better!")
 async def puppetv3(interaction: discord.Interaction):
+    if not await handleCommandAccess(interaction, interaction.user.id):
+        return
     class puppetForm(discord.ui.Modal, title="Make the bot say something!"):
         say = discord.ui.TextInput(label="What should the bot say?", style=discord.TextStyle.paragraph, placeholder="Enter your message here. Max 2000 characters.", required=True, max_length=2000)
 
@@ -264,6 +255,8 @@ async def puppetv3(interaction: discord.Interaction):
 
 @bot.tree.command(name="etanbot-coinflip", description="Flip a coin!")
 async def coinflip(interaction: discord.Interaction):
+    if not await handleCommandAccess(interaction, interaction.user.id):
+        return
     await interaction.response.defer()
     result = random.choice(["Heads", "Tails"])
     await interaction.edit_original_response(content=f"{result}!")
@@ -284,12 +277,9 @@ def cleanLink(url, toremove):
 @bot.tree.command(name="etanbot-clean-link", description="Remove stinky link trackers.")
 @app_commands.describe(link="The link you want to clean [Valid url with http:// or https://]", additional="Any additional parameters to remove, separated by commas (optional).")
 async def clean_link(interaction: discord.Interaction, link: str, additional: str = None):
-    await interaction.response.defer()
-    cooldown = checkIfCooldown(interaction.user.id, "clean_link")
-    if cooldown != -1:
-        await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>")
+    if not await handleCommandAccess(interaction, interaction.user.id, "cleanlink"):
         return
-    setCooldown(interaction.user.id, "clean_link", 5)
+    await interaction.response.defer()
     if not (link.startswith("http://") or link.startswith("https://")):
         await interaction.edit_original_response(content="Please enter a valid URL that starts with http:// or https://")
         return
@@ -342,12 +332,10 @@ def cleanLinkV2(url, whitelist):
 @bot.tree.command(name="etanbot-clean-link-v2", description="Remove even more link trackers. May break some links.")
 @app_commands.describe(link="The link you want to clean [Valid url with http:// or https://]", whitelist="Any parameters you want to keep, separated by commas (optional). (overrides default whitelist)")
 async def clean_link_v2(interaction: discord.Interaction, link: str, whitelist: str = None):
-    await interaction.response.defer()
-    cooldown = checkIfCooldown(interaction.user.id, "clean_link_v2")
-    if cooldown != -1:
-        await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>")
+    if not await handleCommandAccess(interaction, interaction.user.id, "cleanlink"):
         return
-    setCooldown(interaction.user.id, "clean_link_v2", 5)
+    await interaction.response.defer()
+    setCooldown(interaction.user.id, "cleanlink", 5)
     if not (link.startswith("http://") or link.startswith("https://")):
         await interaction.edit_original_response(content="Please enter a valid URL that starts with http:// or https://")
         return
@@ -385,6 +373,8 @@ async def clean_link_v2(interaction: discord.Interaction, link: str, whitelist: 
 @bot.tree.command(name="etanbot-randomnumber", description="Generate a random number between a specified range.")
 @app_commands.describe(minimum="The minimum number (inclusive).", maximum="The maximum number (inclusive).")
 async def random_number(interaction: discord.Interaction, minimum: int, maximum: int):
+    if not await handleCommandAccess(interaction, interaction.user.id):
+        return
     await interaction.response.defer()
     if minimum > maximum:
         minimum, maximum = maximum, minimum
@@ -394,6 +384,8 @@ async def random_number(interaction: discord.Interaction, minimum: int, maximum:
 @bot.tree.command(name="etanbot-birthday", description="Whose birthday is it?")
 @app_commands.describe(user="The user whose birthday it is (defaults to yourself).")
 async def birthday(interaction: discord.Interaction, user: discord.User = None):
+    if not await handleCommandAccess(interaction, interaction.user.id):
+        return
     await interaction.response.defer()
     bdaystrings = [
         "Happy birthday, USER!",
@@ -417,6 +409,8 @@ async def birthday(interaction: discord.Interaction, user: discord.User = None):
 @bot.tree.command(name="etanbot-shexonmyytilliz", description="she [x] on my [y] till i [z]")
 @app_commands.describe(x="she does what [100 chars]", y="on your what [100 chars]", z="until you what [100 chars]")
 async def shexonmyytilliz(interaction: discord.Interaction, x: str, y: str, z: str):
+    if not await handleCommandAccess(interaction, interaction.user.id):
+        return
     if len(x) > 100 or len(y) > 100 or len(z) > 100:
         await interaction.response.defer()
         await interaction.edit_original_response(content="Please keep each input under 100 characters.")
@@ -427,6 +421,8 @@ async def shexonmyytilliz(interaction: discord.Interaction, x: str, y: str, z: s
 @bot.tree.command(name="etanbot-predict", description="[event] will happen [unspecified date/time]")
 @app_commands.describe(event="The event you want to predict.")
 async def predict(interaction: discord.Interaction, event: str):
+    if not await handleCommandAccess(interaction, interaction.user.id):
+        return
     await interaction.response.defer()
     times = [
         "right now",
@@ -448,6 +444,8 @@ async def predict(interaction: discord.Interaction, event: str):
 
 @bot.tree.command(name="etanbot-10d20", description="Makes a link to use Discord's built in dice roller with 10d20 (10 20-sided dice).")
 async def d20(interaction: discord.Interaction):
+    if not await handleCommandAccess(interaction, interaction.user.id):
+        return
     await interaction.response.defer()
     if interaction.guild_id is None or interaction.channel_id is None:
         await interaction.edit_original_response(content="This command can only be used in a server channel. (The built in roll-dice feature only works in a channel!)")
@@ -459,6 +457,8 @@ async def d20(interaction: discord.Interaction):
 async def liedetector(interaction: discord.Interaction, user: discord.User = None):
     if user == None:
         user = interaction.user
+    if not await handleCommandAccess(interaction, interaction.user.id):
+        return
     await interaction.response.defer()
     liestrings = [
         "USER is LYING!!!",
@@ -483,6 +483,8 @@ async def liedetector(interaction: discord.Interaction, user: discord.User = Non
 @bot.tree.command(name="etanbot-tonetag", description="Get information for a tonetag or toneindicator! Most definitions from https://tonetaglist.carrd.co/.")
 @app_commands.describe(tonetag="The tonetag you wish to view information for. (do not include /)", viewprivate="Whether to view the result privately or not. (defaults to public)")
 async def tonetag(interaction: discord.Interaction, tonetag: str, viewprivate: bool = False):
+    if not await handleCommandAccess(interaction, interaction.user.id):
+        return
     await interaction.response.defer(ephemeral=viewprivate)
     if tonetag in tonetags:
         await interaction.edit_original_response(content=f"`/{tonetag}` >> {tonetags[tonetag]}")
@@ -519,6 +521,8 @@ def checkValidMBTI(mbti):
 @bot.tree.command(name="etanbot-mbti", description="Lookup an mbti type/acronym! (ENTP, INTP, INTJ-T, ISFJ-A, etc.)")
 @app_commands.describe(mbti="The mbti type you want to look up (ENTP, INTP, INTJ-T, ISFJ-A, etc.)", viewprivate="Whether to view the result privately or not. (defaults to public)")
 async def mbti(interaction: discord.Interaction, mbti: str, viewprivate: bool = False):
+    if not await handleCommandAccess(interaction, interaction.user.id):
+        return
     await interaction.response.defer(ephemeral=viewprivate)
     mbti = mbti.upper()
     if not checkValidMBTI(mbti):
@@ -555,11 +559,9 @@ async def mbti(interaction: discord.Interaction, mbti: str, viewprivate: bool = 
 
 @bot.tree.command(name="etanbot-status", description="Are we running the latest commit?")
 async def status(interaction: discord.Interaction):
-    await interaction.response.defer()
-    cooldown = checkIfCooldown(interaction.user.id, "status")
-    if cooldown != -1:
-        await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>")
+    if not await handleCommandAccess(interaction, interaction.user.id, "status"):
         return
+    await interaction.response.defer()
     setCooldown(interaction.user.id, "status", 10)
     if repo.is_dirty():
         await interaction.edit_original_response(content="etanbot is running on a modified commit!")
@@ -575,6 +577,8 @@ async def status(interaction: discord.Interaction):
 @bot.tree.command(name="etanbot-reference", description="IS THAT A [something] REFERENCE?!")
 @app_commands.describe(reference="The thing being referenced [200 character limit]")
 async def isthatareference(interaction: discord.Interaction, reference: str):
+    if not await handleCommandAccess(interaction, interaction.user.id):
+        return
     await interaction.response.defer()
     if len(reference) > 200:
         await interaction.edit_original_response(content="Please keep the reference under 200 characters.")
@@ -584,6 +588,8 @@ async def isthatareference(interaction: discord.Interaction, reference: str):
 @bot.tree.command(name="etanbot-headpat", description="Give someone a headpat, or headpats!") # dedicated to ruigoonr
 @app_commands.describe(user="The user to give headpats to", amount="The amount of headpats to give.")
 async def headpat(interaction: discord.Interaction, user: discord.User, amount: int):
+    if not await handleCommandAccess(interaction, interaction.user.id):
+        return
     await interaction.response.defer()
     if interaction.user == user:
         await interaction.edit_original_response(content=f"You gave yourself {str(amount)} headpats!")
@@ -593,6 +599,8 @@ async def headpat(interaction: discord.Interaction, user: discord.User, amount: 
 @bot.tree.command(name="etanbot-sleep", description="Use this for when someone doesn't want to sleep but should!")
 @app_commands.describe(user="The user that should head to sleep", customstring="A custom message, add USER to replace with a mention (required)")
 async def etanbotsleep(interaction: discord.Interaction, user: discord.User, customstring: str = None):
+    if not await handleCommandAccess(interaction, interaction.user.id):
+        return
     await interaction.response.defer()
     if customstring != None:
         if "USER" in customstring:
@@ -612,6 +620,8 @@ async def etanbotsleep(interaction: discord.Interaction, user: discord.User, cus
 @bot.tree.command(name="etanbot-lock-in", description="Tell someone to lock in!")
 @app_commands.describe(user="The user that should lock in", customstring="A custom message, add USER to replace with a mention (required)")
 async def etanbotlockin(interaction: discord.Interaction, user: discord.User, customstring: str = None):
+    if not await handleCommandAccess(interaction, interaction.user.id):
+        return
     await interaction.response.defer()
     if customstring != None:
         if "USER" in customstring:
@@ -630,6 +640,8 @@ async def etanbotlockin(interaction: discord.Interaction, user: discord.User, cu
 
 @bot.tree.command(name="etanbot-preview", description="Preview a message before sending it.")
 async def preview(interaction: discord.Interaction):
+    if not await handleCommandAccess(interaction, interaction.user.id):
+        return
     class previewForm(discord.ui.Modal, title="Preview a message"):
         message = discord.ui.TextInput(label="Message", style=discord.TextStyle.paragraph, placeholder="Enter your message here. Max 1800 characters.", required=True, max_length=1800)
 
@@ -641,10 +653,9 @@ async def preview(interaction: discord.Interaction):
 @bot.tree.command(name="etanbot-random-list", description="Picks a random choice in a list!")
 @app_commands.describe(list="The list of names or otherwise, separated by commas [,] (max 50 characters for each, up to 15 entries)", reroll="The amount of times to reroll", replacement="If rerolling multiple times, whether to make rolling the same item allowed")
 async def randomList(interaction: discord.Interaction, list: str, reroll: int = None, replacement: bool = False):
+    if not await handleCommandAccess(interaction, interaction.user.id, "randomlist"):
+        return
     await interaction.response.defer()
-    cooldown = checkIfCooldown(interaction.user.id, "randomlist")
-    if cooldown != -1:
-        await interaction.edit_original_response(content=f"You can use this command <t:{cooldown}:R>")
     setCooldown(interaction.user.id, "randomlist", 10)
     try:
         actuallist = list.split(",")
@@ -690,6 +701,8 @@ async def randomList(interaction: discord.Interaction, list: str, reroll: int = 
 @bot.tree.command(name="etanbot-scan", description="Scan a user for a percentage of how much of something they are!")
 @app_commands.describe(user="The user to scan", scanfor="What to scan for (preferrably in one word, i.e goat, unemployed etc.)")
 async def scanuser(interaction: discord.Interaction, user: discord.User, scanfor: str):
+    if not await handleCommandAccess(interaction, interaction.user.id):
+        return
     await interaction.response.defer()
     if len(scanfor) > 100:
         await interaction.edit_original_response(content="Please keep your `scanfor` field short! Less than 100 characters, please.")
@@ -704,6 +717,8 @@ async def scanuser(interaction: discord.Interaction, user: discord.User, scanfor
     discord.app_commands.Choice(name="random", value="random"),
 ])
 async def ship(interaction: discord.Interaction, user1: discord.User, user2: discord.User = None, method: discord.app_commands.Choice[str] = None):
+    if not await handleCommandAccess(interaction, interaction.user.id):
+        return
     await interaction.response.defer()
 
     textvalues = {
@@ -771,6 +786,8 @@ async def ship(interaction: discord.Interaction, user1: discord.User, user2: dis
 @bot.tree.command(name="etanbot-deretype", description="Get information for a deretype! Most definitions from https://the-dere-types.fandom.com .")
 @app_commands.describe(deretype="The deretype you wish to view information for.", viewprivate="Whether to view the result privately or not. (defaults to public)")
 async def deretype(interaction: discord.Interaction, deretype: str, viewprivate: bool = False):
+    if not await handleCommandAccess(interaction, interaction.user.id):
+        return
     await interaction.response.defer(ephemeral=viewprivate)
     if deretype in deretypes:
         await interaction.edit_original_response(content=f"`{deretype}` >> {deretypes[deretype]}")
@@ -795,6 +812,8 @@ async def deretype_autocomplete(interaction: discord.Interaction, current: str):
     discord.app_commands.Choice(name="random", value="random"),
 ])
 async def randomDere(interaction: discord.Interaction, user: discord.User = None, method: discord.app_commands.Choice[str] = None):
+    if not await handleCommandAccess(interaction, interaction.user.id):
+        return
     await interaction.response.defer()
     if user == None:
         user = interaction.user
@@ -817,6 +836,8 @@ async def randomDere(interaction: discord.Interaction, user: discord.User = None
 @bot.tree.command(name="etanbot-regional-indicator", description="Turn a sentence into regional indicator emojis!")
 @app_commands.describe(text="The text to turn into emojis, only letters or numbers. Max 90 chars.", copyable="(click to copy on mobile) Whether to make the result copyable (defaults to false).")
 async def regionalIndicators(interaction: discord.Interaction, text: str, copyable: bool = False):
+    if not await handleCommandAccess(interaction, interaction.user.id):
+        return
     await interaction.response.defer()
     numbers = {"0": "zero", "1": "one", "2": "two", "3": "three", "4": "four", "5": "five", "6": "six", "7": "seven", "8": "eight", "9": "nine"}
     if len(text) > 90:
@@ -841,6 +862,8 @@ async def regionalIndicators(interaction: discord.Interaction, text: str, copyab
 
 @bot.tree.command(name="etanbot-read-indicator", description="Show a (barebones) indicator/message that you've read the message(s) in chat!")
 async def readIndicator(interaction: discord.Interaction, fakeread: bool = None):
+    if not await handleCommandAccess(interaction, interaction.user.id):
+        return
     await interaction.response.defer()
     if fakeread is None:
         fakeread = False
@@ -852,6 +875,8 @@ async def readIndicator(interaction: discord.Interaction, fakeread: bool = None)
 @bot.tree.command(name="etanbot-slop-or-gem", description="Check if something is slop or gem!")
 @app_commands.describe(scan="Let's see if this thing is slop or gem!")
 async def slopOrGem(interaction: discord.Interaction, scan: str):
+    if not await handleCommandAccess(interaction, interaction.user.id):
+        return
     await interaction.response.defer()
     if len(scan) > 500:
         await interaction.edit_original_response(content="Your \"scan\" object is WAY too long!")
@@ -865,11 +890,9 @@ async def slopOrGem(interaction: discord.Interaction, scan: str):
 @bot.tree.command(name="paro", description="paro") # paro
 @app_commands.describe(detailed="Whether to return detailed RNG results (defaults to false).")
 async def paro(paro: discord.Interaction, detailed: bool = False): # paro
-    await paro.response.defer() # paro
-    cooldown = checkIfCooldown(paro.user.id, "paro")
-    if cooldown != -1:
-        await paro.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>")
+    if not await handleCommandAccess(paro, paro.user.id, "paro"):
         return
+    await paro.response.defer() # paro
     setCooldown(paro.user.id, "paro", 1)
     randomnumber = random.randint(1, 1000)
     extrarandomnum = random.randint(1, 20)

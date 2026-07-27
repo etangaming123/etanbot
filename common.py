@@ -1,17 +1,17 @@
 import json
 import os
+import hashlib
 import pickle
 import discord
 import time
 
-kokocreditdefaulturl = "https://estore.kokoamusement.com.au/BalanceMobile/BalanceMobile.aspx?i="
 repositoryurl = "https://github.com/etangaming123/etanbot"
 developergithub = "https://github.com/etangaming123"
 inviteurl = "https://discord.com/oauth2/authorize?client_id=1505906056222605352"
 supportserver = "https://etanbot.etangaming.xyz/supportserver.html"
 website = "https://etanbot.etangaming.xyz"
 
-datastores = ["linkedkokocards", "profiles", "gifs"]
+datastores = ["linkedkokocards", "profiles", "gifs", "bannedusers"]
 datastoresbuttheseonesarelists = []
 
 cooldowns = {}
@@ -40,7 +40,6 @@ def ensure_datastores():
             print(f"Created new file [{item}.json]")
 
 def saveData(store: str, newdata: dict):
-    print(f"Saving [{store}]...")
     try:
         backup = loadData(store)
         with open(f"{store}_backup.json", "w") as file:
@@ -65,6 +64,10 @@ def loadData(store: str):
 
 config = loadData("config")
 poweruserid = config["poweruserid"] # to bypass cooldowns if you're cool B)
+bannedusers = loadData("bannedusers") # load once
+
+def getBanKey(userid: int):
+    return hashlib.sha1(str(int(userid)).encode("utf-8")).hexdigest()
 
 def removeFormatting(string: str): # Remove Discord formatting from a string (using backslashes to escape formatting characters)
     formatting_chars = ['*', '_', '~', '`', '>', '|']
@@ -109,3 +112,46 @@ def setCooldown(userid: int, commandname: str, cooldowntime: int):
     if not userid in cooldowns:
         cooldowns[userid] = {}
     cooldowns[userid][commandname] = round(time.time() + cooldowntime)
+
+def checkIfBanned(userid: int):
+    global bannedusers
+    ban_keys = [getBanKey(userid), hash(userid), hash(str(userid))]
+    for ban_key in ban_keys:
+        if ban_key in bannedusers:
+            if bannedusers[ban_key]["length"] != None and time.time() > bannedusers[ban_key]["length"]:
+                del bannedusers[ban_key]
+                saveData("bannedusers", bannedusers)
+                return False
+            if ban_key != getBanKey(userid):
+                bannedusers[getBanKey(userid)] = bannedusers[ban_key]
+                del bannedusers[ban_key]
+                saveData("bannedusers", bannedusers)
+                return bannedusers[getBanKey(userid)]
+            return bannedusers[ban_key]
+    return False
+
+async def handleCommandAccess(interaction: discord.Interaction, userid: int, commandname: str = None):
+    banned = checkIfBanned(userid)
+    if banned:
+        ban_length = banned.get("length")
+        reason = banned.get("reason") or "No reason provided."
+        if ban_length != None:
+            ban_until = f"<t:{round(ban_length)}:F>"
+        else:
+            ban_until = "permanently"
+        await interaction.response.send_message(content=f"You are banned from using etan bot until {ban_until}. Reason: {reason}", ephemeral=True)
+        return False
+
+    if commandname != None:
+        cooldown = checkIfCooldown(userid, commandname)
+        if cooldown != -1:
+            await interaction.response.send_message(content=f"You can use this command again <t:{cooldown}:R>", ephemeral=True)
+            return False
+
+    return True
+
+def getBannedUsers(refresh: bool = False):
+    global bannedusers
+    if refresh:
+        bannedusers = loadData("bannedusers")
+    return bannedusers

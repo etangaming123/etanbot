@@ -1,8 +1,7 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-from common import checkIfCooldown, loadData, saveData, setCooldown, checkIfCooldown, formatUsername
-
+from common import checkIfCooldown, loadData, saveData, setCooldown, checkIfCooldown, formatUsername, config, handleCommandAccess
 class ProfileEditModal(discord.ui.Modal, title="Edit Your Profile"):
     def __init__(self, profile):
         super().__init__()
@@ -28,6 +27,8 @@ class Profiles(commands.Cog):
 
     @app_commands.command(name="etanbot-profile-create", description="Creates a profile for you, viewable using /etanbot-profile!")
     async def create_profile(self, interaction: discord.Interaction):
+        if not await handleCommandAccess(interaction, interaction.user.id):
+            return
         await interaction.response.defer(ephemeral=True)
         profiles = loadData("profiles")
         if str(interaction.user.id) in profiles.keys():
@@ -46,6 +47,8 @@ class Profiles(commands.Cog):
     @app_commands.describe(user="The user to view the profile of. Defaults to yourself.", viewprivately="Want to make it so only you can see the profile? (defaults to nah)")
     async def viewprofile(self, interaction: discord.Interaction, user: discord.User = None, viewprivately: bool = False):
         containsatsymbol = ["tiktok", "youtube"] # these platforms require an @ symbol in the url
+        if not await handleCommandAccess(interaction, interaction.user.id):
+            return
         await interaction.response.defer(ephemeral=viewprivately)
         if user is None:
             user = interaction.user
@@ -74,20 +77,20 @@ class Profiles(commands.Cog):
 
     @app_commands.command(name="etanbot-profile-edit", description="Edit your profile's bio!")
     async def editprofile(self, interaction: discord.Interaction):
-        cooldown = checkIfCooldown(interaction.user.id, "editprofile")
-        if cooldown != -1:
-            await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>")
+        if not await handleCommandAccess(interaction, interaction.user.id, "editprofile"):
             return
-        setCooldown(interaction.user.id, "editprofile", 10)
         profiles = loadData("profiles")
         if str(interaction.user.id) not in profiles.keys():
             await interaction.response.send_message(content=f"You don't have a profile yet! Use /etanbot-profile-create to create one.", ephemeral=True)
             return
+        setCooldown(interaction.user.id, "editprofile", 10)
         profile = profiles[str(interaction.user.id)]
         await interaction.response.send_modal(ProfileEditModal(profile))
 
     @app_commands.command(name="etanbot-profile-delete", description="Delete your profile! This cannot be undone.")
     async def deleteprofile(self, interaction: discord.Interaction):
+        if not await handleCommandAccess(interaction, interaction.user.id):
+            return
         await interaction.response.defer(ephemeral=True)
         profiles = loadData("profiles")
         if str(interaction.user.id) not in profiles.keys():
@@ -102,11 +105,9 @@ class Profiles(commands.Cog):
     @app_commands.command(name="etanbot-profile-color", description="Change the color of your profile embed! (hex code, no #, default is green)")
     @app_commands.describe(color="The hex code of the color you want to set for your profile embed (no #, default is green)")
     async def changeprofilecolor(self, interaction: discord.Interaction, color: str):
-        await interaction.response.defer(ephemeral=True)
-        cooldown = checkIfCooldown(interaction.user.id, "changeprofilecolor")
-        if cooldown != -1:
-            await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>")
+        if not await handleCommandAccess(interaction, interaction.user.id, "changeprofilecolor"):
             return
+        await interaction.response.defer(ephemeral=True)
         setCooldown(interaction.user.id, "changeprofilecolor", 10)
         profiles = loadData("profiles")
         if str(interaction.user.id) not in profiles.keys():
@@ -132,11 +133,9 @@ class Profiles(commands.Cog):
         discord.app_commands.Choice(name="YouTube", value="youtube")
     ])
     async def addprofilelink(self, interaction: discord.Interaction, platform: discord.app_commands.Choice[str], username: str):
-        await interaction.response.defer(ephemeral=True)
-        cooldown = checkIfCooldown(interaction.user.id, "addprofilelink")
-        if cooldown != -1:
-            await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>")
+        if not await handleCommandAccess(interaction, interaction.user.id, "addprofilelink"):
             return
+        await interaction.response.defer(ephemeral=True)
         setCooldown(interaction.user.id, "addprofilelink", 10)
         profiles = loadData("profiles")
         if str(interaction.user.id) not in profiles.keys():
@@ -160,11 +159,9 @@ class Profiles(commands.Cog):
         discord.app_commands.Choice(name="YouTube", value="youtube")
     ])
     async def removeprofilelink(self, interaction: discord.Interaction, platform: discord.app_commands.Choice[str]):
-        await interaction.response.defer(ephemeral=True)
-        cooldown = checkIfCooldown(interaction.user.id, "removeprofilelink")
-        if cooldown != -1:
-            await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>")
+        if not await handleCommandAccess(interaction, interaction.user.id, "removeprofilelink"):
             return
+        await interaction.response.defer(ephemeral=True)
         setCooldown(interaction.user.id, "removeprofilelink", 10)
         profiles = loadData("profiles")
         if str(interaction.user.id) not in profiles.keys():
@@ -178,6 +175,30 @@ class Profiles(commands.Cog):
             await interaction.edit_original_response(content=f"An error occurred while removing the link from your profile. Please try again later.")
             return
         await interaction.edit_original_response(content=f"Link removed successfully!")
+
+    @app_commands.command(name="z-admin-profile-delete", description="Delete a user's profile.")
+    @app_commands.describe(user="The user whose profile you want to delete.", userid="The user ID of the user whose profile you want to delete if you can't specify the user.")
+    async def admin_delete_profile(self, interaction: discord.Interaction, user: discord.User = None, userid: str = None):
+        if not await handleCommandAccess(interaction, interaction.user.id):
+            return
+        await interaction.response.defer(ephemeral=True)
+        if interaction.user.id != int(config["poweruserid"]):
+            await interaction.edit_original_response(content=f"You do not have permission to use this command.")
+            return
+        if user is None and userid is None:
+            await interaction.edit_original_response(content=f"You must specify either a user or a user ID.")
+            return
+        if user is not None:
+            userid = str(user.id)
+        profiles = loadData("profiles")
+        if userid not in profiles.keys():
+            await interaction.edit_original_response(content=f"This user does not have a profile!")
+            return
+        del profiles[userid]
+        if saveData("profiles", profiles):
+            await interaction.edit_original_response(content=f"Profile deleted successfully!")
+        else:
+            await interaction.edit_original_response(content=f"An error occurred while deleting the profile. Please try again later.")
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Profiles(bot))

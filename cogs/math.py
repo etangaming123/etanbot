@@ -3,7 +3,7 @@ from discord import app_commands
 from discord.ext import commands
 import ast
 
-from common import checkIfCooldown, setCooldown
+from common import checkIfCooldown, setCooldown, handleCommandAccess
 
 units = ["inches", "centimeters", "pounds", "kilograms", "meters", "kilometers", "miles", "feet", "yards", "grams", "ounces", "tons", "liters", "milliliters", "gallons", "quarts", "pints", "fahrenheit", "celsius"]
 
@@ -62,11 +62,9 @@ class Math(commands.Cog):
     @app_commands.command(name="etanbot-calculator", description="A simple calculator for basic arithmetic operations.")
     @app_commands.describe(expression="The arithmetic expression to evaluate (e.g., 2 + 2 * 3).")
     async def calculator(self, interaction: discord.Interaction, expression: str):
-        await interaction.response.defer()
-        cooldown = checkIfCooldown(interaction.user.id, "calculator")
-        if cooldown != -1:
-            await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>")
+        if not await handleCommandAccess(interaction, interaction.user.id, "calculator"):
             return
+        await interaction.response.defer()
         setCooldown(interaction.user.id, "calculator", 10)
         
         try:
@@ -78,6 +76,8 @@ class Math(commands.Cog):
     
     @app_commands.command(name="etanbot-math-help", description="Provides help for using the calculator command.")
     async def math_help(self, interaction: discord.Interaction):
+        if not await handleCommandAccess(interaction, interaction.user.id):
+            return
         help_message = (
             "To use the calculator, type an arithmetic expression after the command.\n"
             "For example: `/etanbot-calculator expression: 2 + 2 * 3`\n"
@@ -90,11 +90,9 @@ class Math(commands.Cog):
     @app_commands.describe(valuereal="The value to convert.", from_unit="The unit to convert from.", to_unit="The unit to convert to.")
     @app_commands.choices(from_unit=[app_commands.Choice(name=unit, value=unit) for unit in units], to_unit=[app_commands.Choice(name=unit, value=unit) for unit in units])
     async def convert(self, interaction: discord.Interaction, valuereal: float, from_unit: discord.app_commands.Choice[str], to_unit: discord.app_commands.Choice[str]):
-        await interaction.response.defer()
-        cooldown = checkIfCooldown(interaction.user.id, "convert")
-        if cooldown != -1:
-            await interaction.edit_original_response(content=f"You can use this command again <t:{cooldown}:R>")
+        if not await handleCommandAccess(interaction, interaction.user.id, "convert"):
             return
+        await interaction.response.defer()
         setCooldown(interaction.user.id, "convert", 10)
         
         try:
