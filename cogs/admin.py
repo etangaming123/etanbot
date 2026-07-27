@@ -46,7 +46,7 @@ class Admin(commands.Cog):
             await interaction.edit_original_response(content="You cannot ban yourself.")
             return
         bannedusers = loadData("bannedusers")
-        for ban_key in [getBanKey(user.id), hash(user.id), hash(str(user.id))]:
+        for ban_key in [getBanKey(user.id), str(hash(user.id)), str(hash(str(user.id)))]:
             if ban_key in bannedusers:
                 del bannedusers[ban_key]
         bannedusers[getBanKey(user.id)] = {"length": self._parse_duration_to_timestamp(length), "reason": reason}
@@ -69,16 +69,18 @@ class Admin(commands.Cog):
         bannedusers = loadData("bannedusers")
         if getBanKey(user.id) in bannedusers:
             del bannedusers[getBanKey(user.id)]
-        elif hash(user.id) in bannedusers:
-            del bannedusers[hash(user.id)]
-        elif hash(str(user.id)) in bannedusers:
-            del bannedusers[hash(str(user.id))]
-            if saveData("bannedusers", bannedusers):
-                await interaction.edit_original_response(content=f"User {formatUsername(user)} has been unbanned from using etan bot.")
-            else:
-                await interaction.edit_original_response(content=f"An error occurred while unbanning the user.")
+        elif str(hash(user.id)) in bannedusers:
+            del bannedusers[str(hash(user.id))]
+        elif str(hash(str(user.id))) in bannedusers:
+            del bannedusers[str(hash(str(user.id)))]
         else:
             await interaction.edit_original_response(content=f"User {formatUsername(user)} is not banned.")
+            return
+
+        if saveData("bannedusers", bannedusers):
+            await interaction.edit_original_response(content=f"User {formatUsername(user)} has been unbanned from using etan bot.")
+        else:
+            await interaction.edit_original_response(content=f"An error occurred while unbanning the user.")
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Admin(bot))

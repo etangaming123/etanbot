@@ -57,10 +57,13 @@ def saveData(store: str, newdata: dict):
 def loadData(store: str):
     try:
         with open(f"{store}.json", "r") as file:
-            return json.load(file)
+            data = json.load(file)
+            if store in datastoresbuttheseonesarelists:
+                return data if isinstance(data, list) else []
+            return data if isinstance(data, dict) else {}
     except Exception as e:
         print(f"Error loading data: {e}")
-        return ""
+        return [] if store in datastoresbuttheseonesarelists else {}
 
 config = loadData("config")
 poweruserid = config["poweruserid"] # to bypass cooldowns if you're cool B)
@@ -115,9 +118,10 @@ def setCooldown(userid: int, commandname: str, cooldowntime: int):
 
 def checkIfBanned(userid: int):
     global bannedusers
-    ban_keys = [getBanKey(userid), hash(userid), hash(str(userid))]
+    ban_keys = [getBanKey(userid), str(hash(userid)), str(hash(str(userid)))]
     for ban_key in ban_keys:
         if ban_key in bannedusers:
+        
             if bannedusers[ban_key]["length"] != None and time.time() > bannedusers[ban_key]["length"]:
                 del bannedusers[ban_key]
                 saveData("bannedusers", bannedusers)
