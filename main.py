@@ -264,7 +264,7 @@ async def coinflip(interaction: discord.Interaction, choice: discord.app_command
         return
     await interaction.response.defer()
     result = random.choice(["Heads", "Tails"])
-    if choice != None:
+    if choice == None:
         await interaction.edit_original_response(content=f"The coin landed on **{result}**!")
     else:
         if choice.value == result:
