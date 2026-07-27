@@ -254,12 +254,23 @@ async def puppetv3(interaction: discord.Interaction):
     await interaction.response.send_modal(puppetForm())
 
 @bot.tree.command(name="etanbot-coinflip", description="Flip a coin!")
-async def coinflip(interaction: discord.Interaction):
+@app_commands.describe(choice="The option you're looking for (cosmetic)")
+@app_commands.choices(choice=[
+    discord.app_commands.Choice(name="Heads", value="heads"),
+    discord.app_commands.Choice(name="Tails", value="tails")
+])
+async def coinflip(interaction: discord.Interaction, choice: discord.app_commands.Choice[str] = None):
     if not await handleCommandAccess(interaction, interaction.user.id):
         return
     await interaction.response.defer()
     result = random.choice(["Heads", "Tails"])
-    await interaction.edit_original_response(content=f"{result}!")
+    if choice != None:
+        await interaction.edit_original_response(content=f"The coin landed on **{result}**!")
+    else:
+        if choice.value == result:
+            await interaction.edit_original_response(content=f"You hoped for *{choice.value}*, and the coin landed on **{result}**!")
+        else:
+            await interaction.edit_original_response(content=f"You hoped for *{choice.value}*, but the coin landed on **{result}**!")
 
 def cleanLink(url, toremove):
     if toremove == "*": # if toremove is *, remove all parameters from the link
