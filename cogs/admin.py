@@ -75,6 +75,7 @@ class Admin(commands.Cog):
             return
 
         if saveData("bannedusers", bannedusers):
+            getBannedUsers(refresh=True)  # Refresh the banned users list after saving
             await interaction.edit_original_response(content=f"User {formatUsername(user)} has been unbanned from using etan bot.")
         else:
             await interaction.edit_original_response(content=f"An error occurred while unbanning the user.")
