@@ -159,3 +159,19 @@ def getBannedUsers(refresh: bool = False):
     if refresh:
         bannedusers = loadData("bannedusers")
     return bannedusers
+
+def readTextFile(textfile: str):
+    with open(f"{textfile}.txt", "r") as f:
+        tonetags = {}
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "\t" in line:
+                key, value = line.split("\t", 1)
+            elif " " in line:
+                key, value = line.split(None, 1)
+            else:
+                continue
+            tonetags[key.strip().lstrip("/")] = value.strip()
+        return tonetags
