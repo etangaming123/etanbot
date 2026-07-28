@@ -70,7 +70,7 @@ poweruserid = config["poweruserid"] # to bypass cooldowns if you're cool B)
 bannedusers = loadData("bannedusers") # load once
 
 def getBanKey(userid: int):
-    return hashlib.sha1(str(int(userid)).encode("utf-8")).hexdigest()
+    return hashlib.sha1(str(userid).encode("utf-8")).hexdigest()
 
 def removeFormatting(string: str): # Remove Discord formatting from a string (using backslashes to escape formatting characters)
     formatting_chars = ['*', '_', '~', '`', '>', '|']
@@ -118,20 +118,18 @@ def setCooldown(userid: int, commandname: str, cooldowntime: int):
 
 def checkIfBanned(userid: int):
     global bannedusers
-    ban_keys = [getBanKey(userid), str(hash(userid)), str(hash(str(userid)))]
-    for ban_key in ban_keys:
-        if ban_key in bannedusers:
-        
-            if bannedusers[ban_key]["length"] != None and time.time() > bannedusers[ban_key]["length"]:
-                del bannedusers[ban_key]
-                saveData("bannedusers", bannedusers)
-                return False
-            if ban_key != getBanKey(userid):
-                bannedusers[getBanKey(userid)] = bannedusers[ban_key]
-                del bannedusers[ban_key]
-                saveData("bannedusers", bannedusers)
-                return bannedusers[getBanKey(userid)]
-            return bannedusers[ban_key]
+    ban_key = getBanKey(userid)
+    if ban_key in bannedusers:
+        if bannedusers[ban_key]["length"] != None and time.time() > bannedusers[ban_key]["length"]:
+            del bannedusers[ban_key]
+            saveData("bannedusers", bannedusers)
+            return False
+        if ban_key != getBanKey(userid):
+            bannedusers[getBanKey(userid)] = bannedusers[ban_key]
+            del bannedusers[ban_key]
+            saveData("bannedusers", bannedusers)
+            return bannedusers[getBanKey(userid)]
+        return bannedusers[ban_key]
     return False
 
 async def handleCommandAccess(interaction: discord.Interaction, userid: int, commandname: str = None):
@@ -142,7 +140,7 @@ async def handleCommandAccess(interaction: discord.Interaction, userid: int, com
         if ban_length != None:
             ban_until = f"<t:{round(ban_length)}:F>"
         else:
-            ban_until = "permanently"
+            ban_until = "permanently, apparently"
         await interaction.response.send_message(content=f"You are banned from using etan bot until {ban_until}. Reason: {reason}", ephemeral=True)
         return False
 
