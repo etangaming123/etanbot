@@ -25,7 +25,7 @@ class rngCog(commands.Cog):
         if choice == None:
             await interaction.edit_original_response(content=f"The coin landed on **{result}**!")
         else:
-            if choice.value == result:
+            if choice.value == result.lower():
                 await interaction.edit_original_response(content=f"You hoped for *{choice.value}*, and the coin landed on **{result}**!")
             else:
                 await interaction.edit_original_response(content=f"You hoped for *{choice.value}*, but the coin landed on **{result}**!")
