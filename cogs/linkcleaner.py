@@ -70,6 +70,10 @@ class linkCleanerCog(commands.Cog):
         if "tiktok.com" in cleaned_link and "vt.tiktok.com" not in cleaned_link: # Fuck you tiktok, we're removing ALL your parameters
             cleaned_link = cleanLink(link, "*")
         
+        if "www.tiktok.com/t/" in cleaned_link: # these are the same as vt links but like you can't get the original video url from a simple http request
+            code = cleaned_link.split('www.tiktok.com/t/')[1].split('/')[0] # so we grab the share code
+            cleaned_link = f"https://vt.tiktok.com/{code}" # and convert it into something we can grab the original video url from
+
         if "https://vt.tiktok" in cleaned_link[:17]: # wow tiktok that's slack
             await interaction.edit_original_response(content=f"vt.tiktok links redirect you to a URL with trackers! Please wait as we get the real URL and clean that...")
             try:
@@ -104,6 +108,10 @@ class linkCleanerCog(commands.Cog):
             whitelist_list.append("list") # playlist
 
         cleaned_link = cleanLinkV2(link, whitelist_list)
+
+        if "www.tiktok.com/t/" in cleaned_link: # these are the same as vt links but like you can't get the original video url from a simple http request
+            code = cleaned_link.split('www.tiktok.com/t/')[1].split('/')[0] # so we grab the share code
+            cleaned_link = f"https://vt.tiktok.com/{code}" # and convert it into something we can grab the original video url from
 
         if "https://vt.tiktok" in cleaned_link[:17]: # wow tiktok that's slack
             await interaction.edit_original_response(content=f"vt.tiktok links redirect you to a URL with trackers! Please wait as we get the real URL and clean that...")
