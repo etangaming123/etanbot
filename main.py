@@ -54,6 +54,7 @@ class etanBot(commands.Bot):
         await self.load_extension("cogs.rng")
         await self.load_extension("cogs.message")
         await self.load_extension("cogs.misc")
+        await self.load_extension("cogs.timezones")
 
 bot = etanBot(command_prefix='!', intents=intents)
 bot.tree.allowed_installs = app_commands.AppInstallationType(guild=True, user=True)
