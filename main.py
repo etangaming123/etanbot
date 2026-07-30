@@ -1,15 +1,15 @@
+print("Loading modules...")
 import discord
-from discord.ext import commands 
+from discord.ext import commands, tasks
 from discord import app_commands
 import os 
 import json
-import random
 import requests
-import re
+import random
 from git import Repo
 repo = Repo(os.curdir)
 
-from common import developergithub, ensure_datastores, repositoryurl, inviteurl, supportserver, website, setCooldown, config, handleCommandAccess, readTextFile
+from common import developergithub, ensure_datastores, repositoryurl, inviteurl, supportserver, website, setCooldown, config, handleCommandAccess, readTextFile, statuses, checkforupdates
 
 intents = discord.Intents.default()
 ensure_datastores()
@@ -39,37 +39,58 @@ if not os.path.exists("config.json"):
 with open('config.json') as f:
     config = json.load(f)
 
+cogs = ["kokolinking", "profiles", "nsotaskmanager", "gifs", "math", "slotmachine", "rngdle", "admin", "color", "linkcleaner", "rng", "message", "misc", "timezones"]
+
+print("Loading additional commands...")
 class etanBot(commands.Bot):
     async def setup_hook(self):
-        await self.load_extension("cogs.kokolinking")
-        await self.load_extension("cogs.profiles")
-        await self.load_extension("cogs.nsotaskmanager")
-        await self.load_extension("cogs.gifs")
-        await self.load_extension("cogs.math")
-        await self.load_extension("cogs.slotmachine")
-        await self.load_extension("cogs.rngdle")
-        await self.load_extension("cogs.admin")
-        await self.load_extension("cogs.color")
-        await self.load_extension("cogs.linkcleaner")
-        await self.load_extension("cogs.rng")
-        await self.load_extension("cogs.message")
-        await self.load_extension("cogs.misc")
-        await self.load_extension("cogs.timezones")
+        for item in cogs:
+            try:
+                await self.load_extension(f"cogs.{item}")
+                print(f"Loaded cog {item}")
+            except Exception as e:
+                print(f"Failed to load cog {item}: {e}")
 
 bot = etanBot(command_prefix='!', intents=intents)
 bot.tree.allowed_installs = app_commands.AppInstallationType(guild=True, user=True)
 bot.tree.allowed_contexts = app_commands.AppCommandContext(guild=True, dm_channel=True, private_channel=True)
 
+async def updateStatus(newstatus):
+    await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.playing, name=newstatus))
+
+pickedstatus = None
+OhNoesWereOutOfDateButItsOkayBecauseWePrintedTheWarningAlready = False # i love weird variable names <3
+
+@tasks.loop(minutes=10)
+async def DoThisEveryTenMinutes():
+    global pickedstatus
+    global OhNoesWereOutOfDateButItsOkayBecauseWePrintedTheWarningAlready
+
+    if checkforupdates:
+        latesthash = getLatestCommitHash()
+        if latesthash != currentcommithash and not OhNoesWereOutOfDateButItsOkayBecauseWePrintedTheWarningAlready:
+            print(f"etan bot has updated! Current commit: {currentcommithash}, latest commit: {latesthash}. You should git pull and restart the bot if not running a modded instance!")
+            OhNoesWereOutOfDateButItsOkayBecauseWePrintedTheWarningAlready = True
+
+    pickedstatus = random.choice(statuses)
+    if pickedstatus == "special1":
+        await updateStatus(f"Currently running {currentcommithash}")
+    elif pickedstatus == "special2":
+        await updateStatus(f"Installed in {len(bot.guilds)} servers!")
+    else:
+        await updateStatus(pickedstatus)
+
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user} (ID: {bot.user.id})')
     try:
+        print("Syncing commands...")
         synced = await bot.tree.sync()
         print(f'Synced {len(synced)} command(s)')
-        await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.playing, name="etanbot.etangaming.xyz | /etanbot-who-am-i"))
-        print("Changed presence")
     except Exception as e:
         print(f'Error syncing commands: {e}')
+    DoThisEveryTenMinutes.start()
+    print("Bot is up and running!")
 
 # general
 @bot.tree.command(name="etanbot-ping", description="Ping the bot")
