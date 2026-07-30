@@ -12,7 +12,7 @@ inviteurl = "https://discord.com/oauth2/authorize?client_id=1505906056222605352"
 supportserver = "https://etanbot.etangaming.xyz/supportserver.html"
 website = "https://etanbot.etangaming.xyz"
 
-statuses = ["special1", "special2", "etanbot.etangaming.xyz", "open source and free to use <3", "by etangaming123", "kairiki bear bug", "pa pa para paranoia", "Not a teapot!", "/etanbot-who-am-i", "Cleaning links since June 18, i think", "I think thoughts, and thoughts always make me think"]
+statuses = ["special1", "special2", "etanbot.etangaming.xyz", "open source and free to use <3", "by etangaming123", "kairiki bear bug", "pa pa para paranoia", "Not a teapot!", "/etanbot-who-am-i", "Cleaning links since May 18, i think", "I think thoughts, and thoughts always make me think"]
 
 # more options
 checkforupdates = True
