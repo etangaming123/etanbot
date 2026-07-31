@@ -5,7 +5,7 @@ import re
 import requests
 from bs4 import BeautifulSoup 
 
-from common import loadData, repositoryurl, saveData, supportserver, checkIfCooldown, setCooldown, handleCommandAccess
+from common import loadData, repositoryurl, saveData, supportserver, setCooldown, handleCommandAccess
 
 kokocreditdefaulturl = "https://estore.kokoamusement.com.au/BalanceMobile/BalanceMobile.aspx?i="
 

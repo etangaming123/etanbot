@@ -2,7 +2,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from common import loadData, saveData, checkIfCooldown, setCooldown, poweruserid, handleCommandAccess
+from common import loadData, saveData, setCooldown, poweruserid, handleCommandAccess
 
 gifs = loadData("gifs")
 

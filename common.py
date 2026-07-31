@@ -83,7 +83,7 @@ config = loadData("config")
 poweruserid = config["poweruserid"] # to bypass cooldowns if you're cool B)
 bannedusers = loadData("bannedusers") # load once
 
-def getBanKey(userid: int):
+def getUserHash(userid: int):
     return hashlib.sha1(str(userid).encode("utf-8")).hexdigest()
 
 def removeFormatting(string: str): # Remove Discord formatting from a string (using backslashes to escape formatting characters)
@@ -134,17 +134,17 @@ def setCooldown(userid: int, commandname: str, cooldowntime: int):
 
 def checkIfBanned(userid: int):
     global bannedusers
-    ban_key = getBanKey(userid)
+    ban_key = getUserHash(userid)
     if ban_key in bannedusers:
         if bannedusers[ban_key]["length"] != None and time.time() > bannedusers[ban_key]["length"]:
             del bannedusers[ban_key]
             saveData("bannedusers", bannedusers)
             return False
-        if ban_key != getBanKey(userid):
-            bannedusers[getBanKey(userid)] = bannedusers[ban_key]
+        if ban_key != getUserHash(userid):
+            bannedusers[getUserHash(userid)] = bannedusers[ban_key]
             del bannedusers[ban_key]
             saveData("bannedusers", bannedusers)
-            return bannedusers[getBanKey(userid)]
+            return bannedusers[getUserHash(userid)]
         return bannedusers[ban_key]
     return False
 

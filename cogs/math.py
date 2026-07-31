@@ -3,7 +3,7 @@ from discord import app_commands
 from discord.ext import commands
 import ast
 
-from common import checkIfCooldown, setCooldown, handleCommandAccess
+from common import setCooldown, handleCommandAccess
 
 units = ["inches", "centimeters", "pounds", "kilograms", "meters", "kilometers", "miles", "feet", "yards", "grams", "ounces", "tons", "liters", "milliliters", "gallons", "quarts", "pints", "fahrenheit", "celsius"]
 

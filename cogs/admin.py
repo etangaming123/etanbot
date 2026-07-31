@@ -4,7 +4,7 @@ from discord.ext import commands
 from datetime import datetime, timedelta, timezone
 import re
 
-from common import getBannedUsers, loadData, saveData, config, formatUsername, handleCommandAccess, getBanKey
+from common import getBannedUsers, loadData, saveData, config, formatUsername, handleCommandAccess, getUserHash
 
 class Admin(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -46,10 +46,10 @@ class Admin(commands.Cog):
             await interaction.edit_original_response(content="You cannot ban yourself.")
             return
         bannedusers = loadData("bannedusers")
-        ban_key = getBanKey(user.id)
+        ban_key = getUserHash(user.id)
         if ban_key in bannedusers:
             del bannedusers[ban_key]
-        bannedusers[getBanKey(user.id)] = {"length": self._parse_duration_to_timestamp(length), "reason": reason}
+        bannedusers[getUserHash(user.id)] = {"length": self._parse_duration_to_timestamp(length), "reason": reason}
         if saveData("bannedusers", bannedusers):
             getBannedUsers(refresh=True)  # Refresh the banned users list after saving
             await interaction.edit_original_response(content=f"User {formatUsername(user)} has been banned from using etan bot.")
@@ -68,8 +68,8 @@ class Admin(commands.Cog):
         await interaction.response.defer(ephemeral=True)
 
         bannedusers = loadData("bannedusers")
-        if getBanKey(user.id) in bannedusers:
-            del bannedusers[getBanKey(user.id)]
+        if getUserHash(user.id) in bannedusers:
+            del bannedusers[getUserHash(user.id)]
         else:
             await interaction.edit_original_response(content=f"User {formatUsername(user)} is not banned.")
             return

@@ -1,7 +1,7 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-from common import checkIfCooldown, loadData, saveData, setCooldown, checkIfCooldown, formatUsername, config, handleCommandAccess
+from common import loadData, saveData, setCooldown, formatUsername, config, handleCommandAccess
 class ProfileEditModal(discord.ui.Modal, title="Edit Your Profile"):
     def __init__(self, profile):
         super().__init__()

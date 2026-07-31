@@ -4,7 +4,7 @@ import os
 import discord
 from discord import app_commands
 from discord.ext import commands
-from common import setCooldown, checkIfCooldown, handleCommandAccess
+from common import setCooldown, handleCommandAccess
 
 def parent_dir(path, levels=1):
     for _ in range(levels):
