@@ -1,10 +1,26 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
+import difflib
 
 from common import loadData, saveData, setCooldown, poweruserid, handleCommandAccess
 
 gifs = loadData("gifs")
+
+def matchGifNames(current: str, keys):
+    if not current:
+        return sorted(keys)[:25]
+    lower_current = current.lower()
+    substring_matches = sorted(k for k in keys if lower_current in k.lower())
+    close_matches = difflib.get_close_matches(lower_current, [k.lower() for k in keys], n=25, cutoff=0.6)
+    lower_to_key = {k.lower(): k for k in keys}
+    seen = set(substring_matches)
+    for lower_key in close_matches:
+        key = lower_to_key[lower_key]
+        if key not in seen:
+            seen.add(key)
+            substring_matches.append(key)
+    return substring_matches[:25]
 
 class Gifs(commands.Cog):
     global gifs
@@ -54,7 +70,7 @@ class Gifs(commands.Cog):
         gifs = loadData("gifs")
         if len(gifs.keys()) == 0:
             return ["No gifs found!"]
-        return [app_commands.Choice(name=key, value=key) for key in sorted(gifs.keys()) if current.lower() in key.lower()][:25]
+        return [app_commands.Choice(name=key, value=key) for key in matchGifNames(current, gifs.keys())]
 
     @app_commands.command(name="z-admin-gif-refresh", description="Refreshes the gif collection from the data file.")
     async def refresh_gifs(self, interaction: discord.Interaction):
@@ -80,7 +96,7 @@ class Gifs(commands.Cog):
     async def view_gif_autocomplete(self, interaction: discord.Interaction, current: str):
         if len(gifs.keys()) == 0:
             return ["No gifs found!"]
-        return [app_commands.Choice(name=key, value=key) for key in sorted(gifs.keys()) if current.lower() in key.lower()][:25]
+        return [app_commands.Choice(name=key, value=key) for key in matchGifNames(current, gifs.keys())]
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Gifs(bot))

@@ -124,7 +124,7 @@ async def invite(interaction: discord.Interaction):
     if not await handleCommandAccess(interaction, interaction.user.id):
         return
     await interaction.response.defer()
-    await interaction.edit_original_response(content=f"[Let's get started!]({inviteurl}) • [Support server]({supportserver})")
+    await interaction.edit_original_response(content=f"[Add etan bot to your account]({inviteurl}), or [join the support server for updates and help]({supportserver})")
 
 @bot.tree.command(name="etanbot-status", description="Are we running the latest commit?")
 async def status(interaction: discord.Interaction):
