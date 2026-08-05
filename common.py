@@ -155,9 +155,17 @@ async def handleCommandAccess(interaction: discord.Interaction, userid: int, com
         reason = banned.get("reason") or "No reason provided."
         if ban_length != None:
             ban_until = f"<t:{round(ban_length)}:F>"
+
+        elif ban_length == "ncmd":
+            ban_until = "the next command you try to use."
+            currentbanned = getBannedUsers(refresh=True)
+            del currentbanned[getUserHash(userid)]
+            saveData("bannedusers", currentbanned)
+            getBannedUsers(refresh=True)  # Refresh the banned users list after saving
+
         else:
             ban_until = "the bot gets shut down, apparently."
-        await interaction.response.send_message(content=f"You are banned from using etan bot until {ban_until}. Reason: {reason}", ephemeral=True)
+        await interaction.response.send_message(content=f"You are banned from using etan bot until {ban_until}.\n\n{reason}", ephemeral=True)
         return False
 
     if commandname != None:

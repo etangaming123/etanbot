@@ -14,6 +14,12 @@ class Admin(commands.Cog):
         if not length:
             return None
 
+        if length.lower() == "permanent":
+            return None  # Representing permanent ban as None
+
+        if length.lower() == "ncmd":
+            return "ncmd" # next command
+
         matches = re.findall(r"(\d+)([dhms])", length.lower())
         if not matches:
             return None

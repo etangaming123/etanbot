@@ -32,6 +32,9 @@ These are fun commands and should not be taken seriously.
 * Lie detector
 * Tonetag searcher
 * MBTI personality lookup
+* Deretype lookup
+* Slotmachine
+* Random choice picker (picks a choice from a given list)
 
 ### Useful
 
@@ -40,6 +43,9 @@ Various utility commands.
 * Link cleaner (removes *most* url trackers within links)
 * (unnofficial) Linkage with Koko Amusement Cards (so you can see how much credit you have left, from the comfort of Discord)
 * Calculator and unit conversion (cm to inches, kg to pounds, etc.)
+* (unofficial) "linkage" with rngdle (get a user's latest roll)
+* Timezone conversion
+* Calculator and unit conversion
 
 ### Cosmetic
 
