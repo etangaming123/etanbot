@@ -136,6 +136,8 @@ def checkIfBanned(userid: int):
     global bannedusers
     ban_key = getUserHash(userid)
     if ban_key in bannedusers:
+        if bannedusers[ban_key]["length"] == "ncmd":
+            return bannedusers[ban_key]
         if bannedusers[ban_key]["length"] != None and time.time() > bannedusers[ban_key]["length"]:
             del bannedusers[ban_key]
             saveData("bannedusers", bannedusers)
