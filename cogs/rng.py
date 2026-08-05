@@ -359,7 +359,7 @@ class rngCog(commands.Cog):
         if randomnumber == 1: # 1 (1 in 1000)
             await testify.edit_original_response(content=f"{extrastring.replace('TEXT', 'And Testify.')}")
         elif randomnumber < 12: # 2-11 (roughly 1 in 100)
-            await testify.edit_original_response(content=f"{extrastring.replace('TEXT', 'I\'ll end it all...')}")
+            await testify.edit_original_response(content=f"{extrastring.replace('TEXT', 'I’ll end it all...')}")
         elif randomnumber < 113: # 12-112 (roughly 1 in 10)
             await testify.edit_original_response(content=f"{extrastring.replace('TEXT', 'Testify')}")
         else: # the default
