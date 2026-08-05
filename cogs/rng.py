@@ -333,6 +333,38 @@ class rngCog(commands.Cog):
         else: # the default
             await paro.edit_original_response(content=f"{extrastring.replace('TEXT', 'paro')}") # paro
 
+    @app_commands.command(name="testify", description="[ Proceeding will make a decision that you can not reverse. ]") # testify
+    @app_commands.describe(detailed="Whether to return detailed RNG results (defaults to false).")
+    async def paro(self, testify: discord.Interaction, detailed: bool = False): # testify
+        if not await handleCommandAccess(testify, testify.user.id, "testify"):
+            return
+        await testify.response.defer() # testify
+        setCooldown(testify.user.id, "testify", 1)
+        randomnumber = random.randint(1, 1000)
+        extrarandomnum = random.randint(1, 20)
+        extrastring = ""
+
+        if extrarandomnum == 1: # 1 (1 in 20)
+            extrastring = "# TEXT"
+        elif extrarandomnum < 4: # 2-3 (roughly 1 in 10)
+            extrastring = "**TEXT**"
+        elif extrarandomnum < 9: # 4-8 (roughly 1 in 4)
+            extrastring = "*TEXT*"
+        else:
+            extrastring = "TEXT"
+        
+        if detailed:
+            extrastring = extrastring + f"\n-# rng `{randomnumber}` (1-1000) // extra rng `{extrarandomnum}` (1-20)"
+
+        if randomnumber == 1: # 1 (1 in 1000)
+            await testify.edit_original_response(content=f"{extrastring.replace('TEXT', 'And Testify.')}")
+        elif randomnumber < 12: # 2-11 (roughly 1 in 100)
+            await testify.edit_original_response(content=f"{extrastring.replace('TEXT', 'I\'ll end it all...')}")
+        elif randomnumber < 113: # 12-112 (roughly 1 in 10)
+            await testify.edit_original_response(content=f"{extrastring.replace('TEXT', 'Testify')}")
+        else: # the default
+            await testify.edit_original_response(content=f"{extrastring.replace('TEXT', 'testify')}")
+
     @app_commands.command(name="etanbot-predict", description="[event] will happen [unspecified date/time]")
     @app_commands.describe(event="The event you want to predict.")
     async def predict(self, interaction: discord.Interaction, event: str):
