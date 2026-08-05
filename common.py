@@ -155,15 +155,15 @@ async def handleCommandAccess(interaction: discord.Interaction, userid: int, com
     if banned:
         ban_length = banned.get("length")
         reason = banned.get("reason") or "No reason provided."
-        if ban_length != None:
-            ban_until = f"<t:{round(ban_length)}:F>"
-
-        elif ban_length == "ncmd":
+        if ban_length == "ncmd":
             ban_until = "the next command you try to use."
             currentbanned = getBannedUsers(refresh=True)
             del currentbanned[getUserHash(userid)]
             saveData("bannedusers", currentbanned)
             getBannedUsers(refresh=True)  # Refresh the banned users list after saving
+
+        elif ban_length != None:
+            ban_until = f"<t:{round(ban_length)}:F>"
 
         else:
             ban_until = "the bot gets shut down, apparently."
