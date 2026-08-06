@@ -39,7 +39,7 @@ if not os.path.exists("config.json"):
 with open('config.json') as f:
     config = json.load(f)
 
-cogs = ["kokolinking", "profiles", "nsotaskmanager", "gifs", "math", "slotmachine", "rngdle", "admin", "color", "linkcleaner", "rng", "message", "misc", "timezones"]
+cogs = ["kokolinking", "profiles", "nsotaskmanager", "gifs", "math", "slotmachine", "rngdle", "admin", "color", "linkcleaner", "rng", "message", "misc", "timezones", "datamanagement"]
 
 print("Loading additional commands...")
 class etanBot(commands.Bot):

@@ -19,8 +19,18 @@ checkforupdates = True
 enablecooldowns = True
 
 # no touchy! unless you want more datastores
-datastores = ["linkedkokocards", "profiles", "gifs", "bannedusers"]
+userdatastores = ["linkedkokocards", "profiles"]
+otherdatastores = ["bannedusers", "gifs"]
 datastoresbuttheseonesarelists = []
+
+datastores = []
+
+# idk if theres a better way lmfao
+for item in userdatastores:
+    datastores.append(item)
+
+for item in otherdatastores:
+    datastores.append(item)
 
 cooldowns = {}
 
@@ -177,6 +187,42 @@ async def handleCommandAccess(interaction: discord.Interaction, userid: int, com
             return False
 
     return True
+
+def purgeUserData(userid: int):
+    userid = str(userid)
+    for store in userdatastores:
+        data = loadData(store)
+        if data == "":
+            return False
+        if userid in data:
+            del data[userid]
+            if not saveData(store, data):
+                return False
+    return True
+
+class ConfirmView(discord.ui.View):
+    def __init__(self, author_id: int, timeout: float = 30):
+        super().__init__(timeout=timeout)
+        self.author_id = author_id
+        self.value = None
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.author_id:
+            await interaction.response.send_message(content="This confirmation isn't for you.", ephemeral=True)
+            return False
+        return True
+
+    @discord.ui.button(label="Confirm", style=discord.ButtonStyle.danger)
+    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.value = True
+        self.stop()
+        await interaction.response.defer()
+
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary)
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.value = False
+        self.stop()
+        await interaction.response.defer()
 
 def getBannedUsers(refresh: bool = False):
     global bannedusers

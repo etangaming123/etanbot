@@ -14,7 +14,7 @@ Profile Picture by Shoebill Studios.
 
 > [!WARNING]
 > This bot is intended for self hosting. etangaming123 is not responsible for sensitive data on this bot being leaked.
-> The only data stored on this bot is your profile (if you wish to use the profiles feature, which is public anyway), and your KOKO Amusement Token - both features are completely optional.
+> Features that require data being stored are 100% optional, and you may delete it at any time.
 
 ## Features
 

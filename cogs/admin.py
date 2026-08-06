@@ -4,7 +4,7 @@ from discord.ext import commands
 from datetime import datetime, timedelta, timezone
 import re
 
-from common import getBannedUsers, loadData, saveData, config, formatUsername, handleCommandAccess, getUserHash
+from common import getBannedUsers, loadData, saveData, config, formatUsername, handleCommandAccess, getUserHash, purgeUserData, ConfirmView
 
 class Admin(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -85,6 +85,28 @@ class Admin(commands.Cog):
             await interaction.edit_original_response(content=f"User {formatUsername(user)} has been unbanned from using etan bot.")
         else:
             await interaction.edit_original_response(content=f"An error occurred while unbanning the user.")
+
+    @app_commands.command(name="z-admin-purge-user", description="Deletes all data for a specific user. (Admin only)")
+    @app_commands.describe(user="The user whose data will be deleted")
+    async def purge_user(self, interaction: discord.Interaction, user: discord.User):
+        if not await handleCommandAccess(interaction, interaction.user.id):
+            return
+        if interaction.user.id != int(config["poweruserid"]):
+            await interaction.response.send_message(content="You don't have permission to use this command.", ephemeral=True)
+            return
+
+        view = ConfirmView(interaction.user.id)
+        await interaction.response.send_message(content=f"Are you sure you want to delete **all** data for {formatUsername(user)}? This cannot be undone.", view=view, ephemeral=True)
+        await view.wait()
+
+        if view.value is not True:
+            await interaction.edit_original_response(content="Purge cancelled." if view.value is False else "Confirmation timed out, purge cancelled.", view=None)
+            return
+
+        if purgeUserData(user.id):
+            await interaction.edit_original_response(content=f"All data for {formatUsername(user)} has been deleted.", view=None)
+        else:
+            await interaction.edit_original_response(content="An error occurred while deleting the user's data.", view=None)
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Admin(bot))
