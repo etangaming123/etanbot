@@ -5,7 +5,7 @@ import pickle
 import discord
 import time
 
-from crypto_utils import encrypt_value, decrypt_value
+from crypto_utils import encrypt_value, decrypt_value, resolve_and_upgrade
 
 # change these if you need
 repositoryurl = "https://github.com/etangaming123/etanbot"
@@ -67,20 +67,19 @@ def ensure_datastores(): # converting from pkl to json if needed, and creating n
 
     migrate_koko_tokens()
 
-def migrate_koko_tokens(): # idempotent: encrypts any plaintext koko tokens still on disk, leaves already-encrypted ones alone
+def migrate_koko_tokens(): # idempotent: brings every stored token up to the currently active encryption scheme (raw plaintext or old on-disk-key ciphertext both get upgraded)
     data = loadData("linkedkokocards")
     if data == "" or not data:
         return
     changed = False
-    for userid, token in data.items():
-        try:
-            decrypt_value(token) # already valid ciphertext, nothing to do
-        except Exception:
-            data[userid] = encrypt_value(token) # legacy/plaintext value, encrypt it
+    for userid, stored in data.items():
+        _, updated = resolve_and_upgrade(stored)
+        if updated is not None:
+            data[userid] = updated
             changed = True
     if changed:
         saveData("linkedkokocards", data)
-        print("Migrated legacy plaintext koko tokens to encrypted storage.")
+        print("Migrated koko tokens to the current encryption scheme.")
 
 def saveData(store: str, newdata: dict):
     try:

@@ -114,6 +114,29 @@ Then, create a `config.json` file in the same directory as `main.py` with the fo
 }
 ```
 
+#### Encryption keys (recommended)
+
+Your bot token and any linked Koko Amusement card tokens are encrypted at rest. By default the encryption key is auto-generated into a local file (`bot_token.key` / `koko_encryption.key`) on first run - this works out of the box, but the key ends up sitting on disk right next to what it unlocks.
+
+For better security, generate the keys yourself and set them as environment variables instead.
+
+**Windows (running via a `.bat` file):** just double-click `setup_encryption_keys.bat`. It generates both keys and sets them permanently for your user account (via `setx` - no admin needed, nothing written to a file in the bot's folder). Close and reopen your terminal (or just start the bot normally) afterwards for it to take effect.
+
+**macOS/Linux:**
+
+```bash
+python3 generate_env_keys.py
+```
+
+This prints two `export` lines, one per key. Paste both into your shell profile (or wherever you set env vars for the process that runs the bot) before starting it:
+
+```bash
+export KOKO_ENCRYPTION_KEY="..."
+export BOT_TOKEN_ENCRYPTION_KEY="..."
+```
+
+Don't lose these - if you do, you'll need to relink any Koko cards and re-enter your bot token in `config.json`. If a token is already encrypted under the old on-disk key when you set these env vars, it gets automatically upgraded to the env-var key on the next run.
+
 You might want to change some items in `common.py` before starting!
 
 Finally, run the bot with:
