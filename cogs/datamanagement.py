@@ -24,7 +24,7 @@ class datamanagement(commands.Cog):
             else:
                 try:
                     data[item] = str(read[str(interaction.user.id)])
-                except ValueError:
+                except Exception:
                     data[item] = "[No data stored]"
 
         string = "**etan bot has the following data associated with you:**\n"
