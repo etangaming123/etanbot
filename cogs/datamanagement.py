@@ -10,7 +10,7 @@ class datamanagement(commands.Cog):
 
     @app_commands.command(name="etanbot-list-data", description="Gets everything that etan bot has stored on your user!")
     async def listData(self, interaction: discord.Interaction):
-        if not handleCommandAccess(interaction, interaction.user.id, "listdata"):
+        if not await handleCommandAccess(interaction, interaction.user.id, "listdata"):
             return
         
         await interaction.response.defer(ephemeral=True)
