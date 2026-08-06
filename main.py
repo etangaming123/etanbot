@@ -8,6 +8,7 @@ import requests
 import random
 from git import Repo
 repo = Repo(os.curdir)
+import secure_token
 
 from common import developergithub, ensure_datastores, repositoryurl, inviteurl, supportserver, website, setCooldown, config, handleCommandAccess, readTextFile, statuses, checkforupdates
 
@@ -35,9 +36,6 @@ if not os.path.exists("config.json"):
     with open("config.json", "w") as f:
         json.dump({"token": "your token here", "poweruserid": "your user id here (for certain commands)"}, f, indent=4)
     input("Created config.json with default values. Please edit the file with your bot token and user id, then press enter to continue...")
-
-with open('config.json') as f:
-    config = json.load(f)
 
 cogs = ["kokolinking", "profiles", "nsotaskmanager", "gifs", "math", "slotmachine", "rngdle", "admin", "color", "linkcleaner", "rng", "message", "misc", "timezones", "datamanagement"]
 
@@ -143,4 +141,4 @@ async def status(interaction: discord.Interaction):
     else:
         await interaction.edit_original_response(content=f"etanbot is not up to date. Running commit: {currentcommithash}, latest commit: {latesthash}. Please contact the developer to update the bot!")
 
-bot.run(config['token'])
+bot.run(secure_token.secure_token())

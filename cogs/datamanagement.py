@@ -2,7 +2,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from common import handleCommandAccess, saveData, loadData, userdatastores, setCooldown, purgeUserData, ConfirmView
+from common import handleCommandAccess, saveData, loadData, userdatastores, sensitivestores, setCooldown, purgeUserData, ConfirmView
 
 class datamanagement(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -21,6 +21,8 @@ class datamanagement(commands.Cog):
             read = loadData(item) # read everything that stores user data
             if read == "":
                 data[item] = "[Failed to load]"
+            elif item in sensitivestores:
+                data[item] = "[Linked - token hidden for security]" if str(interaction.user.id) in read else "[No data stored]"
             else:
                 try:
                     data[item] = str(read[str(interaction.user.id)])

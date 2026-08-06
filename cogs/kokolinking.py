@@ -6,6 +6,7 @@ import requests
 from bs4 import BeautifulSoup 
 
 from common import loadData, repositoryurl, saveData, supportserver, setCooldown, handleCommandAccess
+from crypto_utils import encrypt_value, decrypt_value
 
 kokocreditdefaulturl = "https://estore.kokoamusement.com.au/BalanceMobile/BalanceMobile.aspx?i="
 
@@ -78,7 +79,7 @@ class KokoLinking(commands.Cog):
         if linkedkokocards == "":
             await interaction.edit_original_response(content="An error occurred while accessing the database. Please try again later.")
             return
-        linkedkokocards[str(interaction.user.id)] = token
+        linkedkokocards[str(interaction.user.id)] = encrypt_value(token)
         saveData("linkedkokocards", linkedkokocards)
         await interaction.edit_original_response(content="Token linked to your Discord account! Checking balance...")
         thingo = get_koko_balance(token)
@@ -101,9 +102,15 @@ class KokoLinking(commands.Cog):
         if linkedkokocards == "":
             await interaction.edit_original_response(content="An error occurred while accessing the database. Please try again later.")
             return
-        token = linkedkokocards.get(str(interaction.user.id))
-        if not token:
+        stored = linkedkokocards.get(str(interaction.user.id))
+        if not stored:
             await interaction.edit_original_response(content="You have not linked a koko amusement card yet! Use /etanbot-koko-link-card to link your card and check your balance. If you need help, use /etanbot-koko-help for instructions on how to link your card.")
+            return
+        try:
+            token = decrypt_value(stored)
+        except Exception as e:
+            print(f"Error decrypting koko token for user {interaction.user.id}: {e}")
+            await interaction.edit_original_response(content="An error occurred reading your linked card. Please relink it using /etanbot-koko-link-card.")
             return
         await interaction.edit_original_response(content="Checking balance...")
         thingo = get_koko_balance(token)

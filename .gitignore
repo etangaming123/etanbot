@@ -8,3 +8,4 @@ __pycache__
 *.json
 startetanbot.bat
 updateetanbot.bat
+*.key

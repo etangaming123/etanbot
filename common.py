@@ -5,6 +5,8 @@ import pickle
 import discord
 import time
 
+from crypto_utils import encrypt_value, decrypt_value
+
 # change these if you need
 repositoryurl = "https://github.com/etangaming123/etanbot"
 developergithub = "https://github.com/etangaming123"
@@ -22,6 +24,8 @@ enablecooldowns = True
 userdatastores = ["linkedkokocards", "profiles"]
 otherdatastores = ["bannedusers", "gifs"]
 datastoresbuttheseonesarelists = []
+
+sensitivestores = ["linkedkokocards"] # datastores whose values should never be shown raw (e.g. in /etanbot-list-data)
 
 datastores = []
 
@@ -60,6 +64,23 @@ def ensure_datastores(): # converting from pkl to json if needed, and creating n
             with open(f"{item}.json", "w") as file:
                 json.dump([], file)
             print(f"Created new file [{item}.json]")
+
+    migrate_koko_tokens()
+
+def migrate_koko_tokens(): # idempotent: encrypts any plaintext koko tokens still on disk, leaves already-encrypted ones alone
+    data = loadData("linkedkokocards")
+    if data == "" or not data:
+        return
+    changed = False
+    for userid, token in data.items():
+        try:
+            decrypt_value(token) # already valid ciphertext, nothing to do
+        except Exception:
+            data[userid] = encrypt_value(token) # legacy/plaintext value, encrypt it
+            changed = True
+    if changed:
+        saveData("linkedkokocards", data)
+        print("Migrated legacy plaintext koko tokens to encrypted storage.")
 
 def saveData(store: str, newdata: dict):
     try:
