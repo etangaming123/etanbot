@@ -335,7 +335,7 @@ class rngCog(commands.Cog):
 
     @app_commands.command(name="testify", description="[ Proceeding will make a decision that you can not reverse. ]") # testify
     @app_commands.describe(detailed="Whether to return detailed RNG results (defaults to false).")
-    async def paro(self, testify: discord.Interaction, detailed: bool = False): # testify
+    async def testify(self, testify: discord.Interaction, detailed: bool = False): # testify
         if not await handleCommandAccess(testify, testify.user.id, "testify"):
             return
         await testify.response.defer() # testify
