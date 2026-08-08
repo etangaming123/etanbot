@@ -54,6 +54,7 @@ If you want to spice up your Discord experience, kinda!
 * Built in profiles (for fun!)
 * NEEDY STREAMER OVERLOAD Task Manager generator
 * Preset GIFS to choose from
+* "Gimmicks" feature taken from strawpage (send messages and drawings to other users - anonymous or not)
 
 ## Screenshots/Showcase
 

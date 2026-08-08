@@ -8,7 +8,15 @@ from discord.ext import commands
 from common import handleCommandAccess, saveData, loadData, userdatastores, sensitivestores, setCooldown, purgeUserData, ConfirmView
 
 ALLOWED_LINK_PLATFORMS = ("tiktok", "instagram", "twitter", "youtube")
-MAX_IMPORT_FILE_SIZE = 262144  # 256KB, way more than any legit export needs
+# 2MB — a self-exported file can now include the user's (redacted) gimmick inbox, which counts toward
+# upload size even though it's always skipped on import (see NON_IMPORTABLE_STORES below), so a user
+# with a lot of pending drawings shouldn't get blocked from re-importing the rest of their data.
+MAX_IMPORT_FILE_SIZE = 2097152
+
+# datastores that get exported via /etanbot-list-data but can never be brought back in via /etanbot-import-data
+NON_IMPORTABLE_STORES = {
+    "gimmickinbox": "gimmicks can't be imported — they're included in your export for reference only",
+}
 
 def validate_profiles(value):
     if not isinstance(value, dict):
@@ -65,9 +73,20 @@ class datamanagement(commands.Cog):
                 except Exception:
                     data[item] = "[No data stored]"
 
+        # gimmicks aren't a userdatastore (see common.py) since they can't be re-imported, but we still
+        # show the user what's in their inbox — with sender_id always stripped, even for non-anonymous
+        # gimmicks, so this export can never be used to unmask who sent something.
+        gimmickinbox = loadData("gimmickinbox")
+        if not isinstance(gimmickinbox, dict):
+            gimmickinbox = {}
+        data["gimmickinbox"] = [
+            {key: value for key, value in gimmick.items() if key != "sender_id"}
+            for gimmick in gimmickinbox.get(str(interaction.user.id), [])
+        ]
+
         payload = json.dumps(data, indent=4).encode("utf-8")
         file = discord.File(io.BytesIO(payload), filename=f"etanbot-data-{interaction.user.id}.json")
-        await interaction.edit_original_response(content="Here's everything etan bot has stored on you. You can easily import this to a new instance of etan bot!", attachments=[file])
+        await interaction.edit_original_response(content="Here's everything etan bot has stored on you. You can import the importable sections of this into a new instance of etan bot.\n-# Gimmicks are included for reference and transparency only and can't be re-imported.", attachments=[file])
 
     @app_commands.command(name="etanbot-import-data", description="Import your data from a previously exported .json file.")
     @app_commands.describe(file="The .json file exported using /etanbot-list-data.")
@@ -96,9 +115,13 @@ class datamanagement(commands.Cog):
 
         to_write = {}
         skipped = []
+        nonimportable = []
         errors = []
 
         for key, value in parsed.items():
+            if key in NON_IMPORTABLE_STORES:
+                nonimportable.append(key)
+                continue
             if key in sensitivestores:
                 skipped.append(key)
                 continue
@@ -125,8 +148,9 @@ class datamanagement(commands.Cog):
 
         summary = ", ".join(f"`{store}`" for store in to_write)
         skippednote = f"\n\nSkipped (can't be imported, or nothing to import): {', '.join(f'`{store}`' for store in skipped)}" if skipped else ""
+        nonimportablenote = "\n\n" + "\n".join(f"Note: {NON_IMPORTABLE_STORES[store]}." for store in nonimportable) if nonimportable else ""
         view = ConfirmView(interaction.user.id)
-        await interaction.edit_original_response(content=f"This will **overwrite** your existing data in: {summary}. This cannot be undone.{skippednote}", view=view)
+        await interaction.edit_original_response(content=f"This will **overwrite** your existing data in: {summary}. This cannot be undone.{skippednote}{nonimportablenote}", view=view)
         await view.wait()
 
         if view.value is not True:
@@ -154,6 +178,8 @@ class datamanagement(commands.Cog):
             resultlines.append(f"Failed to import: {', '.join(f'`{store}`' for store in failed)}")
         if skipped:
             resultlines.append(f"Skipped (can't be imported): {', '.join(f'`{store}`' for store in skipped)}")
+        if nonimportable:
+            resultlines.append(f"Ignored (gimmicks can't be imported): {', '.join(f'`{store}`' for store in nonimportable)}")
 
         await interaction.edit_original_response(content="\n".join(resultlines), view=None)
 

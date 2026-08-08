@@ -22,8 +22,8 @@ enablecooldowns = True
 
 # no touchy! unless you want more datastores
 userdatastores = ["linkedkokocards", "profiles"]
-otherdatastores = ["bannedusers", "gifs"]
-datastoresbuttheseonesarelists = []
+otherdatastores = ["bannedusers", "gifs", "gimmickinbox", "gimmick-blocked-users"]
+datastoresbuttheseonesarelists = ["gimmicklog"]
 
 sensitivestores = ["linkedkokocards"] # datastores whose values should never be shown raw (e.g. in /etanbot-list-data)
 
@@ -111,6 +111,7 @@ def loadData(store: str):
 
 config = loadData("config")
 poweruserid = config["poweruserid"] # to bypass cooldowns if you're cool B)
+report_webhook_url = config.get("report_webhook_url")
 bannedusers = loadData("bannedusers") # load once
 
 def getUserHash(userid: int):
