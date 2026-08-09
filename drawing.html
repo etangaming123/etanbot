@@ -71,6 +71,8 @@
 					<div class="col-12 text-center">
 						<button type="button" class="btn btn-secondary" id="undoBtn">Undo stroke</button>
 						<button type="button" class="btn btn-danger" id="clearBtn">Clear</button>
+						<button type="button" class="btn btn-outline-secondary" id="preserveStrokesBtn">Preserve overlapping strokes: OFF</button>
+						<button type="button" class="btn btn-warning" id="optimizeBtn">Optimise drawing</button>
 						<button type="button" class="btn btn-success" id="exportBtn">Export code</button>
 						<button type="button" class="btn btn-info" id="saveBtn">Save image</button>
 					</div>
@@ -126,6 +128,7 @@
 			let erasing = false;
 			let drawing = false;
 			let lastPos = null;
+			let preserveStrokes = false; // when true, drawing/erasing never trims or removes other strokes' data
 			const undoStack = [];
 
 			const palette = document.getElementById("palette");
@@ -202,6 +205,33 @@
 						y: Math.round(last.y + (dy * s) / steps)
 					});
 				}
+			}
+
+			// Does the segment from->to already lie entirely within this same stroke's own earlier
+			// path? A stroke is one fixed color the whole time, so any self-overlap is trivially
+			// "same color" - the only question is geometric coverage. Used by the "Optimise drawing"
+			// batch pass to stop scribbling back and forth over the same spot (shading, filling in a
+			// shape) from costing new points for every pass once the area's already covered.
+			function segmentCoveredBySelf(strokePoints, width, from, to) {
+				if (strokePoints.length < 2) return false;
+				const hitRadiusSq = width * width;
+				const dist = Math.hypot(to.x - from.x, to.y - from.y);
+				const steps = Math.max(1, Math.ceil(dist / Math.max(1, width / 2)));
+				for (let s = 0; s <= steps; s++) {
+					const x = from.x + (to.x - from.x) * s / steps;
+					const y = from.y + (to.y - from.y) * s / steps;
+					let covered = false;
+					for (let i = 1; i < strokePoints.length; i++) {
+						const a = strokePoints[i - 1];
+						const b = strokePoints[i];
+						if (distToSegmentSq(x, y, a.x, a.y, b.x, b.y) <= hitRadiusSq) {
+							covered = true;
+							break;
+						}
+					}
+					if (!covered) return false;
+				}
+				return true;
 			}
 
 			// --- real erasing: trims/splits existing strokes instead of drawing an eraser stroke ---
@@ -335,24 +365,26 @@
 				if (undoStack.length > MAX_UNDO_STEPS) undoStack.shift();
 			}
 
-			let strokeIsRedundant = true; // whole in-progress stroke has painted nothing not already there
-
+			// Live drawing stays cheap and dumb on purpose: just append points, no override/self-overlap
+			// checking here. Those checks are O(strokes x points) and running them on every mousemove
+			// made drawing feel choppy - they're pure byte-count optimizations (they never change what's
+			// visible), so they're deferred to the explicit "Optimise drawing" button instead of paid for
+			// on every frame. Erasing stays live since it's core functionality, not an optimization -
+			// you need to see ink actually disappear immediately.
 			function startStroke(evt) {
 				evt.preventDefault();
 				drawing = true;
 				pushUndoSnapshot();
 				const pos = getPos(evt);
 				lastPos = pos;
-				erasing = selectedColor === ERASER_COLOR;
+				erasing = selectedColor === ERASER_COLOR && !preserveStrokes;
 				const brushWidth = parseInt(document.getElementById("brushSize").value, 10);
 				const radius = brushWidth / 2;
 				if (erasing) {
 					eraseAt(pos, radius);
 					redraw();
 				} else {
-					const color = hexToRgb(selectedColor);
-					strokeIsRedundant = overrideAt(pos, radius, color);
-					currentStroke = { color, width: brushWidth, points: [pos] };
+					currentStroke = { color: hexToRgb(selectedColor), width: brushWidth, points: [pos] };
 					redraw();
 					drawStroke(currentStroke);
 				}
@@ -363,15 +395,12 @@
 				if (!drawing) return;
 				evt.preventDefault();
 				const pos = getPos(evt);
-				const brushWidth = parseInt(document.getElementById("brushSize").value, 10);
-				const radius = brushWidth / 2;
+				const radius = parseInt(document.getElementById("brushSize").value, 10) / 2;
 				if (erasing) {
 					eraseAlong(lastPos, pos, radius);
 					lastPos = pos;
 					redraw();
 				} else {
-					const color = hexToRgb(selectedColor);
-					if (!overrideAlong(lastPos, pos, radius, color)) strokeIsRedundant = false;
 					addPointToCurrentStroke(pos);
 					lastPos = pos;
 					redraw();
@@ -383,13 +412,12 @@
 			function endStroke() {
 				if (!drawing) return;
 				drawing = false;
-				if (!erasing && currentStroke && currentStroke.points.length > 0 && !strokeIsRedundant) {
+				if (!erasing && currentStroke && currentStroke.points.length > 0) {
 					strokes.push(currentStroke);
 				}
 				currentStroke = null;
 				erasing = false;
 				lastPos = null;
-				redraw(); // in case a fully-redundant stroke's live preview needs clearing
 				refreshUsageMeter();
 			}
 
@@ -415,6 +443,81 @@
 				document.getElementById("codeRow").style.display = "none";
 				updateUsageMeter(0);
 			});
+
+			function updatePreserveStrokesButton() {
+				const btn = document.getElementById("preserveStrokesBtn");
+				btn.textContent = "Preserve overlapping strokes: " + (preserveStrokes ? "ON" : "OFF");
+				btn.classList.toggle("btn-warning", preserveStrokes);
+				btn.classList.toggle("btn-outline-secondary", !preserveStrokes);
+				document.getElementById("optimizeBtn").disabled = preserveStrokes;
+			}
+
+			document.getElementById("preserveStrokesBtn").addEventListener("click", () => {
+				if (!preserveStrokes) {
+					const confirmed = confirm(
+						"By default, drawing over (or erasing) part of an earlier stroke removes the now-hidden " +
+						"portion of it, since it's no longer visible - this keeps the exported code small.\n\n" +
+						"Turning this ON disables that: strokes are never trimmed or removed because something " +
+						"else was drawn over them, and the eraser stops deleting stroke data too (it just paints " +
+						"white on top instead). Every stroke you draw stays fully intact, even ones later strokes " +
+						"completely cover. \"Optimise drawing\" is also disabled while this is on, since it does " +
+						"the same kind of trimming, just as a manual batch pass.\n\n" +
+						"Useful for detailed, heavily-layered drawings where you don't want strokes automatically " +
+						"merged or cleaned up. Your drawing will likely use a lot more characters and could hit " +
+						"the 4000-character export limit much sooner.\n\n" +
+						"Turn this on?"
+					);
+					if (!confirmed) return;
+				}
+				preserveStrokes = !preserveStrokes;
+				updatePreserveStrokesButton();
+			});
+
+			// Batch version of the same override/self-overlap logic live drawing skips for speed: removes
+			// data that never had any visible effect - portions of a stroke hidden by a later, differently
+			// colored stroke on top, and points from a stroke retracing over its own already-covered path.
+			// Never changes what's drawn, only how many bytes it takes to describe it.
+			function optimizeStrokeSelf(stroke) {
+				if (stroke.points.length < 2) return stroke;
+				const reduced = [stroke.points[0]];
+				for (let i = 1; i < stroke.points.length; i++) {
+					const last = reduced[reduced.length - 1];
+					const pos = stroke.points[i];
+					if (!segmentCoveredBySelf(reduced, stroke.width, last, pos)) {
+						reduced.push(pos);
+					}
+				}
+				return { color: stroke.color, width: stroke.width, points: reduced };
+			}
+
+			function optimizeDrawing() {
+				if (preserveStrokes) return;
+				pushUndoSnapshot();
+
+				// 1. replay strokes in their original (z-)order, letting each one override/trim whatever's
+				// already been kept before it - same rule as live drawing used to apply on every move.
+				const original = strokes;
+				strokes = [];
+				for (const stroke of original) {
+					let addedSomethingNew = false;
+					let prev = null;
+					for (const pos of stroke.points) {
+						if (!overrideAt(pos, stroke.width / 2, stroke.color)) addedSomethingNew = true;
+						if (prev && !overrideAlong(prev, pos, stroke.width / 2, stroke.color)) addedSomethingNew = true;
+						prev = pos;
+					}
+					if (addedSomethingNew) strokes.push(stroke);
+				}
+
+				// 2. collapse self-retracing AND any collinear points the trim step above introduced
+				// while resampling near a cut boundary - run after trimming so it sees the final shape.
+				strokes = strokes.map(optimizeStrokeSelf);
+
+				redraw();
+				refreshUsageMeter();
+			}
+
+			document.getElementById("optimizeBtn").addEventListener("click", optimizeDrawing);
 
 			// --- encoding ---
 			// layout (before compression): [width:u16le][height:u16le][strokeCount:u16le]
@@ -504,7 +607,7 @@
 			function refreshUsageMeterLive() {
 				if (!COMPRESSION_SUPPORTED) return;
 				const token = ++meterToken;
-				const list = erasing || strokeIsRedundant ? strokes : strokes.concat(currentStroke ? [currentStroke] : []);
+				const list = erasing ? strokes : strokes.concat(currentStroke ? [currentStroke] : []);
 				encodeStrokesToBytes(list).then((bytes) => {
 					if (token !== meterToken) return;
 					updateUsageMeter(Math.ceil((bytes.length * 4) / 3));
