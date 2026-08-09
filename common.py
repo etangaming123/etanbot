@@ -21,7 +21,7 @@ checkforupdates = True
 enablecooldowns = True
 
 # no touchy! unless you want more datastores
-userdatastores = ["linkedkokocards", "profiles"]
+userdatastores = ["linkedkokocards", "profiles", "usersettings"]
 otherdatastores = ["bannedusers", "gifs", "gimmickinbox", "gimmick-blocked-users"]
 datastoresbuttheseonesarelists = ["gimmicklog"]
 
@@ -132,6 +132,17 @@ async def fetchUser(bot: discord.Client, user_id: int): # Resolve id to discord.
     except (discord.NotFound, discord.HTTPException):
         return None
 
+async def dmUser(bot: discord.Client, user_id: int, content: str) -> bool:
+    """Best-effort DM. Returns False (never raises) if the user can't be resolved or has DMs/blocks closed."""
+    user = await fetchUser(bot, user_id)
+    if user is None:
+        return False
+    try:
+        await user.send(content=content)
+        return True
+    except discord.Forbidden:
+        return False
+
 def formatUsername(user: discord.User): # Fancy formatting for usernames // displayname (@username)
     if user.display_name == None:
         return f"{removeFormatting(user.name)}"
@@ -217,6 +228,19 @@ async def handleCommandAccess(interaction: discord.Interaction, userid: int, com
             return False
 
     return True
+
+def get_user_setting(user_id: int, key: str, default=None):
+    settings = loadData("usersettings")
+    if settings == "" or not isinstance(settings, dict):
+        return default
+    return settings.get(str(user_id), {}).get(key, default)
+
+def set_user_setting(user_id: int, key: str, value) -> bool:
+    settings = loadData("usersettings")
+    if settings == "" or not isinstance(settings, dict):
+        settings = {}
+    settings.setdefault(str(user_id), {})[key] = value
+    return saveData("usersettings", settings)
 
 def purgeUserData(userid: int):
     userid = str(userid)

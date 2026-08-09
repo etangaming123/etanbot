@@ -15,8 +15,10 @@ from PIL import Image, ImageDraw
 from common import (
     ConfirmView,
     config,
+    dmUser,
     fetchUser,
     formatUsername,
+    get_user_setting,
     handleCommandAccess,
     loadData,
     report_webhook_url,
@@ -267,7 +269,7 @@ def get_pending_gimmick_ids() -> set:
     return ids
 
 
-def add_gimmick(target_id: int, gimmick_type: str, content: str, sender_id: int, anonymous: bool):
+async def add_gimmick(bot: commands.Bot, target_id: int, gimmick_type: str, content: str, sender_id: int, anonymous: bool):
     inbox = loadData("gimmickinbox")
     if inbox == "" or not isinstance(inbox, dict):
         inbox = {}
@@ -295,6 +297,9 @@ def add_gimmick(target_id: int, gimmick_type: str, content: str, sender_id: int,
         "timestamp": timestamp,
     })
     saveData("gimmicklog", log)
+
+    if get_user_setting(target_id, "gimmick_dm_notifications", False):
+        await dmUser(bot, target_id, f"You received a new {gimmick_type} gimmick at <t:{round(timestamp)}:F>! Use `/etanbot-gimmicks` to view it.")
 
 
 async def send_report(bot: commands.Bot, reporter: discord.User, target_id: int, item: dict):
@@ -515,7 +520,7 @@ class DrawModal(discord.ui.Modal, title="Send a drawing"):
             await interaction.response.send_message(content=f"That drawing code couldn't be read ({e}). Make sure you copied the whole code from the drawing page.", ephemeral=True)
             return
 
-        add_gimmick(self.target.id, "draw", code, interaction.user.id, anonymous)
+        await add_gimmick(interaction.client, self.target.id, "draw", code, interaction.user.id, anonymous)
         await interaction.response.send_message(content=f"Sent your drawing to {formatUsername(self.target)}!", ephemeral=True)
 
 class MessageModal(discord.ui.Modal, title="Send a message"):
@@ -536,7 +541,7 @@ class MessageModal(discord.ui.Modal, title="Send a message"):
             await interaction.response.send_message(content="Please enter yes or no for the anonymous field, then try again.", ephemeral=True)
             return
 
-        add_gimmick(self.target.id, "message", self.message.value, interaction.user.id, anonymous)
+        await add_gimmick(interaction.client, self.target.id, "message", self.message.value, interaction.user.id, anonymous)
         await interaction.response.send_message(content=f"Sent your message to {formatUsername(self.target)}!", ephemeral=True)
 
 
@@ -583,7 +588,7 @@ class gimmicksCog(commands.Cog):
     async def gimmicks_guide(self, interaction: discord.Interaction):
         if not await handleCommandAccess(interaction, interaction.user.id, "gimmicks-guide"):
             return
-        await interaction.response.send_message(content="etan bot Gimmicks are based off strawpage's gimmicks feature, and allow you to send drawings and messages to other users.\nTo get started, run `/etanbot-gimmicks-optin` to enable sending and receiving gimmicks!\nYou can use `/etanbot-gimmicks-send` to send a gimmick to someone (a drawing or message, as of now), and `/etanbot-gimmicks` to view your received gimmicks!\nGimmicks can also be reported, if they contain offensive content. Or, if you don't like someone's gimmicks, you can block them (works for anonymous gimmicks too!)\n\nThis is an optional feature, and you can always opt out (and delete associated gimmicks data, excluding ones you've sent) with `/etanbot-gimmicks-optout`.", ephemeral=True)
+        await interaction.response.send_message(content="etan bot Gimmicks are based off strawpage's gimmicks feature, and allow you to send drawings and messages to other users.\nTo get started, run `/etanbot-gimmicks-optin` to enable sending and receiving gimmicks!\nYou can use `/etanbot-gimmicks-send` to send a gimmick to someone (a drawing or message, as of now), and `/etanbot-gimmicks` to view your received gimmicks!\nGimmicks can also be reported, if they contain offensive content. Or, if you don't like someone's gimmicks, you can block them (works for anonymous gimmicks too!)\nWant a DM when you get a new gimmick? Configure that with `/etanbot-settings`.\n\nThis is an optional feature, and you can always opt out (and delete associated gimmicks data, excluding ones you've sent) with `/etanbot-gimmicks-optout`.", ephemeral=True)
 
     @app_commands.command(name="etanbot-gimmicks-send", description="Send a drawing or message gimmick to someone.")
     @app_commands.describe(target="Who to send the gimmick to.")
@@ -665,7 +670,7 @@ class gimmicksCog(commands.Cog):
         if not await handleCommandAccess(interaction, interaction.user.id, "gimmicks-optin"):
             return
         if opt_in(interaction.user.id):
-            await interaction.response.send_message(content="You're opted into Gimmicks! Others can now send you drawings and messages with `/etanbot-gimmicks-send`, and you can send to other opted-in users too. Opt out at any time with `/etanbot-gimmicks-optout`.", ephemeral=True)
+            await interaction.response.send_message(content="You're opted into Gimmicks! Others can now send you drawings and messages with `/etanbot-gimmicks-send`, and you can send to other opted-in users too. Opt out at any time with `/etanbot-gimmicks-optout`.\nPsst - Want to get DMs on new gimmicks? Check out your `/etanbot-settings`!", ephemeral=True)
         else:
             await interaction.response.send_message(content="You're already opted into Gimmicks.", ephemeral=True)
 
