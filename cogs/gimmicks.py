@@ -656,6 +656,19 @@ class gimmicksCog(commands.Cog):
         else:
             await interaction.response.send_message(content=f"{formatUsername(target)} isn't blocked.", ephemeral=True)
 
+    @app_commands.command(name="etanbot-gimmick-drawing-render", description="Render a drawing gimmick code into an image.")
+    @app_commands.describe(code="The drawing code to render.", viewprivate="Whether to send the rendered image privately (ephemeral) or in the channel.")
+    async def gimmick_drawing(self, interaction: discord.Interaction, code: str, viewprivate: bool = True):
+        if not await handleCommandAccess(interaction, interaction.user.id, "gimmick-drawing"):
+            return
+
+        try:
+            strokes, width, height = decode_drawing(code)
+            file = discord.File(render_drawing(strokes, width, height), filename="drawing.png")
+            await interaction.response.send_message(content="Rendered drawing:", file=file, ephemeral=viewprivate)
+        except ValueError as e:
+            await interaction.response.send_message(content=f"That drawing code couldn't be read ({e}). Make sure you copied the whole code from the drawing page.", ephemeral=True)
+
     @app_commands.command(name="z-admin-gimmick-logs", description="List gimmick log entries with sender/target/dismissed status. (Admin only)")
     @app_commands.describe(user="Only show entries involving this user (as sender or recipient).")
     async def gimmick_logs(self, interaction: discord.Interaction, user: discord.User = None):
@@ -745,7 +758,6 @@ class gimmicksCog(commands.Cog):
             await interaction.edit_original_response(content=f"Deleted {len(to_delete)} gimmick log entr{'y' if len(to_delete) == 1 else 'ies'}.", view=None)
         else:
             await interaction.edit_original_response(content="An error occurred while deleting log entries.", view=None)
-
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(gimmicksCog(bot))
