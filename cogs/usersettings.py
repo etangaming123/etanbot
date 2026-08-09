@@ -9,7 +9,7 @@ from common import get_user_setting, handleCommandAccess, set_user_setting
 SETTINGS = {
     "gimmick_dm_notifications": {
         "label": "Gimmick DM Notifications",
-        "description": "Get a Direct Message whenever someone sends you a gimmick. Only applies if you have etan bot installed to your user account.",
+        "description": "Get a Direct Message whenever someone sends you a gimmick. (add etan bot to account first!)",
         "default": False,
     },
 }
