@@ -205,14 +205,65 @@
 			}
 
 			// --- real erasing: trims/splits existing strokes instead of drawing an eraser stroke ---
+			// Distance from point (px,py) to the segment a->b, squared. Used instead of point-only
+			// distance because stroke points can be up to MAX_DELTA apart (a fast, sparse drag) - a
+			// small eraser/brush passing through the *middle* of a long segment would otherwise be
+			// invisible to a check that only looks at the stored points themselves.
+			function distToSegmentSq(px, py, ax, ay, bx, by) {
+				const abx = bx - ax;
+				const aby = by - ay;
+				const abLenSq = abx * abx + aby * aby;
+				let t = abLenSq > 0 ? ((px - ax) * abx + (py - ay) * aby) / abLenSq : 0;
+				t = Math.max(0, Math.min(1, t));
+				const cx = ax + abx * t;
+				const cy = ay + aby * t;
+				return (px - cx) ** 2 + (py - cy) ** 2;
+			}
+
+			function strokeOverlaps(stroke, pos, radius) {
+				const hitRadiusSq = (radius + stroke.width / 2) ** 2;
+				if (stroke.points.length === 1) {
+					const p = stroke.points[0];
+					return (p.x - pos.x) ** 2 + (p.y - pos.y) ** 2 <= hitRadiusSq;
+				}
+				for (let i = 1; i < stroke.points.length; i++) {
+					const a = stroke.points[i - 1];
+					const b = stroke.points[i];
+					if (distToSegmentSq(pos.x, pos.y, a.x, a.y, b.x, b.y) <= hitRadiusSq) return true;
+				}
+				return false;
+			}
+
 			function eraseFromStroke(stroke, eraserPos, eraserRadius) {
-				const hitRadiusSq = (eraserRadius + stroke.width / 2) ** 2;
+				const hitRadius = eraserRadius + stroke.width / 2;
+				const hitRadiusSq = hitRadius * hitRadius;
+				const isInside = (p) => (p.x - eraserPos.x) ** 2 + (p.y - eraserPos.y) ** 2 <= hitRadiusSq;
+
+				// Resample only the segments that actually pass near the eraser, finely enough that the
+				// inside/outside test can't skip over the erased region. Segments nowhere near the
+				// eraser are kept as-is, so erasing doesn't inflate the cost of the rest of the stroke.
+				const points = stroke.points;
+				const dense = [points[0]];
+				for (let i = 1; i < points.length; i++) {
+					const a = points[i - 1];
+					const b = points[i];
+					const nearby = distToSegmentSq(eraserPos.x, eraserPos.y, a.x, a.y, b.x, b.y) <= hitRadiusSq;
+					if (nearby) {
+						const segLen = Math.hypot(b.x - a.x, b.y - a.y);
+						const step = Math.max(1, hitRadius / 2);
+						const subSteps = Math.max(1, Math.ceil(segLen / step));
+						for (let s = 1; s <= subSteps; s++) {
+							dense.push({ x: a.x + (b.x - a.x) * s / subSteps, y: a.y + (b.y - a.y) * s / subSteps });
+						}
+					} else {
+						dense.push(b);
+					}
+				}
+
 				const runs = [];
 				let current = [];
-				for (const p of stroke.points) {
-					const dx = p.x - eraserPos.x;
-					const dy = p.y - eraserPos.y;
-					if (dx * dx + dy * dy <= hitRadiusSq) {
+				for (const p of dense) {
+					if (isInside(p)) {
 						if (current.length > 0) {
 							runs.push(current);
 							current = [];
@@ -222,11 +273,11 @@
 					}
 				}
 				if (current.length > 0) runs.push(current);
-				return runs.map((points) => ({ color: stroke.color, width: stroke.width, points }));
+				return runs.map((runPoints) => ({ color: stroke.color, width: stroke.width, points: runPoints }));
 			}
 
 			function eraseAt(pos, eraserRadius) {
-				strokes = strokes.flatMap((stroke) => eraseFromStroke(stroke, pos, eraserRadius));
+				strokes = strokes.flatMap((stroke) => (strokeOverlaps(stroke, pos, eraserRadius) ? eraseFromStroke(stroke, pos, eraserRadius) : [stroke]));
 			}
 
 			function eraseAlong(from, to, eraserRadius) {
@@ -239,10 +290,52 @@
 				}
 			}
 
+			function colorsEqual(a, b) {
+				return a[0] === b[0] && a[1] === b[1] && a[2] === b[2];
+			}
+
+			// Drawing on top of existing ink overrides it instead of costing a whole extra stroke:
+			// trims/splits whatever's underneath wherever the new brush passes. Checks the TOPMOST
+			// (last-drawn, so currently-visible) overlapping stroke's color specifically - a same-color
+			// stroke buried under something else doesn't count as "already this color", since that's
+			// not what's actually showing. If the visible color already matches, nothing is touched and
+			// this point is reported as redundant so a stroke that never paints anything new anywhere
+			// can be discarded for free instead of being kept as a costly no-op.
+			function overrideAt(pos, radius, color) {
+				let topmostIndex = -1;
+				for (let i = strokes.length - 1; i >= 0; i--) {
+					if (strokeOverlaps(strokes[i], pos, radius)) {
+						topmostIndex = i;
+						break;
+					}
+				}
+				if (topmostIndex === -1) return false; // blank canvas here - genuinely new ink
+				if (colorsEqual(strokes[topmostIndex].color, color)) return true; // already showing this color
+
+				// something different-colored is visible here - it's all about to be covered, so trim
+				// every overlapping stroke regardless of its own color (buried ones are already hidden)
+				strokes = strokes.flatMap((stroke) => (strokeOverlaps(stroke, pos, radius) ? eraseFromStroke(stroke, pos, radius) : [stroke]));
+				return false;
+			}
+
+			function overrideAlong(from, to, radius, color) {
+				const dist = Math.hypot(to.x - from.x, to.y - from.y);
+				const steps = Math.max(1, Math.ceil(dist / Math.max(1, radius)));
+				let allRedundant = true;
+				for (let s = 1; s <= steps; s++) {
+					const x = from.x + (to.x - from.x) * s / steps;
+					const y = from.y + (to.y - from.y) * s / steps;
+					if (!overrideAt({ x, y }, radius, color)) allRedundant = false;
+				}
+				return allRedundant;
+			}
+
 			function pushUndoSnapshot() {
 				undoStack.push(strokes.map((s) => ({ color: s.color, width: s.width, points: s.points.slice() })));
 				if (undoStack.length > MAX_UNDO_STEPS) undoStack.shift();
 			}
+
+			let strokeIsRedundant = true; // whole in-progress stroke has painted nothing not already there
 
 			function startStroke(evt) {
 				evt.preventDefault();
@@ -251,12 +344,15 @@
 				const pos = getPos(evt);
 				lastPos = pos;
 				erasing = selectedColor === ERASER_COLOR;
+				const brushWidth = parseInt(document.getElementById("brushSize").value, 10);
+				const radius = brushWidth / 2;
 				if (erasing) {
-					const eraserRadius = parseInt(document.getElementById("brushSize").value, 10) / 2;
-					eraseAt(pos, eraserRadius);
+					eraseAt(pos, radius);
 					redraw();
 				} else {
-					currentStroke = { color: hexToRgb(selectedColor), width: parseInt(document.getElementById("brushSize").value, 10), points: [pos] };
+					const color = hexToRgb(selectedColor);
+					strokeIsRedundant = overrideAt(pos, radius, color);
+					currentStroke = { color, width: brushWidth, points: [pos] };
 					redraw();
 					drawStroke(currentStroke);
 				}
@@ -267,13 +363,17 @@
 				if (!drawing) return;
 				evt.preventDefault();
 				const pos = getPos(evt);
+				const brushWidth = parseInt(document.getElementById("brushSize").value, 10);
+				const radius = brushWidth / 2;
 				if (erasing) {
-					const eraserRadius = parseInt(document.getElementById("brushSize").value, 10) / 2;
-					eraseAlong(lastPos, pos, eraserRadius);
+					eraseAlong(lastPos, pos, radius);
 					lastPos = pos;
 					redraw();
 				} else {
+					const color = hexToRgb(selectedColor);
+					if (!overrideAlong(lastPos, pos, radius, color)) strokeIsRedundant = false;
 					addPointToCurrentStroke(pos);
+					lastPos = pos;
 					redraw();
 					drawStroke(currentStroke);
 				}
@@ -283,12 +383,13 @@
 			function endStroke() {
 				if (!drawing) return;
 				drawing = false;
-				if (!erasing && currentStroke && currentStroke.points.length > 0) {
+				if (!erasing && currentStroke && currentStroke.points.length > 0 && !strokeIsRedundant) {
 					strokes.push(currentStroke);
 				}
 				currentStroke = null;
 				erasing = false;
 				lastPos = null;
+				redraw(); // in case a fully-redundant stroke's live preview needs clearing
 				refreshUsageMeter();
 			}
 
@@ -403,7 +504,7 @@
 			function refreshUsageMeterLive() {
 				if (!COMPRESSION_SUPPORTED) return;
 				const token = ++meterToken;
-				const list = erasing ? strokes : strokes.concat(currentStroke ? [currentStroke] : []);
+				const list = erasing || strokeIsRedundant ? strokes : strokes.concat(currentStroke ? [currentStroke] : []);
 				encodeStrokesToBytes(list).then((bytes) => {
 					if (token !== meterToken) return;
 					updateUsageMeter(Math.ceil((bytes.length * 4) / 3));
