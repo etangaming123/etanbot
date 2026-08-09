@@ -149,12 +149,16 @@ def render_drawing(drawing: dict) -> BytesIO:
         points = stroke["points"]
         color = stroke["color"]
         line_width = stroke["width"]
+        radius = max(1, line_width // 2)
         if len(points) == 1:
             x, y = points[0]
-            radius = max(1, line_width // 2)
             draw.ellipse([x - radius, y - radius, x + radius, y + radius], fill=color)
         else:
             draw.line(points, fill=color, width=line_width, joint="curve")
+            # PIL's draw.line has no round-cap option (joint="curve" only rounds internal
+            # joints) - stamp a circle at each end to match the canvas's lineCap="round".
+            for x, y in (points[0], points[-1]):
+                draw.ellipse([x - radius, y - radius, x + radius, y + radius], fill=color)
     buf = BytesIO()
     img.save(buf, format="PNG")
     buf.seek(0)

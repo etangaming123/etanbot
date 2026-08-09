@@ -9,4 +9,4 @@ __pycache__
 startetanbot.bat
 updateetanbot.bat
 *.key
-.claude/
+.claude
