@@ -123,6 +123,15 @@ def removeFormatting(string: str): # Remove Discord formatting from a string (us
         string = string.replace(char, f'\{char}')
     return string
 
+async def fetchUser(bot: discord.Client, user_id: int): # Resolve id to discord.User, cache first then API fallback. None if unresolvable (e.g. deleted account).
+    user = bot.get_user(user_id)
+    if user is not None:
+        return user
+    try:
+        return await bot.fetch_user(user_id)
+    except (discord.NotFound, discord.HTTPException):
+        return None
+
 def formatUsername(user: discord.User): # Fancy formatting for usernames // displayname (@username)
     if user.display_name == None:
         return f"{removeFormatting(user.name)}"

@@ -14,6 +14,7 @@ from PIL import Image, ImageDraw
 from common import (
     ConfirmView,
     config,
+    fetchUser,
     formatUsername,
     handleCommandAccess,
     loadData,
@@ -120,6 +121,14 @@ def render_drawing(strokes, width, height) -> BytesIO:
     img.save(buf, format="PNG")
     buf.seek(0)
     return buf
+
+
+async def format_user_id(bot: commands.Bot, user_id: int) -> str:
+    """formatUsername() by id — falls back to a raw mention if the user can't be resolved."""
+    user = await fetchUser(bot, user_id)
+    if user is None:
+        return f"<@{user_id}>"
+    return formatUsername(user)
 
 
 def get_inbox(user_id: int):
@@ -246,7 +255,7 @@ def add_gimmick(target_id: int, gimmick_type: str, content: str, sender_id: int,
     saveData("gimmicklog", log)
 
 
-async def send_report(reporter: discord.User, target_id: int, item: dict):
+async def send_report(bot: commands.Bot, reporter: discord.User, target_id: int, item: dict):
     # sender_id is always included here for the power user/mods to trace and ban — this webhook
     # must point at a channel only they can read, never surfaced back to the reporter or recipient.
     if not report_webhook_url:
@@ -254,10 +263,10 @@ async def send_report(reporter: discord.User, target_id: int, item: dict):
 
     embed = discord.Embed(title="Gimmick reported", color=discord.Color.red(), timestamp=datetime.now(timezone.utc))
     embed.add_field(name="Type", value=item["type"], inline=True)
-    embed.add_field(name="Sender", value=f"<@{item['sender_id']}> (`{item['sender_id']}`)", inline=True)
-    embed.add_field(name="Sent to", value=f"<@{target_id}> (`{target_id}`)", inline=True)
+    embed.add_field(name="Sender", value=f"{await format_user_id(bot, item['sender_id'])} (`{item['sender_id']}`)", inline=True)
+    embed.add_field(name="Sent to", value=f"{await format_user_id(bot, target_id)} (`{target_id}`)", inline=True)
     embed.add_field(name="Shown as anonymous?", value="Yes" if item["anonymous"] else "No", inline=True)
-    embed.add_field(name="Reported by", value=f"<@{reporter.id}> (`{reporter.id}`)", inline=True)
+    embed.add_field(name="Reported by", value=f"{formatUsername(reporter)} (`{reporter.id}`)", inline=True)
     embed.add_field(name="Sent at", value=f"<t:{round(item['timestamp'])}:F>", inline=True)
 
     async with aiohttp.ClientSession() as session:
@@ -294,13 +303,13 @@ async def confirm_and_report(interaction: discord.Interaction, target_id: int, i
         await interaction.edit_original_response(content="Cancelled." if view.value is False else "Confirmation timed out, cancelled.", view=None)
         return
 
-    await send_report(interaction.user, target_id, item)
+    await send_report(interaction.client, interaction.user, target_id, item)
     await interaction.edit_original_response(content="Report sent!", view=None)
 
 
-def render_gimmick(item: dict, reveal_sender: bool, prefix: str = ""):
+async def render_gimmick(bot: commands.Bot, item: dict, reveal_sender: bool, prefix: str = ""):
     header = prefix
-    header += f"From: <@{item['sender_id']}>\n" if reveal_sender else "From: someone anonymous\n"
+    header += f"From: {await format_user_id(bot, item['sender_id'])}\n" if reveal_sender else "From: someone anonymous\n"
 
     file = None
     if item["type"] == "draw":
@@ -315,11 +324,11 @@ def render_gimmick(item: dict, reveal_sender: bool, prefix: str = ""):
     return content, file
 
 
-def render_current_gimmick(user_id: int, index: int):
+async def render_current_gimmick(bot: commands.Bot, user_id: int, index: int):
     inbox = get_inbox(user_id)
     item = inbox[index]
     prefix = f"**Gimmick {index + 1}/{len(inbox)}**\n"
-    return render_gimmick(item, reveal_sender=not item["anonymous"], prefix=prefix)
+    return await render_gimmick(bot, item, reveal_sender=not item["anonymous"], prefix=prefix)
 
 
 class GimmickViewerView(discord.ui.View):
@@ -342,7 +351,7 @@ class GimmickViewerView(discord.ui.View):
 
     async def refresh(self, interaction: discord.Interaction):
         self._update_button_state()
-        content, file = render_current_gimmick(self.user_id, self.index)
+        content, file = await render_current_gimmick(interaction.client, self.user_id, self.index)
         if file is not None:
             await interaction.response.edit_message(content=content, attachments=[file], view=self)
         else:
@@ -390,6 +399,18 @@ class GimmickViewerView(discord.ui.View):
         if sender_id == self.user_id:
             await interaction.response.send_message(content="That's self hate, dude! Not nice :(", ephemeral=True)
             return
+
+        if is_blocked(self.user_id, sender_id):
+            view = ConfirmView(interaction.user.id)
+            await interaction.response.send_message(content="This sender is already blocked. Unblock them?", view=view, ephemeral=True)
+            await view.wait()
+            if view.value is not True:
+                await interaction.edit_original_response(content="Cancelled." if view.value is False else "Confirmation timed out, cancelled.", view=None)
+                return
+            remove_block(self.user_id, sender_id)
+            await interaction.edit_original_response(content="Unblocked.", view=None)
+            return
+
         add_block(self.user_id, sender_id)
         await interaction.response.send_message(content="Blocked. They won't be able to send you any more gimmicks.\nGimmick broke the rules, was offensive, or otherwise? Report them as well!", ephemeral=True)
 
@@ -411,6 +432,18 @@ class PostedGimmickView(discord.ui.View):
         if sender_id == interaction.user.id:
             await interaction.response.send_message(content="That's self hate, dude! Not nice :(", ephemeral=True)
             return
+
+        if is_blocked(interaction.user.id, sender_id):
+            view = ConfirmView(interaction.user.id)
+            await interaction.response.send_message(content="This sender is already blocked. Unblock them?", view=view, ephemeral=True)
+            await view.wait()
+            if view.value is not True:
+                await interaction.edit_original_response(content="Cancelled." if view.value is False else "Confirmation timed out, cancelled.", view=None)
+                return
+            remove_block(interaction.user.id, sender_id)
+            await interaction.edit_original_response(content="Unblocked.", view=None)
+            return
+
         add_block(interaction.user.id, sender_id)
         await interaction.response.send_message(content="Blocked. They won't be able to send you any more gimmicks.\nGimmick broke the rules, was offensive, or otherwise? Report them as well!", ephemeral=True)
 
@@ -528,7 +561,7 @@ class gimmicksCog(commands.Cog):
             return
 
         view = GimmickViewerView(interaction.user.id)
-        content, file = render_current_gimmick(interaction.user.id, 0)
+        content, file = await render_current_gimmick(interaction.client, interaction.user.id, 0)
         if file is not None:
             await interaction.response.send_message(content=content, file=file, view=view, ephemeral=True)
         else:
@@ -557,7 +590,7 @@ class gimmicksCog(commands.Cog):
         item = inbox[index - 1]
         setCooldown(interaction.user.id, "gimmicks-post", 5)
         effective_reveal = reveal_author and not item["anonymous"]
-        content, file = render_gimmick(item, reveal_sender=effective_reveal)
+        content, file = await render_gimmick(interaction.client, item, reveal_sender=effective_reveal)
         view = PostedGimmickView(interaction.user.id, item)
         if file is not None:
             await interaction.response.send_message(content=content, file=file, view=view)
