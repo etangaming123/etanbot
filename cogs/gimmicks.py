@@ -2,6 +2,7 @@ import base64
 import json
 import time
 import uuid
+import zlib
 from datetime import datetime, timezone
 from io import BytesIO
 
@@ -29,9 +30,13 @@ MAX_STROKES = 300
 MAX_POINTS_PER_STROKE = 3000
 MAX_TOTAL_POINTS = 20000
 MAX_CODE_CHARS = 4000
+# generous upper bound on a decompressed v2 body: 6-byte header + MAX_STROKES * (6-byte
+# stroke header + 4-byte first point) + MAX_TOTAL_POINTS * 2 bytes of deltas, rounded up.
+# Used to cap zlib decompression so a crafted small compressed blob can't expand unbounded.
+MAX_V2_BODY_BYTES = 45000
 
 
-def decode_drawing(code: str):
+def decode_drawing(code: str) -> dict:
     """Decode a drawing code (see drawing.html for the matching encoder). Raises ValueError on any malformed/oversized input."""
     code = code.strip()
     if not code or len(code) > MAX_CODE_CHARS:
@@ -44,32 +49,44 @@ def decode_drawing(code: str):
     except Exception:
         raise ValueError("code isn't valid base64")
 
-    if len(raw) < 7:
+    if len(raw) < 1:
         raise ValueError("code is too short to be a drawing")
 
     version = raw[0]
-    if version != 1:
-        raise ValueError("unsupported drawing format version")
+    if version == 1:
+        return {"version": 1, **_parse_stroke_body(raw[1:])}
+    if version == 2:
+        return {"version": 2, **_decode_drawing_v2(raw)}
+    raise ValueError("unsupported drawing format version")
 
-    width = raw[1] | (raw[2] << 8)
-    height = raw[3] | (raw[4] << 8)
+
+def _parse_stroke_body(body: bytes) -> dict:
+    """Parses [width:u16le][height:u16le][strokeCount:u16le] followed by per-stroke data
+    ([r:1][g:1][b:1][lineWidth:1][pointCount:u16le][x0:u16le][y0:u16le][dx:i8][dy:i8]...).
+    Shared by the uncompressed v1 format and the deflate-decompressed v2 body — this is
+    the original v1 body layout, unchanged, just factored out so v2 can reuse it."""
+    if len(body) < 6:
+        raise ValueError("code is too short to be a drawing")
+
+    width = body[0] | (body[1] << 8)
+    height = body[2] | (body[3] << 8)
     if not (1 <= width <= MAX_CANVAS and 1 <= height <= MAX_CANVAS):
         raise ValueError("invalid canvas size")
 
-    stroke_count = raw[5] | (raw[6] << 8)
+    stroke_count = body[4] | (body[5] << 8)
     if stroke_count > MAX_STROKES:
         raise ValueError("too many strokes")
 
-    offset = 7
+    offset = 6
     strokes = []
     total_points = 0
 
     for _ in range(stroke_count):
-        if offset + 6 > len(raw):
+        if offset + 6 > len(body):
             raise ValueError("truncated stroke header")
-        r, g, b = raw[offset], raw[offset + 1], raw[offset + 2]
-        line_width = raw[offset + 3]
-        point_count = raw[offset + 4] | (raw[offset + 5] << 8)
+        r, g, b = body[offset], body[offset + 1], body[offset + 2]
+        line_width = body[offset + 3]
+        point_count = body[offset + 4] | (body[offset + 5] << 8)
         offset += 6
 
         if point_count == 0 or point_count > MAX_POINTS_PER_STROKE:
@@ -78,17 +95,17 @@ def decode_drawing(code: str):
         if total_points > MAX_TOTAL_POINTS:
             raise ValueError("drawing is too complex")
 
-        if offset + 4 > len(raw):
+        if offset + 4 > len(body):
             raise ValueError("truncated point data")
-        x = raw[offset] | (raw[offset + 1] << 8)
-        y = raw[offset + 2] | (raw[offset + 3] << 8)
+        x = body[offset] | (body[offset + 1] << 8)
+        y = body[offset + 2] | (body[offset + 3] << 8)
         offset += 4
 
         points = [(x, y)]
         for _ in range(point_count - 1):
-            if offset + 2 > len(raw):
+            if offset + 2 > len(body):
                 raise ValueError("truncated delta data")
-            dx, dy = raw[offset], raw[offset + 1]
+            dx, dy = body[offset], body[offset + 1]
             offset += 2
             dx = dx - 256 if dx > 127 else dx
             dy = dy - 256 if dy > 127 else dy
@@ -98,13 +115,34 @@ def decode_drawing(code: str):
 
         strokes.append({"color": (r, g, b), "width": max(1, min(20, line_width)), "points": points})
 
-    if offset != len(raw):
+    if offset != len(body):
         raise ValueError("code has trailing garbage")
 
-    return strokes, width, height
+    return {"width": width, "height": height, "strokes": strokes}
 
 
-def render_drawing(strokes, width, height) -> BytesIO:
+def _decode_drawing_v2(raw: bytes) -> dict:
+    """Same stroke body as v1, but deflate-compressed (raw deflate, no gzip/zlib header —
+    a few bytes cheaper per drawing). Real erasing happens client-side before export (a white
+    brush splices/trims points out of existing strokes instead of adding a new one), so the
+    wire format itself needs no special "eraser" concept — it's just fewer/shorter strokes."""
+    compressed = raw[1:]
+    decompressor = zlib.decompressobj(wbits=-15)
+    try:
+        # max_length caps decompressed output regardless of what the compressed stream
+        # claims to encode — no zip bombs. _parse_stroke_body enforces the real limits.
+        body = decompressor.decompress(compressed, MAX_V2_BODY_BYTES)
+    except zlib.error:
+        raise ValueError("corrupt drawing data")
+
+    if not decompressor.eof or decompressor.unconsumed_tail or decompressor.unused_data:
+        raise ValueError("drawing data is corrupt or too large")
+
+    return _parse_stroke_body(body)
+
+
+def render_drawing(drawing: dict) -> BytesIO:
+    width, height, strokes = drawing["width"], drawing["height"], drawing["strokes"]
     img = Image.new("RGB", (width, height), (255, 255, 255))
     draw = ImageDraw.Draw(img)
     for stroke in strokes:
@@ -273,8 +311,8 @@ async def send_report(bot: commands.Bot, reporter: discord.User, target_id: int,
         webhook = discord.Webhook.from_url(report_webhook_url, session=session)
         if item["type"] == "draw":
             try:
-                strokes, width, height = decode_drawing(item["content"])
-                file = discord.File(render_drawing(strokes, width, height), filename="reported_drawing.png")
+                drawing = decode_drawing(item["content"])
+                file = discord.File(render_drawing(drawing), filename="reported_drawing.png")
                 embed.set_image(url="attachment://reported_drawing.png")
                 await webhook.send(embed=embed, file=file)
             except ValueError:
@@ -314,8 +352,8 @@ async def render_gimmick(bot: commands.Bot, item: dict, reveal_sender: bool, pre
     file = None
     if item["type"] == "draw":
         try:
-            strokes, width, height = decode_drawing(item["content"])
-            file = discord.File(render_drawing(strokes, width, height), filename="gimmick.png")
+            drawing = decode_drawing(item["content"])
+            file = discord.File(render_drawing(drawing), filename="gimmick.png")
             content = header
         except ValueError:
             content = header + "*(this drawing couldn't be displayed)*"
@@ -467,8 +505,8 @@ class DrawModal(discord.ui.Modal, title="Send a drawing"):
 
         code = self.code.value.strip()
         try:
-            strokes, width, height = decode_drawing(code)
-            render_drawing(strokes, width, height)  # validate it actually renders before accepting
+            drawing = decode_drawing(code)
+            render_drawing(drawing)  # validate it actually renders before accepting
         except ValueError as e:
             await interaction.response.send_message(content=f"That drawing code couldn't be read ({e}). Make sure you copied the whole code from the drawing page.", ephemeral=True)
             return
@@ -497,6 +535,21 @@ class MessageModal(discord.ui.Modal, title="Send a message"):
         add_gimmick(self.target.id, "message", self.message.value, interaction.user.id, anonymous)
         await interaction.response.send_message(content=f"Sent your message to {formatUsername(self.target)}!", ephemeral=True)
 
+
+class RenderDrawingModal(discord.ui.Modal, title="Render a drawing"):
+    code = discord.ui.TextInput(label="Drawing code", style=discord.TextStyle.paragraph, placeholder="Paste the code exported from the drawing page (etanbot.etangaming.xyz/drawing.html)", required=True, max_length=MAX_CODE_CHARS)
+
+    def __init__(self, viewprivate: bool):
+        super().__init__()
+        self.viewprivate = viewprivate
+
+    async def on_submit(self, interaction: discord.Interaction):
+        try:
+            drawing = decode_drawing(self.code.value.strip())
+            file = discord.File(render_drawing(drawing), filename="drawing.png")
+            await interaction.response.send_message(content="Rendered drawing:", file=file, ephemeral=self.viewprivate)
+        except ValueError as e:
+            await interaction.response.send_message(content=f"That drawing code couldn't be read ({e}). Make sure you copied the whole code from the drawing page.", ephemeral=True)
 
 class GimmickTypeView(discord.ui.View):
     def __init__(self, author_id: int, target: discord.User, timeout: float = 120):
@@ -657,17 +710,11 @@ class gimmicksCog(commands.Cog):
             await interaction.response.send_message(content=f"{formatUsername(target)} isn't blocked.", ephemeral=True)
 
     @app_commands.command(name="etanbot-gimmick-drawing-render", description="Render a drawing gimmick code into an image.")
-    @app_commands.describe(code="The drawing code to render.", viewprivate="Whether to send the rendered image privately (ephemeral) or in the channel.")
-    async def gimmick_drawing(self, interaction: discord.Interaction, code: str, viewprivate: bool = True):
+    @app_commands.describe(viewprivate="Whether to send the rendered image privately (ephemeral) or in the channel.")
+    async def gimmick_drawing(self, interaction: discord.Interaction, viewprivate: bool = True):
         if not await handleCommandAccess(interaction, interaction.user.id, "gimmick-drawing"):
             return
-
-        try:
-            strokes, width, height = decode_drawing(code)
-            file = discord.File(render_drawing(strokes, width, height), filename="drawing.png")
-            await interaction.response.send_message(content="Rendered drawing:", file=file, ephemeral=viewprivate)
-        except ValueError as e:
-            await interaction.response.send_message(content=f"That drawing code couldn't be read ({e}). Make sure you copied the whole code from the drawing page.", ephemeral=True)
+        await interaction.response.send_modal(RenderDrawingModal(viewprivate))
 
     @app_commands.command(name="z-admin-gimmick-logs", description="List gimmick log entries with sender/target/dismissed status. (Admin only)")
     @app_commands.describe(user="Only show entries involving this user (as sender or recipient).")
