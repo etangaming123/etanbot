@@ -146,6 +146,7 @@ class messageCog(commands.Cog):
         if not await handleCommandAccess(interaction, interaction.user.id):
             return
         await interaction.response.defer()
+        amount = abs(amount) # stay positive!
         if interaction.user == user:
             await interaction.edit_original_response(content=f"You gave yourself {str(amount)} headpats!")
             return
