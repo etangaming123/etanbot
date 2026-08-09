@@ -579,6 +579,12 @@ class gimmicksCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
+    @app_commands.command(name="etanbot-gimmicks-guide", description="View the guide on the Gimmicks system.")
+    async def gimmicks_guide(self, interaction: discord.Interaction):
+        if not await handleCommandAccess(interaction, interaction.user.id, "gimmicks-guide"):
+            return
+        await interaction.response.send_message(content="etan bot Gimmicks are based off strawpage's gimmicks feature, and allow you to send drawings and messages to other users.\nTo get started, run `/etanbot-gimmicks-optin` to enable sending and receiving gimmicks!\nYou can use `/etanbot-gimmicks-send` to send a gimmick to someone (a drawing or message, as of now), and `/etanbot-gimmicks` to view your received gimmicks!\nGimmicks can also be reported, if they contain offensive content. Or, if you don't like someone's gimmicks, you can block them (works for anonymous gimmicks too!)\n\nThis is an optional feature, and you can always opt out (and delete associated gimmicks data, excluding ones you've sent) with `/etanbot-gimmicks-optout`.", ephemeral=True)
+
     @app_commands.command(name="etanbot-gimmicks-send", description="Send a drawing or message gimmick to someone.")
     @app_commands.describe(target="Who to send the gimmick to.")
     async def gimmicks_send(self, interaction: discord.Interaction, target: discord.User):
