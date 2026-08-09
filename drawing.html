@@ -55,7 +55,7 @@
 				</div>
 				<div class="row justify-content-center">
 					<div class="col-12 text-center">
-						<canvas id="drawingCanvas" width="360" height="360"></canvas>
+						<canvas id="drawingCanvas" width="320" height="320"></canvas>
 					</div>
 				</div>
 				<div class="row justify-content-center mt-3">
@@ -106,6 +106,10 @@
 		</footer>
 		<script>
 			// --- drawing state ---
+			// Back to vector strokes (far cheaper to encode than a bitmap for typical sparse doodles),
+			// but with real erasing: a white brush doesn't add a stroke, it splices/trims points out of
+			// existing strokes in real time, so erased ink is actually removed before export rather
+			// than covered up by a same-cost stroke on top.
 			const canvas = document.getElementById("drawingCanvas");
 			const ctx = canvas.getContext("2d");
 			const CANVAS_W = canvas.width;
@@ -114,10 +118,15 @@
 			// worst case bytes for a base64url string of this many chars
 			const MAX_RAW_BYTES = Math.floor(MAX_CODE_CHARS * 3 / 4) - 16;
 			const MAX_DELTA = 100; // keep every point-to-point step small enough to fit in a signed byte
+			const MAX_UNDO_STEPS = 20;
+			const ERASER_COLOR = "#ffffff";
 
 			let strokes = []; // {color: [r,g,b], width: n, points: [{x,y}, ...]}
 			let currentStroke = null;
+			let erasing = false;
 			let drawing = false;
+			let lastPos = null;
+			const undoStack = [];
 
 			const palette = document.getElementById("palette");
 			const colors = ["#000000", "#ffffff", "#ff0000", "#ff9900", "#ffe600", "#33cc33", "#0066ff", "#8649D7", "#ff33cc", "#795548"];
@@ -195,30 +204,92 @@
 				}
 			}
 
+			// --- real erasing: trims/splits existing strokes instead of drawing an eraser stroke ---
+			function eraseFromStroke(stroke, eraserPos, eraserRadius) {
+				const hitRadiusSq = (eraserRadius + stroke.width / 2) ** 2;
+				const runs = [];
+				let current = [];
+				for (const p of stroke.points) {
+					const dx = p.x - eraserPos.x;
+					const dy = p.y - eraserPos.y;
+					if (dx * dx + dy * dy <= hitRadiusSq) {
+						if (current.length > 0) {
+							runs.push(current);
+							current = [];
+						}
+					} else {
+						current.push(p);
+					}
+				}
+				if (current.length > 0) runs.push(current);
+				return runs.map((points) => ({ color: stroke.color, width: stroke.width, points }));
+			}
+
+			function eraseAt(pos, eraserRadius) {
+				strokes = strokes.flatMap((stroke) => eraseFromStroke(stroke, pos, eraserRadius));
+			}
+
+			function eraseAlong(from, to, eraserRadius) {
+				const dist = Math.hypot(to.x - from.x, to.y - from.y);
+				const steps = Math.max(1, Math.ceil(dist / Math.max(1, eraserRadius)));
+				for (let s = 1; s <= steps; s++) {
+					const x = from.x + (to.x - from.x) * s / steps;
+					const y = from.y + (to.y - from.y) * s / steps;
+					eraseAt({ x, y }, eraserRadius);
+				}
+			}
+
+			function pushUndoSnapshot() {
+				undoStack.push(strokes.map((s) => ({ color: s.color, width: s.width, points: s.points.slice() })));
+				if (undoStack.length > MAX_UNDO_STEPS) undoStack.shift();
+			}
+
 			function startStroke(evt) {
 				evt.preventDefault();
 				drawing = true;
-				currentStroke = { color: hexToRgb(selectedColor), width: parseInt(document.getElementById("brushSize").value, 10), points: [] };
-				currentStroke.points.push(getPos(evt));
+				pushUndoSnapshot();
+				const pos = getPos(evt);
+				lastPos = pos;
+				erasing = selectedColor === ERASER_COLOR;
+				if (erasing) {
+					const eraserRadius = parseInt(document.getElementById("brushSize").value, 10) / 2;
+					eraseAt(pos, eraserRadius);
+					redraw();
+				} else {
+					currentStroke = { color: hexToRgb(selectedColor), width: parseInt(document.getElementById("brushSize").value, 10), points: [pos] };
+					redraw();
+					drawStroke(currentStroke);
+				}
+				refreshUsageMeterLive();
 			}
 
 			function moveStroke(evt) {
 				if (!drawing) return;
 				evt.preventDefault();
-				addPointToCurrentStroke(getPos(evt));
-				redraw();
-				drawStroke(currentStroke);
-				updateUsageMeter(estimateSizeWithStroke(currentStroke));
+				const pos = getPos(evt);
+				if (erasing) {
+					const eraserRadius = parseInt(document.getElementById("brushSize").value, 10) / 2;
+					eraseAlong(lastPos, pos, eraserRadius);
+					lastPos = pos;
+					redraw();
+				} else {
+					addPointToCurrentStroke(pos);
+					redraw();
+					drawStroke(currentStroke);
+				}
+				refreshUsageMeterLive();
 			}
 
 			function endStroke() {
 				if (!drawing) return;
 				drawing = false;
-				if (currentStroke && currentStroke.points.length > 0) {
+				if (!erasing && currentStroke && currentStroke.points.length > 0) {
 					strokes.push(currentStroke);
 				}
 				currentStroke = null;
-				updateUsageMeter(estimateSize());
+				erasing = false;
+				lastPos = null;
+				refreshUsageMeter();
 			}
 
 			canvas.addEventListener("mousedown", startStroke);
@@ -229,13 +300,15 @@
 			canvas.addEventListener("touchend", endStroke);
 
 			document.getElementById("undoBtn").addEventListener("click", () => {
-				strokes.pop();
+				if (undoStack.length === 0) return;
+				strokes = undoStack.pop();
 				redraw();
-				updateUsageMeter(estimateSize());
+				refreshUsageMeter();
 			});
 
 			document.getElementById("clearBtn").addEventListener("click", () => {
 				if (strokes.length > 0 && !confirm("Clear the whole drawing?")) return;
+				pushUndoSnapshot();
 				strokes = [];
 				redraw();
 				document.getElementById("codeRow").style.display = "none";
@@ -243,11 +316,12 @@
 			});
 
 			// --- encoding ---
-			// layout: [version:1][width:u16le][height:u16le][strokeCount:u16le]
+			// layout (before compression): [width:u16le][height:u16le][strokeCount:u16le]
 			// per stroke: [r:1][g:1][b:1][lineWidth:1][pointCount:u16le][x0:u16le][y0:u16le][dx:i8][dy:i8]...
-			function strokesToBytes(strokeList) {
+			// Compressed with raw deflate (no gzip/zlib header/trailer - a few free bytes per drawing)
+			// and prefixed with a single version byte: [version:1=2][deflate-raw stream].
+			function strokesToBodyBytes(strokeList) {
 				const bytes = [];
-				bytes.push(1);
 				pushU16(bytes, CANVAS_W);
 				pushU16(bytes, CANVAS_H);
 				pushU16(bytes, strokeList.length);
@@ -281,29 +355,69 @@
 				return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 			}
 
-			function estimateSize() {
-				return strokesToBytes(strokes).length;
+			const COMPRESSION_SUPPORTED = typeof CompressionStream !== "undefined";
+			if (!COMPRESSION_SUPPORTED) {
+				document.getElementById("usageMeter").textContent = "Your browser doesn't support exporting drawings (missing compression API). Try updating your browser.";
+				document.getElementById("usageMeter").className = "text-danger";
+				document.getElementById("exportBtn").disabled = true;
 			}
 
-			function estimateSizeWithStroke(extra) {
-				return strokesToBytes(strokes.concat([extra])).length;
+			async function deflateRawCompress(bytes) {
+				const cs = new CompressionStream("deflate-raw");
+				const writer = cs.writable.getWriter();
+				writer.write(bytes);
+				writer.close();
+				const buf = await new Response(cs.readable).arrayBuffer();
+				return new Uint8Array(buf);
 			}
 
-			function updateUsageMeter(rawBytes) {
-				const codeChars = Math.ceil((rawBytes * 4) / 3);
+			async function encodeStrokesToBytes(strokeList) {
+				const body = strokesToBodyBytes(strokeList);
+				const compressed = await deflateRawCompress(body);
+				const bytes = new Uint8Array(1 + compressed.length);
+				bytes[0] = 2;
+				bytes.set(compressed, 1);
+				return bytes;
+			}
+
+			function updateUsageMeter(codeChars) {
 				const meter = document.getElementById("usageMeter");
 				meter.textContent = `${codeChars} / ${MAX_CODE_CHARS} characters used`;
 				meter.className = codeChars > MAX_CODE_CHARS ? "text-danger" : "text-muted";
 			}
 
-			document.getElementById("exportBtn").addEventListener("click", () => {
-				const rawBytes = strokesToBytes(strokes);
-				if (rawBytes.length > MAX_RAW_BYTES) {
-					alert("This drawing is too complex to fit in a code that Discord will accept. Undo some strokes or start a simpler drawing.");
-					return;
-				}
+			// Live meter: encoding requires an async compress step, so this fires per move and only
+			// applies the result if a newer one hasn't already landed (guards against a slow encode
+			// from an earlier move overwriting a fresher one). The vector body is tiny, so unlike a
+			// full-canvas bitmap encode this stays cheap enough to run on every move without debouncing.
+			let meterToken = 0;
+			function refreshUsageMeter() {
+				if (!COMPRESSION_SUPPORTED) return;
+				const token = ++meterToken;
+				encodeStrokesToBytes(strokes).then((bytes) => {
+					if (token !== meterToken) return;
+					updateUsageMeter(Math.ceil((bytes.length * 4) / 3));
+				});
+			}
+
+			function refreshUsageMeterLive() {
+				if (!COMPRESSION_SUPPORTED) return;
+				const token = ++meterToken;
+				const list = erasing ? strokes : strokes.concat(currentStroke ? [currentStroke] : []);
+				encodeStrokesToBytes(list).then((bytes) => {
+					if (token !== meterToken) return;
+					updateUsageMeter(Math.ceil((bytes.length * 4) / 3));
+				});
+			}
+
+			document.getElementById("exportBtn").addEventListener("click", async () => {
 				if (strokes.length === 0) {
 					alert("Draw something first!");
+					return;
+				}
+				const rawBytes = await encodeStrokesToBytes(strokes);
+				if (rawBytes.length > MAX_RAW_BYTES) {
+					alert("This drawing is too complex to fit in a code that Discord will accept. Undo some strokes or start a simpler drawing.");
 					return;
 				}
 				const code = bytesToBase64Url(rawBytes);
