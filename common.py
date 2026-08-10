@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import hashlib
@@ -253,6 +254,34 @@ def purgeUserData(userid: int):
             if not saveData(store, data):
                 return False
     return True
+
+BUTTON_AUTO_DISABLE_SECONDS = 15
+
+class AutoDisableView(discord.ui.View):
+    """Base view that disables its buttons BUTTON_AUTO_DISABLE_SECONDS after creation, regardless of the view's own (possibly longer) timeout."""
+
+    def __init__(self, interaction: discord.Interaction, *, timeout: float = 180):
+        super().__init__(timeout=timeout)
+        self._owning_interaction = interaction
+        self._auto_disable_task = asyncio.create_task(self._auto_disable())
+
+    async def _auto_disable(self):
+        await asyncio.sleep(BUTTON_AUTO_DISABLE_SECONDS)
+        if self.is_finished():
+            return
+        for child in self.children:
+            if isinstance(child, discord.ui.Button):
+                child.disabled = True
+        try:
+            message = await self._owning_interaction.original_response()
+            await message.edit(view=self)
+        except discord.HTTPException:
+            pass
+
+    def stop(self):
+        if not self._auto_disable_task.done():
+            self._auto_disable_task.cancel()
+        super().stop()
 
 class ConfirmView(discord.ui.View):
     def __init__(self, author_id: int, timeout: float = 30):

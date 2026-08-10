@@ -13,6 +13,8 @@ from discord.ext import commands
 from PIL import Image, ImageDraw
 
 from common import (
+    AutoDisableView,
+    checkIfCooldown,
     ConfirmView,
     config,
     dmUser,
@@ -461,11 +463,11 @@ class GimmickViewerView(discord.ui.View):
         add_block(self.user_id, sender_id)
         await interaction.response.send_message(content="Blocked. They won't be able to send you any more gimmicks.\nGimmick broke the rules, was offensive, or otherwise? Report them as well!", ephemeral=True)
 
-class PostedGimmickView(discord.ui.View):
+class PostedGimmickView(AutoDisableView):
     """Attached to a publicly posted gimmick. No interaction_check — anyone in the channel can report it, not just the poster."""
 
-    def __init__(self, recipient_id: int, item: dict, timeout: float = 600):
-        super().__init__(timeout=timeout)
+    def __init__(self, interaction: discord.Interaction, recipient_id: int, item: dict, timeout: float = 600):
+        super().__init__(interaction, timeout=timeout)
         self.recipient_id = recipient_id
         self.item = item
 
@@ -521,6 +523,7 @@ class DrawModal(discord.ui.Modal, title="Send a drawing"):
             return
 
         await add_gimmick(interaction.client, self.target.id, "draw", code, interaction.user.id, anonymous)
+        setCooldown(interaction.user.id, "gimmicks-send", 30)
         await interaction.response.send_message(content=f"Sent your drawing to {formatUsername(self.target)}!", ephemeral=True)
 
 class MessageModal(discord.ui.Modal, title="Send a message"):
@@ -542,6 +545,7 @@ class MessageModal(discord.ui.Modal, title="Send a message"):
             return
 
         await add_gimmick(interaction.client, self.target.id, "message", self.message.value, interaction.user.id, anonymous)
+        setCooldown(interaction.user.id, "gimmicks-send", 30)
         await interaction.response.send_message(content=f"Sent your message to {formatUsername(self.target)}!", ephemeral=True)
 
 
@@ -574,10 +578,18 @@ class GimmickTypeView(discord.ui.View):
 
     @discord.ui.button(label="Draw", style=discord.ButtonStyle.primary, emoji="🎨")
     async def draw_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        cooldown = checkIfCooldown(interaction.user.id, "gimmicks-send")
+        if cooldown != -1:
+            await interaction.response.send_message(content=f"Slow down, dude! You can send another gimmick <t:{cooldown}:R>", ephemeral=True)
+            return
         await interaction.response.send_modal(DrawModal(self.target))
 
     @discord.ui.button(label="Message", style=discord.ButtonStyle.primary, emoji="✉️")
     async def message_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        cooldown = checkIfCooldown(interaction.user.id, "gimmicks-send")
+        if cooldown != -1:
+            await interaction.response.send_message(content=f"Slow down, dude! You can send another gimmick <t:{cooldown}:R>", ephemeral=True)
+            return
         await interaction.response.send_modal(MessageModal(self.target))
 
 class gimmicksCog(commands.Cog):
@@ -594,7 +606,7 @@ class gimmicksCog(commands.Cog):
     @app_commands.command(name="etanbot-gimmicks-send", description="Send a drawing or message gimmick to someone.")
     @app_commands.describe(target="Who to send the gimmick to.")
     async def gimmicks_send(self, interaction: discord.Interaction, target: discord.User):
-        if not await handleCommandAccess(interaction, interaction.user.id, "gimmicks-send"):
+        if not await handleCommandAccess(interaction, interaction.user.id):
             return
         if target.bot:
             await interaction.response.send_message(content="You can't send gimmicks to bots.", ephemeral=True)
@@ -612,7 +624,6 @@ class gimmicksCog(commands.Cog):
             await interaction.response.send_message(content="You can't send a gimmick to that user.", ephemeral=True)
             return
 
-        setCooldown(interaction.user.id, "gimmicks-send", 5)
         view = GimmickTypeView(interaction.user.id, target)
         await interaction.response.send_message(content=f"What kind of gimmick do you want to send to {formatUsername(target)}?\nIf it's a drawing gimmick, [go here](<https://etanbot.etangaming.xyz/drawing.html>) to draw and get a code!", view=view, ephemeral=True)
 
@@ -660,7 +671,7 @@ class gimmicksCog(commands.Cog):
         setCooldown(interaction.user.id, "gimmicks-post", 5)
         effective_reveal = reveal_author and not item["anonymous"]
         content, file = await render_gimmick(interaction.client, item, reveal_sender=effective_reveal)
-        view = PostedGimmickView(interaction.user.id, item)
+        view = PostedGimmickView(interaction, interaction.user.id, item)
         if file is not None:
             await interaction.response.send_message(content=content, file=file, view=view)
         else:
