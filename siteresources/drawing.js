@@ -1,0 +1,543 @@
+// --- drawing state ---
+// Back to vector strokes (far cheaper to encode than a bitmap for typical sparse doodles),
+// but with real erasing: a white brush doesn't add a stroke, it splices/trims points out of
+// existing strokes in real time, so erased ink is actually removed before export rather
+// than covered up by a same-cost stroke on top.
+const canvas = document.getElementById("drawingCanvas");
+const ctx = canvas.getContext("2d");
+const CANVAS_W = canvas.width;
+const CANVAS_H = canvas.height;
+const MAX_CODE_CHARS = 4000;
+// worst case bytes for a base64url string of this many chars
+const MAX_RAW_BYTES = Math.floor(MAX_CODE_CHARS * 3 / 4) - 16;
+const MAX_DELTA = 100; // keep every point-to-point step small enough to fit in a signed byte
+const MAX_UNDO_STEPS = 20;
+const ERASER_COLOR = "#ffffff";
+
+let strokes = []; // {color: [r,g,b], width: n, points: [{x,y}, ...]}
+let currentStroke = null;
+let erasing = false;
+let drawing = false;
+let lastPos = null;
+let preserveStrokes = false; // when true, drawing/erasing never trims or removes other strokes' data
+const undoStack = [];
+
+const palette = document.getElementById("palette");
+const colors = ["#000000", "#ffffff", "#ff0000", "#ff9900", "#ffe600", "#33cc33", "#0066ff", "#8649D7", "#ff33cc", "#795548"];
+let selectedColor = colors[0];
+colors.forEach((c) => {
+    const swatch = document.createElement("div");
+    swatch.className = "color-swatch" + (c === selectedColor ? " selected" : "");
+    swatch.style.background = c;
+    swatch.addEventListener("click", () => {
+        selectedColor = c;
+        document.querySelectorAll(".color-swatch").forEach((el) => el.classList.remove("selected"));
+        swatch.classList.add("selected");
+    });
+    palette.appendChild(swatch);
+});
+
+function hexToRgb(hex) {
+    const n = parseInt(hex.slice(1), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function getPos(evt) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const point = evt.touches ? evt.touches[0] : evt;
+    return {
+        x: Math.max(0, Math.min(CANVAS_W, Math.round((point.clientX - rect.left) * scaleX))),
+        y: Math.max(0, Math.min(CANVAS_H, Math.round((point.clientY - rect.top) * scaleY)))
+    };
+}
+
+function redraw() {
+    ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    for (const stroke of strokes) {
+        drawStroke(stroke);
+    }
+}
+
+function drawStroke(stroke) {
+    if (stroke.points.length === 0) return;
+    ctx.strokeStyle = `rgb(${stroke.color[0]}, ${stroke.color[1]}, ${stroke.color[2]})`;
+    ctx.lineWidth = stroke.width;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+    if (stroke.points.length === 1) {
+        // a dot - draw a tiny line to itself so it actually shows up
+        ctx.lineTo(stroke.points[0].x + 0.01, stroke.points[0].y);
+    }
+    for (let i = 1; i < stroke.points.length; i++) {
+        ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+    }
+    ctx.stroke();
+}
+
+function addPointToCurrentStroke(pos) {
+    const last = currentStroke.points[currentStroke.points.length - 1];
+    if (!last) {
+        currentStroke.points.push(pos);
+        return;
+    }
+    // insert intermediate points so no delta ever exceeds MAX_DELTA (keeps encoding to 1 signed byte per axis)
+    let dx = pos.x - last.x;
+    let dy = pos.y - last.y;
+    const steps = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / MAX_DELTA));
+    for (let s = 1; s <= steps; s++) {
+        currentStroke.points.push({
+            x: Math.round(last.x + (dx * s) / steps),
+            y: Math.round(last.y + (dy * s) / steps)
+        });
+    }
+}
+
+// Does the segment from->to already lie entirely within this same stroke's own earlier
+// path? A stroke is one fixed color the whole time, so any self-overlap is trivially
+// "same color" - the only question is geometric coverage. Used by the "Optimise drawing"
+// batch pass to stop scribbling back and forth over the same spot (shading, filling in a
+// shape) from costing new points for every pass once the area's already covered.
+function segmentCoveredBySelf(strokePoints, width, from, to) {
+    if (strokePoints.length < 2) return false;
+    const hitRadiusSq = width * width;
+    const dist = Math.hypot(to.x - from.x, to.y - from.y);
+    const steps = Math.max(1, Math.ceil(dist / Math.max(1, width / 2)));
+    for (let s = 0; s <= steps; s++) {
+        const x = from.x + (to.x - from.x) * s / steps;
+        const y = from.y + (to.y - from.y) * s / steps;
+        let covered = false;
+        for (let i = 1; i < strokePoints.length; i++) {
+            const a = strokePoints[i - 1];
+            const b = strokePoints[i];
+            if (distToSegmentSq(x, y, a.x, a.y, b.x, b.y) <= hitRadiusSq) {
+                covered = true;
+                break;
+            }
+        }
+        if (!covered) return false;
+    }
+    return true;
+}
+
+// --- real erasing: trims/splits existing strokes instead of drawing an eraser stroke ---
+// Distance from point (px,py) to the segment a->b, squared. Used instead of point-only
+// distance because stroke points can be up to MAX_DELTA apart (a fast, sparse drag) - a
+// small eraser/brush passing through the *middle* of a long segment would otherwise be
+// invisible to a check that only looks at the stored points themselves.
+function distToSegmentSq(px, py, ax, ay, bx, by) {
+    const abx = bx - ax;
+    const aby = by - ay;
+    const abLenSq = abx * abx + aby * aby;
+    let t = abLenSq > 0 ? ((px - ax) * abx + (py - ay) * aby) / abLenSq : 0;
+    t = Math.max(0, Math.min(1, t));
+    const cx = ax + abx * t;
+    const cy = ay + aby * t;
+    return (px - cx) ** 2 + (py - cy) ** 2;
+}
+
+function strokeOverlaps(stroke, pos, radius) {
+    const hitRadiusSq = (radius + stroke.width / 2) ** 2;
+    if (stroke.points.length === 1) {
+        const p = stroke.points[0];
+        return (p.x - pos.x) ** 2 + (p.y - pos.y) ** 2 <= hitRadiusSq;
+    }
+    for (let i = 1; i < stroke.points.length; i++) {
+        const a = stroke.points[i - 1];
+        const b = stroke.points[i];
+        if (distToSegmentSq(pos.x, pos.y, a.x, a.y, b.x, b.y) <= hitRadiusSq) return true;
+    }
+    return false;
+}
+
+function eraseFromStroke(stroke, eraserPos, eraserRadius) {
+    const hitRadius = eraserRadius + stroke.width / 2;
+    const hitRadiusSq = hitRadius * hitRadius;
+    const isInside = (p) => (p.x - eraserPos.x) ** 2 + (p.y - eraserPos.y) ** 2 <= hitRadiusSq;
+
+    // Resample only the segments that actually pass near the eraser, finely enough that the
+    // inside/outside test can't skip over the erased region. Segments nowhere near the
+    // eraser are kept as-is, so erasing doesn't inflate the cost of the rest of the stroke.
+    const points = stroke.points;
+    const dense = [points[0]];
+    for (let i = 1; i < points.length; i++) {
+        const a = points[i - 1];
+        const b = points[i];
+        const nearby = distToSegmentSq(eraserPos.x, eraserPos.y, a.x, a.y, b.x, b.y) <= hitRadiusSq;
+        if (nearby) {
+            const segLen = Math.hypot(b.x - a.x, b.y - a.y);
+            const step = Math.max(1, hitRadius / 2);
+            const subSteps = Math.max(1, Math.ceil(segLen / step));
+            for (let s = 1; s <= subSteps; s++) {
+                dense.push({ x: a.x + (b.x - a.x) * s / subSteps, y: a.y + (b.y - a.y) * s / subSteps });
+            }
+        } else {
+            dense.push(b);
+        }
+    }
+
+    const runs = [];
+    let current = [];
+    for (const p of dense) {
+        if (isInside(p)) {
+            if (current.length > 0) {
+                runs.push(current);
+                current = [];
+            }
+        } else {
+            current.push(p);
+        }
+    }
+    if (current.length > 0) runs.push(current);
+    return runs.map((runPoints) => ({ color: stroke.color, width: stroke.width, points: runPoints }));
+}
+
+function eraseAt(pos, eraserRadius) {
+    strokes = strokes.flatMap((stroke) => (strokeOverlaps(stroke, pos, eraserRadius) ? eraseFromStroke(stroke, pos, eraserRadius) : [stroke]));
+}
+
+function eraseAlong(from, to, eraserRadius) {
+    const dist = Math.hypot(to.x - from.x, to.y - from.y);
+    const steps = Math.max(1, Math.ceil(dist / Math.max(1, eraserRadius)));
+    for (let s = 1; s <= steps; s++) {
+        const x = from.x + (to.x - from.x) * s / steps;
+        const y = from.y + (to.y - from.y) * s / steps;
+        eraseAt({ x, y }, eraserRadius);
+    }
+}
+
+function colorsEqual(a, b) {
+    return a[0] === b[0] && a[1] === b[1] && a[2] === b[2];
+}
+
+// Drawing on top of existing ink overrides it instead of costing a whole extra stroke:
+// trims/splits whatever's underneath wherever the new brush passes. Checks the TOPMOST
+// (last-drawn, so currently-visible) overlapping stroke's color specifically - a same-color
+// stroke buried under something else doesn't count as "already this color", since that's
+// not what's actually showing. If the visible color already matches, nothing is touched and
+// this point is reported as redundant so a stroke that never paints anything new anywhere
+// can be discarded for free instead of being kept as a costly no-op.
+function overrideAt(pos, radius, color) {
+    let topmostIndex = -1;
+    for (let i = strokes.length - 1; i >= 0; i--) {
+        if (strokeOverlaps(strokes[i], pos, radius)) {
+            topmostIndex = i;
+            break;
+        }
+    }
+    if (topmostIndex === -1) return false; // blank canvas here - genuinely new ink
+    if (colorsEqual(strokes[topmostIndex].color, color)) return true; // already showing this color
+
+    // something different-colored is visible here - it's all about to be covered, so trim
+    // every overlapping stroke regardless of its own color (buried ones are already hidden)
+    strokes = strokes.flatMap((stroke) => (strokeOverlaps(stroke, pos, radius) ? eraseFromStroke(stroke, pos, radius) : [stroke]));
+    return false;
+}
+
+function overrideAlong(from, to, radius, color) {
+    const dist = Math.hypot(to.x - from.x, to.y - from.y);
+    const steps = Math.max(1, Math.ceil(dist / Math.max(1, radius)));
+    let allRedundant = true;
+    for (let s = 1; s <= steps; s++) {
+        const x = from.x + (to.x - from.x) * s / steps;
+        const y = from.y + (to.y - from.y) * s / steps;
+        if (!overrideAt({ x, y }, radius, color)) allRedundant = false;
+    }
+    return allRedundant;
+}
+
+function pushUndoSnapshot() {
+    undoStack.push(strokes.map((s) => ({ color: s.color, width: s.width, points: s.points.slice() })));
+    if (undoStack.length > MAX_UNDO_STEPS) undoStack.shift();
+}
+
+// Live drawing stays cheap and dumb on purpose: just append points, no override/self-overlap
+// checking here. Those checks are O(strokes x points) and running them on every mousemove
+// made drawing feel choppy - they're pure byte-count optimizations (they never change what's
+// visible), so they're deferred to the explicit "Optimise drawing" button instead of paid for
+// on every frame. Erasing stays live since it's core functionality, not an optimization -
+// you need to see ink actually disappear immediately.
+function startStroke(evt) {
+    evt.preventDefault();
+    drawing = true;
+    pushUndoSnapshot();
+    const pos = getPos(evt);
+    lastPos = pos;
+    erasing = selectedColor === ERASER_COLOR && !preserveStrokes;
+    const brushWidth = parseInt(document.getElementById("brushSize").value, 10);
+    const radius = brushWidth / 2;
+    if (erasing) {
+        eraseAt(pos, radius);
+        redraw();
+    } else {
+        currentStroke = { color: hexToRgb(selectedColor), width: brushWidth, points: [pos] };
+        redraw();
+        drawStroke(currentStroke);
+    }
+    refreshUsageMeterLive();
+}
+
+function moveStroke(evt) {
+    if (!drawing) return;
+    evt.preventDefault();
+    const pos = getPos(evt);
+    const radius = parseInt(document.getElementById("brushSize").value, 10) / 2;
+    if (erasing) {
+        eraseAlong(lastPos, pos, radius);
+        lastPos = pos;
+        redraw();
+    } else {
+        addPointToCurrentStroke(pos);
+        lastPos = pos;
+        redraw();
+        drawStroke(currentStroke);
+    }
+    refreshUsageMeterLive();
+}
+
+function endStroke() {
+    if (!drawing) return;
+    drawing = false;
+    if (!erasing && currentStroke && currentStroke.points.length > 0) {
+        strokes.push(currentStroke);
+    }
+    currentStroke = null;
+    erasing = false;
+    lastPos = null;
+    refreshUsageMeter();
+}
+
+canvas.addEventListener("mousedown", startStroke);
+canvas.addEventListener("mousemove", moveStroke);
+window.addEventListener("mouseup", endStroke);
+canvas.addEventListener("touchstart", startStroke, { passive: false });
+canvas.addEventListener("touchmove", moveStroke, { passive: false });
+canvas.addEventListener("touchend", endStroke);
+
+document.getElementById("undoBtn").addEventListener("click", () => {
+    if (undoStack.length === 0) return;
+    strokes = undoStack.pop();
+    redraw();
+    refreshUsageMeter();
+});
+
+document.getElementById("clearBtn").addEventListener("click", () => {
+    if (strokes.length > 0 && !confirm("Clear the whole drawing?")) return;
+    pushUndoSnapshot();
+    strokes = [];
+    redraw();
+    document.getElementById("codeRow").style.display = "none";
+    updateUsageMeter(0);
+});
+
+function updatePreserveStrokesButton() {
+    const btn = document.getElementById("preserveStrokesBtn");
+    btn.textContent = "Preserve overlapping strokes: " + (preserveStrokes ? "ON" : "OFF");
+    btn.classList.toggle("btn-warning", preserveStrokes);
+    btn.classList.toggle("btn-outline-secondary", !preserveStrokes);
+    document.getElementById("optimizeBtn").disabled = preserveStrokes;
+}
+
+document.getElementById("preserveStrokesBtn").addEventListener("click", () => {
+    if (!preserveStrokes) {
+        const confirmed = confirm(
+            "By default, drawing over (or erasing) part of an earlier stroke removes the now-hidden " +
+            "portion of it, since it's no longer visible - this keeps the exported code small.\n\n" +
+            "Turning this ON disables that: strokes are never trimmed or removed because something " +
+            "else was drawn over them, and the eraser stops deleting stroke data too (it just paints " +
+            "white on top instead). Every stroke you draw stays fully intact, even ones later strokes " +
+            "completely cover. \"Optimise drawing\" is also disabled while this is on, since it does " +
+            "the same kind of trimming, just as a manual batch pass.\n\n" +
+            "Useful for detailed, heavily-layered drawings where you don't want strokes automatically " +
+            "merged or cleaned up. Your drawing will likely use a lot more characters and could hit " +
+            "the 4000-character export limit much sooner.\n\n" +
+            "Turn this on?"
+        );
+        if (!confirmed) return;
+    }
+    preserveStrokes = !preserveStrokes;
+    updatePreserveStrokesButton();
+});
+
+// Batch version of the same override/self-overlap logic live drawing skips for speed: removes
+// data that never had any visible effect - portions of a stroke hidden by a later, differently
+// colored stroke on top, and points from a stroke retracing over its own already-covered path.
+// Never changes what's drawn, only how many bytes it takes to describe it.
+function optimizeStrokeSelf(stroke) {
+    if (stroke.points.length < 2) return stroke;
+    const reduced = [stroke.points[0]];
+    for (let i = 1; i < stroke.points.length; i++) {
+        const last = reduced[reduced.length - 1];
+        const pos = stroke.points[i];
+        if (!segmentCoveredBySelf(reduced, stroke.width, last, pos)) {
+            reduced.push(pos);
+        }
+    }
+    return { color: stroke.color, width: stroke.width, points: reduced };
+}
+
+function optimizeDrawing() {
+    if (preserveStrokes) return;
+    pushUndoSnapshot();
+
+    // 1. replay strokes in their original (z-)order, letting each one override/trim whatever's
+    // already been kept before it - same rule as live drawing used to apply on every move.
+    const original = strokes;
+    strokes = [];
+    for (const stroke of original) {
+        let addedSomethingNew = false;
+        let prev = null;
+        for (const pos of stroke.points) {
+            if (!overrideAt(pos, stroke.width / 2, stroke.color)) addedSomethingNew = true;
+            if (prev && !overrideAlong(prev, pos, stroke.width / 2, stroke.color)) addedSomethingNew = true;
+            prev = pos;
+        }
+        if (addedSomethingNew) strokes.push(stroke);
+    }
+
+    // 2. collapse self-retracing AND any collinear points the trim step above introduced
+    // while resampling near a cut boundary - run after trimming so it sees the final shape.
+    strokes = strokes.map(optimizeStrokeSelf);
+
+    redraw();
+    refreshUsageMeter();
+}
+
+document.getElementById("optimizeBtn").addEventListener("click", optimizeDrawing);
+
+// --- encoding ---
+// layout (before compression): [width:u16le][height:u16le][strokeCount:u16le]
+// per stroke: [r:1][g:1][b:1][lineWidth:1][pointCount:u16le][x0:u16le][y0:u16le][dx:i8][dy:i8]...
+// Compressed with raw deflate (no gzip/zlib header/trailer - a few free bytes per drawing)
+// and prefixed with a single version byte: [version:1=2][deflate-raw stream].
+function strokesToBodyBytes(strokeList) {
+    const bytes = [];
+    pushU16(bytes, CANVAS_W);
+    pushU16(bytes, CANVAS_H);
+    pushU16(bytes, strokeList.length);
+    for (const stroke of strokeList) {
+        bytes.push(stroke.color[0], stroke.color[1], stroke.color[2]);
+        bytes.push(Math.max(1, Math.min(20, stroke.width)));
+        pushU16(bytes, stroke.points.length);
+        pushU16(bytes, stroke.points[0].x);
+        pushU16(bytes, stroke.points[0].y);
+        for (let i = 1; i < stroke.points.length; i++) {
+            const dx = stroke.points[i].x - stroke.points[i - 1].x;
+            const dy = stroke.points[i].y - stroke.points[i - 1].y;
+            bytes.push(toInt8(dx), toInt8(dy));
+        }
+    }
+    return new Uint8Array(bytes);
+}
+
+function pushU16(arr, v) {
+    arr.push(v & 255, (v >> 8) & 255);
+}
+
+function toInt8(v) {
+    v = Math.max(-128, Math.min(127, v));
+    return v < 0 ? v + 256 : v;
+}
+
+function bytesToBase64Url(bytes) {
+    let binary = "";
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+const COMPRESSION_SUPPORTED = typeof CompressionStream !== "undefined";
+if (!COMPRESSION_SUPPORTED) {
+    document.getElementById("usageMeter").textContent = "Your browser doesn't support exporting drawings (missing compression API). Try updating your browser.";
+    document.getElementById("usageMeter").className = "text-danger";
+    document.getElementById("exportBtn").disabled = true;
+}
+
+async function deflateRawCompress(bytes) {
+    const cs = new CompressionStream("deflate-raw");
+    const writer = cs.writable.getWriter();
+    writer.write(bytes);
+    writer.close();
+    const buf = await new Response(cs.readable).arrayBuffer();
+    return new Uint8Array(buf);
+}
+
+async function encodeStrokesToBytes(strokeList) {
+    const body = strokesToBodyBytes(strokeList);
+    const compressed = await deflateRawCompress(body);
+    const bytes = new Uint8Array(1 + compressed.length);
+    bytes[0] = 2;
+    bytes.set(compressed, 1);
+    return bytes;
+}
+
+function updateUsageMeter(codeChars) {
+    const meter = document.getElementById("usageMeter");
+    meter.textContent = `${codeChars} / ${MAX_CODE_CHARS} characters used`;
+    meter.className = codeChars > MAX_CODE_CHARS ? "text-danger" : "text-muted";
+}
+
+// Live meter: encoding requires an async compress step, so this fires per move and only
+// applies the result if a newer one hasn't already landed (guards against a slow encode
+// from an earlier move overwriting a fresher one). The vector body is tiny, so unlike a
+// full-canvas bitmap encode this stays cheap enough to run on every move without debouncing.
+let meterToken = 0;
+function refreshUsageMeter() {
+    if (!COMPRESSION_SUPPORTED) return;
+    const token = ++meterToken;
+    encodeStrokesToBytes(strokes).then((bytes) => {
+        if (token !== meterToken) return;
+        updateUsageMeter(Math.ceil((bytes.length * 4) / 3));
+    });
+}
+
+function refreshUsageMeterLive() {
+    if (!COMPRESSION_SUPPORTED) return;
+    const token = ++meterToken;
+    const list = erasing ? strokes : strokes.concat(currentStroke ? [currentStroke] : []);
+    encodeStrokesToBytes(list).then((bytes) => {
+        if (token !== meterToken) return;
+        updateUsageMeter(Math.ceil((bytes.length * 4) / 3));
+    });
+}
+
+document.getElementById("exportBtn").addEventListener("click", async () => {
+    if (strokes.length === 0) {
+        alert("Draw something first!");
+        return;
+    }
+    const rawBytes = await encodeStrokesToBytes(strokes);
+    if (rawBytes.length > MAX_RAW_BYTES) {
+        alert("This drawing is too complex to fit in a code that Discord will accept. Undo some strokes or start a simpler drawing.");
+        return;
+    }
+    const code = bytesToBase64Url(rawBytes);
+    document.getElementById("codeOutput").value = code;
+    document.getElementById("codeRow").style.display = "";
+    document.getElementById("copyStatus").textContent = "";
+});
+
+document.getElementById("saveBtn").addEventListener("click", () => {
+    const link = document.createElement("a");
+    link.download = "gimmick-drawing.png";
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+});
+
+document.getElementById("copyBtn").addEventListener("click", async () => {
+    const output = document.getElementById("codeOutput");
+    output.select();
+    try {
+        await navigator.clipboard.writeText(output.value);
+        document.getElementById("copyStatus").textContent = "Copied!";
+    } catch (e) {
+        document.getElementById("copyStatus").textContent = "Couldn't auto-copy. Select the text above and copy it manually.";
+    }
+});
+
+redraw();
+updateUsageMeter(0);
