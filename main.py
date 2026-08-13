@@ -15,9 +15,16 @@ from common import developergithub, ensure_datastores, repositoryurl, inviteurl,
 intents = discord.Intents.default()
 ensure_datastores()
 
-def getLatestCommitHash():
+def getCurrentBranch():
     try:
-        response = requests.get("https://api.github.com/repos/etangaming123/etanbot/commits/main")
+        return repo.active_branch.name
+    except TypeError:
+        return "detached HEAD"
+
+def getLatestCommitHash(branch=None):
+    branch = branch or getCurrentBranch()
+    try:
+        response = requests.get(f"https://api.github.com/repos/etangaming123/etanbot/commits/{branch}")
         if response.status_code == 200:
             data = response.json()
             return data['sha'][:7] # Return the first 7 characters of the commit hash
@@ -31,6 +38,7 @@ def getLatestCommitHash():
 tonetags = readTextFile("tonetags")
 deretypes = readTextFile("deretypes")
 currentcommithash = repo.head.object.hexsha[:7]
+currentbranch = getCurrentBranch()
 
 if not os.path.exists("config.json"):
     with open("config.json", "w") as f:
@@ -67,7 +75,8 @@ async def DoThisEveryTenMinutes():
     if checkforupdates:
         latesthash = getLatestCommitHash()
         if latesthash != currentcommithash and not OhNoesWereOutOfDateButItsOkayBecauseWePrintedTheWarningAlready:
-            print(f"etan bot has updated! Current commit: {currentcommithash}, latest commit: {latesthash}. You should git pull and restart the bot if not running a modded instance!")
+            branchnote = f" [tracking branch: {currentbranch}, not main]" if currentbranch != "main" else ""
+            print(f"etan bot has updated!{branchnote} Current commit: {currentcommithash}, latest commit: {latesthash}. You should git pull and restart the bot if not running a modded instance!")
             OhNoesWereOutOfDateButItsOkayBecauseWePrintedTheWarningAlready = True
 
     pickedstatus = random.choice(statuses)
@@ -108,7 +117,7 @@ async def whoami(interaction: discord.Interaction):
     embed.add_field(name="Description", value=f"Funny Discord bot that can be added to your account and used anywhere within Discord.", inline=False)
     embed.add_field(name="Features", value="Various commands - link cleaner, MBTI personality type lookup, tonetag lookup, NEEDY STREAMER OVERLOAD Task Manager Generator, with more to come.", inline=False)
     embed.add_field(name="Links", value=f"[webpage]({website}) • [terms of service]({website}/termsofservice.html) • [privacy policy]({website}/privacypolicy.html) • [add to discord]({inviteurl}) • [support server]({supportserver})", inline=False)
-    embed.add_field(name="Commit", value=currentcommithash, inline=True)
+    embed.add_field(name="Commit", value=f"{currentcommithash} ({currentbranch})" if currentbranch != "main" else currentcommithash, inline=True)
     embed.add_field(name="Developer", value=f"[etangaming123]({developergithub})", inline=True)
     embed.add_field(name="Repository", value=repositoryurl, inline=False)
     embed.set_footer(text=f"etan • etangaming123 • etangamingxyz")
@@ -130,15 +139,23 @@ async def status(interaction: discord.Interaction):
         return
     await interaction.response.defer()
     setCooldown(interaction.user.id, "status", 10)
+
+    branchnote = ""
+    if currentbranch != "main":
+        branchnote = f" (running on branch **{currentbranch}**, not main)"
+
     if repo.is_dirty():
-        await interaction.edit_original_response(content="etanbot is running on a modified commit!")
+        dirtyfiles = [item.a_path for item in repo.index.diff(None)] + repo.untracked_files
+        filelist = ", ".join(dirtyfiles[:10]) + ("..." if len(dirtyfiles) > 10 else "")
+        await interaction.edit_original_response(content=f"etanbot is running on a modified commit!{branchnote} Running commit: {currentcommithash}. Uncommitted changes: {filelist}")
         return
-    latesthash = getLatestCommitHash()
+
+    latesthash = getLatestCommitHash(currentbranch)
     if latesthash == currentcommithash:
-        await interaction.edit_original_response(content=f"etanbot is up to date! Running commit: {currentcommithash}")
+        await interaction.edit_original_response(content=f"etanbot is up to date!{branchnote} Running commit: {currentcommithash}")
     elif latesthash == "unknown":
-        await interaction.edit_original_response(content=f"etanbot is running commit: {currentcommithash}, we couldn't get the latest commit")
+        await interaction.edit_original_response(content=f"etanbot is running commit: {currentcommithash}{branchnote}, we couldn't get the latest commit")
     else:
-        await interaction.edit_original_response(content=f"etanbot is not up to date. Running commit: {currentcommithash}, latest commit: {latesthash}. Please contact the developer to update the bot!")
+        await interaction.edit_original_response(content=f"etanbot is not up to date.{branchnote} Running commit: {currentcommithash}, latest commit: {latesthash}. Please contact the developer to update the bot!")
 
 bot.run(secure_token.secure_token())
