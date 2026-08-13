@@ -18,43 +18,50 @@ Profile Picture by Shoebill Studios.
 
 ## Features
 
-### Fun
+Full command-by-command docs (with descriptions and parameters) live on the website: [Fun & Games](https://etanbot.etangaming.xyz/commands/fun.html) • [Cosmetic & Social](https://etanbot.etangaming.xyz/commands/cosmetic.html) • [Utility](https://etanbot.etangaming.xyz/commands/utility.html) • [Data & Settings](https://etanbot.etangaming.xyz/commands/data-settings.html) • [Admin](https://etanbot.etangaming.xyz/commands/admin.html)
+
+### [Fun & Games](https://etanbot.etangaming.xyz/commands/fun.html)
 
 These are fun commands and should not be taken seriously.
 
-* 8-ball command
-* Braincell count (or random number generator)
+* 8-ball, coinflip, braincell count, lie detector, random number generator, random choice picker, "shipping", RNG-based rarity rolls (paro/testify), predictions, and other RNG joke commands
+* Slotmachine (purely cosmetic, no real stakes)
+* "Puppet" commands (makes the bot say something, including via a modal for longer messages)
 * Pizoelectric tiles copypasta ("Japan is turning footsteps into electricity! ⚡Using piezoelectric tiles, every step you take generates a small amount of energy. Millions of steps together can power LED lights and displays in busy places like Shibuya Station. A brilliant way to create a sustainable and smart city -- turning movement into clean, renewable energy 🌱💡")
-* "Puppet" command (makes the bot say something!)
-* Random number generator
-* Random birthday message (for any user in a server/dm)
-* Prediction (predicting when something will happen)
-* Lie detector
-* Tonetag searcher
-* MBTI personality lookup
-* Deretype lookup
-* Slotmachine
-* Random choice picker (picks a choice from a given list)
+* Random birthday message, headpats, "sleep"/"lock in" nudges, regional-indicator text, read indicators (for any user in a server/dm)
+* Tonetag searcher, MBTI personality lookup, deretype lookup
 
-### Useful
+### [Cosmetic & Social](https://etanbot.etangaming.xyz/commands/cosmetic.html)
+
+If you want to spice up your Discord experience, kinda!
+
+* Built in profiles (bio, social links, custom embed colour - for fun!)
+* NEEDY STREAMER OVERLOAD Task Manager generator
+* Preset GIFS to choose from
+* "Gimmicks" feature taken from strawpage (send messages and drawings to other users - anonymous or not, with opt-in/block controls)
+
+### [Utility](https://etanbot.etangaming.xyz/commands/utility.html)
 
 Various utility commands.
 
 * Link cleaner (removes *most* url trackers within links)
-* (unnofficial) Linkage with Koko Amusement Cards (so you can see how much credit you have left, from the comfort of Discord)
+* (unofficial) Linkage with Koko Amusement Cards (so you can see how much credit you have left, from the comfort of Discord)
 * Calculator and unit conversion (cm to inches, kg to pounds, etc.)
 * (unofficial) "linkage" with rngdle (get a user's latest roll)
-* Timezone conversion
-* Calculator and unit conversion
+* Timezone lookup and conversion
+* Colour conversion (hex/rgb/hsl) with a preview swatch
+* Bot info commands (ping, whoami, invite, status)
 
-### Cosmetic
+### [Data & Settings](https://etanbot.etangaming.xyz/commands/data-settings.html)
 
-If you want to spice up your Discord experience, kinda!
+Self-service control over what the bot stores about you.
 
-* Built in profiles (for fun!)
-* NEEDY STREAMER OVERLOAD Task Manager generator
-* Preset GIFS to choose from
-* "Gimmicks" feature taken from strawpage (send messages and drawings to other users - anonymous or not)
+* Export, import, or delete all of your stored data
+* Toggle bot preferences (e.g. gimmick DM notifications)
+
+### [Admin](https://etanbot.etangaming.xyz/commands/admin.html)
+
+Bot-owner-only commands (hard-restricted via `poweruserid` in `config.json`) for moderating bot usage - banning/unbanning users from the bot, purging a user's data, managing the shared gif list, and moderating gimmick reports.
 
 ## Screenshots/Showcase
 
