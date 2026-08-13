@@ -104,15 +104,24 @@ class AnswerButton(discord.ui.Button):
         await self.view.answer(interaction, self.choice)
 
 
+class UndoButton(discord.ui.Button):
+    def __init__(self, disabled: bool):
+        super().__init__(label="↩ Undo", style=discord.ButtonStyle.danger, row=4, disabled=disabled)
+
+    async def callback(self, interaction: discord.Interaction):
+        await self.view.undo(interaction)
+
+
 class QuizView(discord.ui.View):
     def __init__(self, quiz: dict, owner_id: int, timeout: float = 240):
         super().__init__(timeout=timeout)
         self.quiz = quiz
         self.owner_id = owner_id
         self.index = 0
+        self.history: list[dict] = []
         self.user_vector = {attr: 0 for attr in quiz.get("attributes", [])}
         self.message: discord.Message | None = None
-        self.add_question_buttons(0)
+        self.render_items()
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.owner_id:
@@ -120,29 +129,42 @@ class QuizView(discord.ui.View):
             return False
         return True
 
-    def add_question_buttons(self, index: int):
+    def render_items(self):
         self.clear_items()
-        question = self.quiz["questions"][index]
-        for i, choice in enumerate(question.get("choices", [])[:25]):
-            label = truncateMessage(choice.get("text", f"Choice {i + 1}"), 80)
-            self.add_item(AnswerButton(label=label, choice=choice, row=i // 5))
+        questions = self.quiz.get("questions", [])
+        if self.index < len(questions):
+            question = questions[self.index]
+            for i, choice in enumerate(question.get("choices", [])[:20]):
+                label = truncateMessage(choice.get("text", f"Choice {i + 1}"), 80)
+                self.add_item(AnswerButton(label=label, choice=choice, row=i // 5))
+        self.add_item(UndoButton(disabled=not self.history))
 
     async def answer(self, interaction: discord.Interaction, choice: dict):
+        self.history.append(choice)
         for attr, value in choice.get("points", {}).items():
             self.user_vector[attr] = self.user_vector.get(attr, 0) + value
         self.index += 1
 
         questions = self.quiz.get("questions", [])
+        self.render_items()
         if self.index < len(questions):
-            self.add_question_buttons(self.index)
             embed = build_question_embed(self.quiz, self.index, len(questions))
-            await interaction.response.edit_message(embed=embed, view=self)
         else:
-            self.clear_items()
-            self.stop()
             results = score_quiz(self.quiz, self.user_vector)
             embed = build_results_embed(self.quiz, results)
-            await interaction.response.edit_message(embed=embed, view=None)
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    async def undo(self, interaction: discord.Interaction):
+        if not self.history:
+            await interaction.response.send_message(content="Nothing to undo yet.", ephemeral=True)
+            return
+        last_choice = self.history.pop()
+        for attr, value in last_choice.get("points", {}).items():
+            self.user_vector[attr] = self.user_vector.get(attr, 0) - value
+        self.index -= 1
+        self.render_items()
+        embed = build_question_embed(self.quiz, self.index, len(self.quiz.get("questions", [])))
+        await interaction.response.edit_message(embed=embed, view=self)
 
     async def on_timeout(self):
         if self.message is None:
