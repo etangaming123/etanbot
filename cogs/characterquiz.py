@@ -52,15 +52,28 @@ def score_quiz(quiz: dict, user_vector: dict) -> list[tuple[dict, float]]:
     return results
 
 
-def build_question_embed(quiz: dict, index: int, total: int) -> discord.Embed:
-    question = quiz["questions"][index]
+def build_intro_embed(quiz: dict) -> discord.Embed:
     embed = discord.Embed(
         title=quiz.get("title", "Character Quiz"),
-        description=f"**Q{index + 1}/{total}.** {question['text']}",
+        description=quiz.get("description") or "Answer each question to find out which character you're most like!",
         color=0x8649D7,
     )
-    if index == 0 and quiz.get("description"):
-        embed.add_field(name="About this quiz", value=truncateMessage(quiz["description"], 1024), inline=False)
+    embed.add_field(name="Questions", value=str(len(quiz.get("questions", []))), inline=True)
+    embed.add_field(name="Possible characters", value=str(len(quiz.get("characters", []))), inline=True)
+    embed.set_footer(text="Press Start Quiz to begin!")
+    return embed
+
+
+def build_question_embed(quiz: dict, index: int, total: int) -> discord.Embed:
+    question = quiz["questions"][index]
+    choices = question.get("choices", [])[:20]
+    lines = [f"**Q{index + 1}/{total}.** {question['text']}", ""]
+    lines.extend(f"**{i + 1}.** {choice.get('text', '')}" for i, choice in enumerate(choices))
+    embed = discord.Embed(
+        title=quiz.get("title", "Character Quiz"),
+        description=truncateMessage("\n".join(lines), 4096),
+        color=0x8649D7,
+    )
     embed.set_footer(text=f"Question {index + 1} of {total}")
     return embed
 
@@ -95,9 +108,17 @@ def build_results_embed(quiz: dict, results: list[tuple[dict, float]]) -> discor
     return embed
 
 
+class StartButton(discord.ui.Button):
+    def __init__(self):
+        super().__init__(label="Start Quiz", style=discord.ButtonStyle.success, row=0)
+
+    async def callback(self, interaction: discord.Interaction):
+        await self.view.start(interaction)
+
+
 class AnswerButton(discord.ui.Button):
-    def __init__(self, label: str, choice: dict, row: int):
-        super().__init__(label=label, style=discord.ButtonStyle.secondary, row=row)
+    def __init__(self, number: int, choice: dict, row: int):
+        super().__init__(label=str(number), style=discord.ButtonStyle.primary, row=row)
         self.choice = choice
 
     async def callback(self, interaction: discord.Interaction):
@@ -117,7 +138,7 @@ class QuizView(discord.ui.View):
         super().__init__(timeout=timeout)
         self.quiz = quiz
         self.owner_id = owner_id
-        self.index = 0
+        self.index = -1  # -1 = intro screen, not started yet
         self.history: list[dict] = []
         self.user_vector = {attr: 0 for attr in quiz.get("attributes", [])}
         self.message: discord.Message | None = None
@@ -131,13 +152,21 @@ class QuizView(discord.ui.View):
 
     def render_items(self):
         self.clear_items()
+        if self.index == -1:
+            self.add_item(StartButton())
+            return
         questions = self.quiz.get("questions", [])
         if self.index < len(questions):
             question = questions[self.index]
             for i, choice in enumerate(question.get("choices", [])[:20]):
-                label = truncateMessage(choice.get("text", f"Choice {i + 1}"), 80)
-                self.add_item(AnswerButton(label=label, choice=choice, row=i // 5))
+                self.add_item(AnswerButton(number=i + 1, choice=choice, row=i // 5))
         self.add_item(UndoButton(disabled=not self.history))
+
+    async def start(self, interaction: discord.Interaction):
+        self.index = 0
+        self.render_items()
+        embed = build_question_embed(self.quiz, 0, len(self.quiz.get("questions", [])))
+        await interaction.response.edit_message(embed=embed, view=self)
 
     async def answer(self, interaction: discord.Interaction, choice: dict):
         self.history.append(choice)
@@ -200,7 +229,7 @@ class characterQuizCog(commands.Cog):
 
         setCooldown(interaction.user.id, "characterquiz", COOLDOWN_SECONDS)
         view = QuizView(quiz_data, interaction.user.id)
-        embed = build_question_embed(quiz_data, 0, len(quiz_data["questions"]))
+        embed = build_intro_embed(quiz_data)
         view.message = await interaction.edit_original_response(embed=embed, view=view)
 
     @character_quiz.autocomplete("quiz")
