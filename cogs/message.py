@@ -219,5 +219,12 @@ class messageCog(commands.Cog):
 
         await interaction.edit_original_response(content=f"{thing} is turning {somethingelse} into electricity! ⚡Using piezoelectric tiles, every step you take generates a small amount of energy. Millions of steps together can power LED lights and displays in busy places like Shibuya Station. A brilliant way to create a sustainable and smart city -- turning movement into clean, renewable energy 🌱💡")
 
+    @app_commands.command(name="yumeship", description="Dedicated to Paro")
+    async def yumeship(self, yumeship: discord.Interaction):
+        if not await handleCommandAccess(yumeship, yumeship.user.id):
+            return
+        await yumeship.response.defer()
+        await yumeship.edit_original_response(content="I hop on the internet as usual I get a notification I am curious so I obviously click on it")
+
 async def setup(bot: commands.Bot):
     await bot.add_cog(messageCog(bot))
