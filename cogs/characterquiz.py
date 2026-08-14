@@ -104,7 +104,7 @@ def build_results_embed(quiz: dict, results: list[tuple[dict, float]]) -> discor
     remaining = len(results) - len(shown)
     if remaining > 0:
         plural = "s" if remaining != 1 else ""
-        embed.set_footer(text=f"...and {remaining} more character{plural} (truncated)")
+        embed.set_footer(text=f"...and {remaining} more character{plural}")
     return embed
 
 
