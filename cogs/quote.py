@@ -52,6 +52,9 @@ class quoteCog(commands.Cog):
             await message.reply("Couldn't find the message you replied to!", mention_author=False)
             return
 
+        if original_message.author.id == self.bot.user.id:
+            return  # don't quote the bot's own messages
+
         author = original_message.author
         if not isinstance(author, discord.Member):
             author = message.guild.get_member(author.id) or author
