@@ -46,6 +46,7 @@ class quoteCog(commands.Cog):
         setCooldown(message.author.id, "quote", 15)
 
         try:
+            await message.channel.typing()
             original_message = await message.channel.fetch_message(message.reference.message_id)
         except (discord.NotFound, discord.Forbidden, discord.HTTPException):
             await message.reply("Couldn't find the message you replied to!", mention_author=False)
