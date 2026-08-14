@@ -7,3 +7,6 @@ io
 GitPython
 cryptography
 aiohttp
+numpy
+emoji
+fonttools

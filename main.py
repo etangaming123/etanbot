@@ -13,6 +13,7 @@ import secure_token
 from common import developergithub, ensure_datastores, repositoryurl, inviteurl, supportserver, website, setCooldown, config, handleCommandAccess, readTextFile, statuses, checkforupdates
 
 intents = discord.Intents.default()
+intents.message_content = True
 ensure_datastores()
 
 def getLatestCommitHash():
@@ -37,7 +38,7 @@ if not os.path.exists("config.json"):
         json.dump({"token": "your token here", "poweruserid": "your user id here (for certain commands)"}, f, indent=4)
     input("Created config.json with default values. Please edit the file with your bot token and user id, then press enter to continue...")
 
-cogs = ["kokolinking", "profiles", "nsotaskmanager", "gifs", "math", "slotmachine", "rngdle", "admin", "color", "linkcleaner", "rng", "message", "misc", "timezones", "datamanagement", "gimmicks", "usersettings", "characterquiz"]
+cogs = ["kokolinking", "profiles", "nsotaskmanager", "gifs", "math", "slotmachine", "rngdle", "admin", "color", "linkcleaner", "rng", "message", "misc", "timezones", "datamanagement", "gimmicks", "usersettings", "characterquiz", "quote"]
 
 print("Loading additional commands...")
 class etanBot(commands.Bot):
