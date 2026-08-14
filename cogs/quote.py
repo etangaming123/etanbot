@@ -46,7 +46,6 @@ class quoteCog(commands.Cog):
         setCooldown(message.author.id, "quote", 15)
 
         try:
-            await message.channel.typing()
             original_message = await message.channel.fetch_message(message.reference.message_id)
         except (discord.NotFound, discord.Forbidden, discord.HTTPException):
             await message.reply("Couldn't find the message you replied to!", mention_author=False)
@@ -60,6 +59,7 @@ class quoteCog(commands.Cog):
             author = message.guild.get_member(author.id) or author
 
         try:
+            await message.channel.typing()
             async with aiohttp.ClientSession() as session:
                 async with session.get(author.display_avatar.url) as resp:
                     avatar_bytes = await resp.read()
