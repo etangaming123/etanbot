@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 
-from common import handleCommandAccess, readTextFile 
+from common import handleCommandAccess, readTextFile, hybridDefer
 
 deretypes = readTextFile("deretypes")
 tonetags = readTextFile("tonetags")
@@ -27,16 +27,16 @@ class miscCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @app_commands.command(name="etanbot-deretype", description="Get information for a deretype! Most definitions from https://the-dere-types.fandom.com .")
+    @commands.hybrid_command(name="etanbot-deretype", description="Get information for a deretype! Most definitions from https://the-dere-types.fandom.com .", aliases=["deretype"])
     @app_commands.describe(deretype="The deretype you wish to view information for.", viewprivate="Whether to view the result privately or not. (defaults to public)")
-    async def deretype(self, interaction: discord.Interaction, deretype: str, viewprivate: bool = False):
-        if not await handleCommandAccess(interaction, interaction.user.id):
+    async def deretype(self, ctx: commands.Context, deretype: str, viewprivate: bool = False):
+        if not await handleCommandAccess(ctx, ctx.author.id):
             return
-        await interaction.response.defer(ephemeral=viewprivate)
+        handle = await hybridDefer(ctx, ephemeral=viewprivate)
         if deretype in deretypes:
-            await interaction.edit_original_response(content=f"`{deretype}` >> {deretypes[deretype]}")
+            await handle.edit(content=f"`{deretype}` >> {deretypes[deretype]}")
         else:
-            await interaction.edit_original_response(content=f"Couldn't find anything for `{deretype}`.")
+            await handle.edit(content=f"Couldn't find anything for `{deretype}`.")
 
     @deretype.autocomplete("deretype")
     async def deretype_autocomplete(self, interaction: discord.Interaction, current: str):
@@ -49,26 +49,26 @@ class miscCog(commands.Cog):
         else:
             return [app_commands.Choice(name="No matching deretypes found", value="")]
 
-    @app_commands.command(name="etanbot-10d20", description="Makes a link to use Discord's built in dice roller with 10d20 (10 20-sided dice).")
-    async def d20(self, interaction: discord.Interaction):
-        if not await handleCommandAccess(interaction, interaction.user.id):
+    @commands.hybrid_command(name="etanbot-10d20", description="Makes a link to use Discord's built in dice roller with 10d20 (10 20-sided dice).", aliases=["10d20"])
+    async def d20(self, ctx: commands.Context):
+        if not await handleCommandAccess(ctx, ctx.author.id):
             return
-        await interaction.response.defer()
-        if interaction.guild_id is None or interaction.channel_id is None:
-            await interaction.edit_original_response(content="This command can only be used in a server channel. (The built in roll-dice feature only works in a channel!)")
+        handle = await hybridDefer(ctx)
+        if ctx.guild is None or ctx.channel is None:
+            await handle.edit(content="This command can only be used in a server channel. (The built in roll-dice feature only works in a channel!)")
             return
-        await interaction.edit_original_response(content=f"https://discord.com/channels/{interaction.guild_id}/{interaction.channel_id}/roll-dice/10d20")
+        await handle.edit(content=f"https://discord.com/channels/{ctx.guild.id}/{ctx.channel.id}/roll-dice/10d20")
 
-    @app_commands.command(name="etanbot-tonetag", description="Get information for a tonetag or toneindicator! Most definitions from https://tonetaglist.carrd.co/.")
+    @commands.hybrid_command(name="etanbot-tonetag", description="Get information for a tonetag or toneindicator! Most definitions from https://tonetaglist.carrd.co/.", aliases=["tonetag"])
     @app_commands.describe(tonetag="The tonetag you wish to view information for. (do not include /)", viewprivate="Whether to view the result privately or not. (defaults to public)")
-    async def tonetag(self, interaction: discord.Interaction, tonetag: str, viewprivate: bool = False):
-        if not await handleCommandAccess(interaction, interaction.user.id):
+    async def tonetag(self, ctx: commands.Context, tonetag: str, viewprivate: bool = False):
+        if not await handleCommandAccess(ctx, ctx.author.id):
             return
-        await interaction.response.defer(ephemeral=viewprivate)
+        handle = await hybridDefer(ctx, ephemeral=viewprivate)
         if tonetag in tonetags:
-            await interaction.edit_original_response(content=f"`/{tonetag}` >> {tonetags[tonetag]}")
+            await handle.edit(content=f"`/{tonetag}` >> {tonetags[tonetag]}")
         else:
-            await interaction.edit_original_response(content=f"Couldn't find anything for `{tonetag}`.")
+            await handle.edit(content=f"Couldn't find anything for `{tonetag}`.")
 
     @tonetag.autocomplete("tonetag")
     async def tonetag_autocomplete(self, interaction: discord.Interaction, current: str):
@@ -81,15 +81,15 @@ class miscCog(commands.Cog):
         else:
             return [app_commands.Choice(name="No matching tonetags found", value="")]
 
-    @app_commands.command(name="etanbot-mbti", description="Lookup an mbti type/acronym! (ENTP, INTP, INTJ-T, ISFJ-A, etc.)")
+    @commands.hybrid_command(name="etanbot-mbti", description="Lookup an mbti type/acronym! (ENTP, INTP, INTJ-T, ISFJ-A, etc.)", aliases=["mbti"])
     @app_commands.describe(mbti="The mbti type you want to look up (ENTP, INTP, INTJ-T, ISFJ-A, etc.)", viewprivate="Whether to view the result privately or not. (defaults to public)")
-    async def mbti(self, interaction: discord.Interaction, mbti: str, viewprivate: bool = False):
-        if not await handleCommandAccess(interaction, interaction.user.id):
+    async def mbti(self, ctx: commands.Context, mbti: str, viewprivate: bool = False):
+        if not await handleCommandAccess(ctx, ctx.author.id):
             return
-        await interaction.response.defer(ephemeral=viewprivate)
+        handle = await hybridDefer(ctx, ephemeral=viewprivate)
         mbti = mbti.upper()
         if not checkValidMBTI(mbti):
-            await interaction.edit_original_response(content="That doesn't look like a valid MBTI type. Please enter a valid type like ENTP, INTP, INTJ-T, ISFJ-A, etc.\nThe format is `E/I`, `N/S`, `F/T`, `J/P`, and optionally `-A` or `-T` for assertive or turbulent. Do not include spaces, but include the - if adding `-A` or `-T`.")
+            await handle.edit(content="That doesn't look like a valid MBTI type. Please enter a valid type like ENTP, INTP, INTJ-T, ISFJ-A, etc.\nThe format is `E/I`, `N/S`, `F/T`, `J/P`, and optionally `-A` or `-T` for assertive or turbulent. Do not include spaces, but include the - if adding `-A` or `-T`.")
             return
         stringo = f"{mbti} means:\n"
         if mbti[0] == "I":
@@ -118,7 +118,7 @@ class miscCog(commands.Cog):
             else:
                 stringo = stringo + "`-T` >> **T**urbulent (sensitive to stress, success-driven, perfectionistic, and eager to improve)\n"
 
-        await interaction.edit_original_response(content=stringo)
+        await handle.edit(content=stringo)
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(miscCog(bot))

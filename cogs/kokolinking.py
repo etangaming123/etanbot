@@ -5,7 +5,7 @@ import re
 import requests
 from bs4 import BeautifulSoup 
 
-from common import loadData, repositoryurl, saveData, supportserver, setCooldown, handleCommandAccess
+from common import loadData, repositoryurl, saveData, supportserver, setCooldown, handleCommandAccess, hybridDefer
 from crypto_utils import encrypt_value, decrypt_value
 
 kokocreditdefaulturl = "https://estore.kokoamusement.com.au/BalanceMobile/BalanceMobile.aspx?i="
@@ -51,12 +51,12 @@ class KokoLinking(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @app_commands.command(name="etanbot-koko-help", description="Need help on linking your Koko Amusement card?")
-    async def koko_help(self, interaction: discord.Interaction):
-        if not await handleCommandAccess(interaction, interaction.user.id, "koko_help"):
+    @commands.hybrid_command(name="etanbot-koko-help", description="Need help on linking your Koko Amusement card?", aliases=["kokohelp"])
+    async def koko_help(self, ctx: commands.Context):
+        if not await handleCommandAccess(ctx, ctx.author.id, "koko_help"):
             return
-        await interaction.response.defer()
-        setCooldown(interaction.user.id, "koko_help", 10)
+        handle = await hybridDefer(ctx)
+        setCooldown(ctx.author.id, "koko_help", 10)
         things = [
             "To link your Koko Amusement card, you need to get your token from the Koko Amusement website. Here's how you can do it:",
             "1. Scan the QR code on the back of your Koko Amusement card using your phone.",
@@ -66,59 +66,59 @@ class KokoLinking(commands.Cog):
             "You're all set! You won't have to do this again, just use /etanbot-koko-balance to check your balance whenever you want.",
             "Rerun the link command if you want to update your card token or if you get an error when checking your balance."
         ]
-        await interaction.edit_original_response(content="\n".join(things))
+        await handle.edit(content="\n".join(things))
 
-    @app_commands.command(name="etanbot-koko-link-card", description="Link your Koko Amusement card to your discord account to check your balance and transactions!")
+    @commands.hybrid_command(name="etanbot-koko-link-card", description="Link your Koko Amusement card to your discord account to check your balance and transactions!", aliases=["kokolink"])
     @app_commands.describe(token="/BalanceMobile.aspx?i=[this set of characters]")
-    async def link_card(self, interaction: discord.Interaction, token: str):
-        if not await handleCommandAccess(interaction, interaction.user.id, "link_card"):
+    async def link_card(self, ctx: commands.Context, token: str):
+        if not await handleCommandAccess(ctx, ctx.author.id, "link_card"):
             return
-        await interaction.response.defer(ephemeral=True)
-        setCooldown(interaction.user.id, "link_card", 15)
+        handle = await hybridDefer(ctx, ephemeral=True)
+        setCooldown(ctx.author.id, "link_card", 15)
         linkedkokocards = loadData("linkedkokocards")
         if linkedkokocards == "":
-            await interaction.edit_original_response(content="An error occurred while accessing the database. Please try again later.")
+            await handle.edit(content="An error occurred while accessing the database. Please try again later.")
             return
-        linkedkokocards[str(interaction.user.id)] = encrypt_value(token)
+        linkedkokocards[str(ctx.author.id)] = encrypt_value(token)
         saveData("linkedkokocards", linkedkokocards)
-        await interaction.edit_original_response(content="Token linked to your Discord account! Checking balance...")
+        await handle.edit(content="Token linked to your Discord account! Checking balance...")
         thingo = get_koko_balance(token)
         if thingo == "ERROR":
-            await interaction.edit_original_response(content=f"An error occurred while fetching your koko amusement balance. Please make sure your token is correct and try again later. If this error persists, please join our [support server](<{supportserver}>) or [report a bug](<{repositoryurl}/issues>).")
+            await handle.edit(content=f"An error occurred while fetching your koko amusement balance. Please make sure your token is correct and try again later. If this error persists, please join our [support server](<{supportserver}>) or [report a bug](<{repositoryurl}/issues>).")
             return
         if thingo == "ERROR_NET":
-            await interaction.edit_original_response(content=f"An error occurred while sending request. Please try again later. (if issue persists, check the card balance manually, and if it does work, please join our [support server](<{supportserver}>) or [report a bug](<{repositoryurl}/issues>).")
+            await handle.edit(content=f"An error occurred while sending request. Please try again later. (if issue persists, check the card balance manually, and if it does work, please join our [support server](<{supportserver}>) or [report a bug](<{repositoryurl}/issues>).")
             return
-        await interaction.edit_original_response(content=f"Successfully linked koko amusement card! {thingo}\nYou can always rerun this command to update your card!")
+        await handle.edit(content=f"Successfully linked koko amusement card! {thingo}\nYou can always rerun this command to update your card!")
 
-    @app_commands.command(name="etanbot-koko-balance", description="Check your koko amusement balance if you have linked your card using /etanbot-koko-link-card!")
+    @commands.hybrid_command(name="etanbot-koko-balance", description="Check your koko amusement balance if you have linked your card using /etanbot-koko-link-card!", aliases=["kokobalance"])
     @app_commands.describe(creditcost="Credit cost of an arcade game (e.g. 4 for a $4 game)")
-    async def my_koko_balance(self, interaction: discord.Interaction, creditcost: float = None):
-        if not await handleCommandAccess(interaction, interaction.user.id, "my_koko_balance"):
+    async def my_koko_balance(self, ctx: commands.Context, creditcost: float = None):
+        if not await handleCommandAccess(ctx, ctx.author.id, "my_koko_balance"):
             return
-        await interaction.response.defer()
-        setCooldown(interaction.user.id, "my_koko_balance", 15)
+        handle = await hybridDefer(ctx)
+        setCooldown(ctx.author.id, "my_koko_balance", 15)
         linkedkokocards = loadData("linkedkokocards")
         if linkedkokocards == "":
-            await interaction.edit_original_response(content="An error occurred while accessing the database. Please try again later.")
+            await handle.edit(content="An error occurred while accessing the database. Please try again later.")
             return
-        stored = linkedkokocards.get(str(interaction.user.id))
+        stored = linkedkokocards.get(str(ctx.author.id))
         if not stored:
-            await interaction.edit_original_response(content="You have not linked a koko amusement card yet! Use /etanbot-koko-link-card to link your card and check your balance. If you need help, use /etanbot-koko-help for instructions on how to link your card.")
+            await handle.edit(content="You have not linked a koko amusement card yet! Use /etanbot-koko-link-card to link your card and check your balance. If you need help, use /etanbot-koko-help for instructions on how to link your card.")
             return
         try:
             token = decrypt_value(stored)
         except Exception as e:
-            print(f"Error decrypting koko token for user {interaction.user.id}: {e}")
-            await interaction.edit_original_response(content="An error occurred reading your linked card. Please relink it using /etanbot-koko-link-card.")
+            print(f"Error decrypting koko token for user {ctx.author.id}: {e}")
+            await handle.edit(content="An error occurred reading your linked card. Please relink it using /etanbot-koko-link-card.")
             return
-        await interaction.edit_original_response(content="Checking balance...")
+        await handle.edit(content="Checking balance...")
         thingo = get_koko_balance(token)
         if thingo == "ERROR":
-            await interaction.edit_original_response(content=f"An error occurred while fetching your koko amusement balance. Please make sure your token is correct and try again later. If this error persists, please join our [support server](<{supportserver}>) or [report a bug](<{repositoryurl}/issues>).")
+            await handle.edit(content=f"An error occurred while fetching your koko amusement balance. Please make sure your token is correct and try again later. If this error persists, please join our [support server](<{supportserver}>) or [report a bug](<{repositoryurl}/issues>).")
             return
         if thingo == "ERROR_NET":
-            await interaction.edit_original_response(content=f"An error occurred while sending request. Please try again later. (if issue persists, check the card balance manually, and if it does work, please join our [support server](<{supportserver}>) or [report a bug](<{repositoryurl}/issues>).)")
+            await handle.edit(content=f"An error occurred while sending request. Please try again later. (if issue persists, check the card balance manually, and if it does work, please join our [support server](<{supportserver}>) or [report a bug](<{repositoryurl}/issues>).)")
             return
         if creditcost is not None:
             totalbalance = 0
@@ -138,23 +138,23 @@ class KokoLinking(commands.Cog):
                     except ValueError:
                         pass
             thingo += f"\nYou have approximately {totalbalance / creditcost:.2f} credits, if a credit is worth ${creditcost:.2f}." if creditcost > 0 else "\nInvalid credit cost provided, cannot calculate credits."
-        await interaction.edit_original_response(content=thingo)
+        await handle.edit(content=thingo)
 
-    @app_commands.command(name="etanbot-koko-unlink-card", description="Unlink your koko amusement card from your discord account.")
-    async def unlink_card(self, interaction: discord.Interaction):
-        if not await handleCommandAccess(interaction, interaction.user.id):
+    @commands.hybrid_command(name="etanbot-koko-unlink-card", description="Unlink your koko amusement card from your discord account.", aliases=["kokounlink"])
+    async def unlink_card(self, ctx: commands.Context):
+        if not await handleCommandAccess(ctx, ctx.author.id):
             return
-        await interaction.response.defer(ephemeral=True)
+        handle = await hybridDefer(ctx, ephemeral=True)
         linkedkokocards = loadData("linkedkokocards")
         if linkedkokocards == "":
-            await interaction.edit_original_response(content=f"An error occurred while accessing the database. Please try again later.")
+            await handle.edit(content=f"An error occurred while accessing the database. Please try again later.")
             return
-        if str(interaction.user.id) in linkedkokocards:
-            del linkedkokocards[str(interaction.user.id)]
+        if str(ctx.author.id) in linkedkokocards:
+            del linkedkokocards[str(ctx.author.id)]
             saveData("linkedkokocards", linkedkokocards)
-            await interaction.edit_original_response(content="Successfully unlinked your koko amusement card.")
+            await handle.edit(content="Successfully unlinked your koko amusement card.")
         else:
-            await interaction.edit_original_response(content="You do not have a koko amusement card linked.")
+            await handle.edit(content="You do not have a koko amusement card linked.")
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(KokoLinking(bot))

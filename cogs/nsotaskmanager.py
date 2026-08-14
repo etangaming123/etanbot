@@ -4,7 +4,7 @@ import os
 import discord
 from discord import app_commands
 from discord.ext import commands
-from common import setCooldown, handleCommandAccess
+from common import setCooldown, handleCommandAccess, hybridDefer
 
 def parent_dir(path, levels=1):
     for _ in range(levels):
@@ -76,22 +76,22 @@ class NSOTaskManager(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @app_commands.command(name="etanbot-nso-taskmanager", description="Make a NEEDY STREAMER OVERLOAD based task manager based on your mood!")
+    @commands.hybrid_command(name="etanbot-nso-taskmanager", description="Make a NEEDY STREAMER OVERLOAD based task manager based on your mood!", aliases=["nso"])
     @app_commands.describe(followers="Number of followers", stress="Stress level (0-100)", affection="Affection level (0-100)", md="MD level (0-100)")
-    async def nso_taskmanager(self, interaction: discord.Interaction, followers: app_commands.Range[int, 0, 999999999], stress: app_commands.Range[int, 0, 100], affection: app_commands.Range[int, 0, 100], md: app_commands.Range[int, 0, 100]):
-        if not await handleCommandAccess(interaction, interaction.user.id, "nso_taskmanager"):
+    async def nso_taskmanager(self, ctx: commands.Context, followers: commands.Range[int, 0, 999999999], stress: commands.Range[int, 0, 100], affection: commands.Range[int, 0, 100], md: commands.Range[int, 0, 100]):
+        if not await handleCommandAccess(ctx, ctx.author.id, "nso_taskmanager"):
             return
-        await interaction.response.defer()
-        setCooldown(interaction.user.id, "nso_taskmanager", 10)
+        handle = await hybridDefer(ctx)
+        setCooldown(ctx.author.id, "nso_taskmanager", 10)
         try:
             img = generate_task_manager_image(followers, stress, affection, md)
             with BytesIO() as image_binary:
                 img.save(image_binary, 'PNG')
                 image_binary.seek(0)
-                await interaction.followup.send(file=discord.File(fp=image_binary, filename='taskmanager.png'))
+                await handle.edit(attachments=[discord.File(fp=image_binary, filename='taskmanager.png')])
         except Exception as e:
             print(f"Error generating task manager image: {e}")
-            await interaction.followup.send("Something went wrong while generating your task manager image.")
+            await handle.edit(content="Something went wrong while generating your task manager image.")
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(NSOTaskManager(bot))

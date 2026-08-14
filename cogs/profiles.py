@@ -1,7 +1,8 @@
+import typing
 import discord
 from discord import app_commands
 from discord.ext import commands
-from common import loadData, saveData, setCooldown, formatUsername, config, handleCommandAccess
+from common import loadData, saveData, setCooldown, formatUsername, config, handleCommandAccess, hybridReply, hybridDefer, requireDMOnly
 class ProfileEditModal(discord.ui.Modal, title="Edit Your Profile"):
     def __init__(self, profile):
         super().__init__()
@@ -25,36 +26,36 @@ class Profiles(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @app_commands.command(name="etanbot-profile-create", description="Creates a profile for you, viewable using /etanbot-profile!")
-    async def create_profile(self, interaction: discord.Interaction):
-        if not await handleCommandAccess(interaction, interaction.user.id):
+    @commands.hybrid_command(name="etanbot-profile-create", description="Creates a profile for you, viewable using /etanbot-profile!", aliases=["profilecreate"])
+    async def create_profile(self, ctx: commands.Context):
+        if not await handleCommandAccess(ctx, ctx.author.id):
             return
-        await interaction.response.defer(ephemeral=True)
+        handle = await hybridDefer(ctx, ephemeral=True)
         profiles = loadData("profiles")
-        if str(interaction.user.id) in profiles.keys():
-            await interaction.edit_original_response(content=f"You already have a profile! Use /etanbot-profile to view it.")
+        if str(ctx.author.id) in profiles.keys():
+            await handle.edit(content=f"You already have a profile! Use /etanbot-profile to view it.")
             return
-        profiles[str(interaction.user.id)] = {
+        profiles[str(ctx.author.id)] = {
             "bio": "Nothing yet... use /etanbot-profile-edit to edit this! Max 256 characters.",
             "links": {}
         }
         if saveData("profiles", profiles):
-            await interaction.edit_original_response(content=f"Profile created successfully!")
+            await handle.edit(content=f"Profile created successfully!")
         else:
-            await interaction.edit_original_response(content=f"An error occurred while creating your profile. Please try again later.")
+            await handle.edit(content=f"An error occurred while creating your profile. Please try again later.")
 
-    @app_commands.command(name="etanbot-profile", description="View your profile or someone else's!")
+    @commands.hybrid_command(name="etanbot-profile", description="View your profile or someone else's!", aliases=["profile"])
     @app_commands.describe(user="The user to view the profile of. Defaults to yourself.", viewprivately="Want to make it so only you can see the profile? (defaults to nah)")
-    async def viewprofile(self, interaction: discord.Interaction, user: discord.User = None, viewprivately: bool = False):
+    async def viewprofile(self, ctx: commands.Context, user: discord.User = None, viewprivately: bool = False):
         containsatsymbol = ["tiktok", "youtube"] # these platforms require an @ symbol in the url
-        if not await handleCommandAccess(interaction, interaction.user.id):
+        if not await handleCommandAccess(ctx, ctx.author.id):
             return
-        await interaction.response.defer(ephemeral=viewprivately)
+        handle = await hybridDefer(ctx, ephemeral=viewprivately)
         if user is None:
-            user = interaction.user
+            user = ctx.author
         profiles = loadData("profiles")
         if str(user.id) not in profiles:
-            await interaction.edit_original_response(content=f"This user does not have a profile yet! They can create one using /etanbot-profile-create.")
+            await handle.edit(content=f"This user does not have a profile yet! They can create one using /etanbot-profile-create.")
             return
         profile = profiles[str(user.id)]
         if not "color" in profile:
@@ -73,132 +74,125 @@ class Profiles(commands.Cog):
         embed.set_thumbnail(url=user.avatar.url if user.avatar else "https://cdn.discordapp.com/embed/avatars/0.png")
         if user.banner:
             embed.set_image(url=user.banner.url)
-        await interaction.edit_original_response(embed=embed)
+        await handle.edit(embed=embed)
 
-    @app_commands.command(name="etanbot-profile-edit", description="Edit your profile's bio!")
-    async def editprofile(self, interaction: discord.Interaction):
-        if not await handleCommandAccess(interaction, interaction.user.id, "editprofile"):
+    @commands.hybrid_command(name="etanbot-profile-edit", description="Edit your profile's bio!", aliases=["profileedit"])
+    async def editprofile(self, ctx: commands.Context):
+        if not await handleCommandAccess(ctx, ctx.author.id, "editprofile"):
             return
         profiles = loadData("profiles")
-        if str(interaction.user.id) not in profiles.keys():
-            await interaction.response.send_message(content=f"You don't have a profile yet! Use /etanbot-profile-create to create one.", ephemeral=True)
+        if str(ctx.author.id) not in profiles.keys():
+            await hybridReply(ctx, content=f"You don't have a profile yet! Use /etanbot-profile-create to create one.", ephemeral=True)
             return
-        setCooldown(interaction.user.id, "editprofile", 10)
-        profile = profiles[str(interaction.user.id)]
-        await interaction.response.send_modal(ProfileEditModal(profile))
+        setCooldown(ctx.author.id, "editprofile", 10)
+        profile = profiles[str(ctx.author.id)]
+        if ctx.interaction is None:
+            await ctx.reply("This command needs to be used as a slash command (`/etanbot-profile-edit`) because it opens a form.", mention_author=False)
+            return
+        await ctx.interaction.response.send_modal(ProfileEditModal(profile))
 
-    @app_commands.command(name="etanbot-profile-delete", description="Delete your profile! This cannot be undone.")
-    async def deleteprofile(self, interaction: discord.Interaction):
-        if not await handleCommandAccess(interaction, interaction.user.id):
+    @commands.hybrid_command(name="etanbot-profile-delete", description="Delete your profile! This cannot be undone.", aliases=["profiledelete"])
+    async def deleteprofile(self, ctx: commands.Context):
+        if not await handleCommandAccess(ctx, ctx.author.id):
             return
-        await interaction.response.defer(ephemeral=True)
+        handle = await hybridDefer(ctx, ephemeral=True)
         profiles = loadData("profiles")
-        if str(interaction.user.id) not in profiles.keys():
-            await interaction.edit_original_response(content=f"You don't have a profile yet! Use /etanbot-profile-create to create one.")
+        if str(ctx.author.id) not in profiles.keys():
+            await handle.edit(content=f"You don't have a profile yet! Use /etanbot-profile-create to create one.")
             return
-        del profiles[str(interaction.user.id)]
+        del profiles[str(ctx.author.id)]
         if saveData("profiles", profiles):
-            await interaction.edit_original_response(content=f"Profile deleted successfully!")
+            await handle.edit(content=f"Profile deleted successfully!")
         else:
-            await interaction.edit_original_response(content=f"An error occurred while deleting your profile. Please try again later.")
+            await handle.edit(content=f"An error occurred while deleting your profile. Please try again later.")
 
-    @app_commands.command(name="etanbot-profile-color", description="Change the color of your profile embed! (hex code, no #, default is green)")
+    @commands.hybrid_command(name="etanbot-profile-color", description="Change the color of your profile embed! (hex code, no #, default is green)", aliases=["profilecolor"])
     @app_commands.describe(color="The hex code of the color you want to set for your profile embed (no #, default is green)")
-    async def changeprofilecolor(self, interaction: discord.Interaction, color: str):
-        if not await handleCommandAccess(interaction, interaction.user.id, "changeprofilecolor"):
+    async def changeprofilecolor(self, ctx: commands.Context, color: str):
+        if not await handleCommandAccess(ctx, ctx.author.id, "changeprofilecolor"):
             return
-        await interaction.response.defer(ephemeral=True)
-        setCooldown(interaction.user.id, "changeprofilecolor", 10)
+        handle = await hybridDefer(ctx, ephemeral=True)
+        setCooldown(ctx.author.id, "changeprofilecolor", 10)
         profiles = loadData("profiles")
-        if str(interaction.user.id) not in profiles.keys():
-            await interaction.edit_original_response(content=f"You don't have a profile yet! Use /etanbot-profile-create to create one.")
+        if str(ctx.author.id) not in profiles.keys():
+            await handle.edit(content=f"You don't have a profile yet! Use /etanbot-profile-create to create one.")
             return
         try:
             color = int(color, 16)
         except ValueError:
-            await interaction.edit_original_response(content=f"Invalid color format. Please use a valid hex code (no #).")
+            await handle.edit(content=f"Invalid color format. Please use a valid hex code (no #).")
             return
-        profiles[str(interaction.user.id)]["color"] = color
+        profiles[str(ctx.author.id)]["color"] = color
         if saveData("profiles", profiles):
-            await interaction.edit_original_response(content=f"Profile color updated successfully!")
+            await handle.edit(content=f"Profile color updated successfully!")
         else:
-            await interaction.edit_original_response(content=f"An error occurred while updating your profile color. Please try again later.")
+            await handle.edit(content=f"An error occurred while updating your profile color. Please try again later.")
 
-    @app_commands.command(name="etanbot-profile-link-add", description="Add a link to your profile! (tiktok, instagram, twitter, more later!)")
+    @commands.hybrid_command(name="etanbot-profile-link-add", description="Add a link to your profile! (tiktok, instagram, twitter, more later!)", aliases=["profilelinkadd"])
     @app_commands.describe(platform="Only shows supported platforms for now!", username="Your username/handle on the platform (no urls or @, just the username)")
-    @app_commands.choices(platform=[
-        discord.app_commands.Choice(name="TikTok", value="tiktok"),
-        discord.app_commands.Choice(name="Instagram", value="instagram"),
-        discord.app_commands.Choice(name="Twitter", value="twitter"),
-        discord.app_commands.Choice(name="YouTube", value="youtube")
-    ])
-    async def addprofilelink(self, interaction: discord.Interaction, platform: discord.app_commands.Choice[str], username: str):
-        if not await handleCommandAccess(interaction, interaction.user.id, "addprofilelink"):
+    async def addprofilelink(self, ctx: commands.Context, platform: typing.Literal["tiktok", "instagram", "twitter", "youtube"], username: str):
+        if not await handleCommandAccess(ctx, ctx.author.id, "addprofilelink"):
             return
-        await interaction.response.defer(ephemeral=True)
-        setCooldown(interaction.user.id, "addprofilelink", 10)
+        handle = await hybridDefer(ctx, ephemeral=True)
+        setCooldown(ctx.author.id, "addprofilelink", 10)
         profiles = loadData("profiles")
-        if str(interaction.user.id) not in profiles.keys():
-            await interaction.edit_original_response(content=f"You don't have a profile yet! Use /etanbot-profile-create to create one.")
+        if str(ctx.author.id) not in profiles.keys():
+            await handle.edit(content=f"You don't have a profile yet! Use /etanbot-profile-create to create one.")
             return
-        if not "links" in profiles[str(interaction.user.id)]:
-            profiles[str(interaction.user.id)]["links"] = {}
-        profiles[str(interaction.user.id)]["links"][platform.value] = username
+        if not "links" in profiles[str(ctx.author.id)]:
+            profiles[str(ctx.author.id)]["links"] = {}
+        profiles[str(ctx.author.id)]["links"][platform] = username
 
         if not saveData("profiles", profiles):
-            await interaction.edit_original_response(content=f"An error occurred while adding the link to your profile. Please try again later.")
+            await handle.edit(content=f"An error occurred while adding the link to your profile. Please try again later.")
             return
-        await interaction.edit_original_response(content=f"Link added successfully!")
+        await handle.edit(content=f"Link added successfully!")
 
-    @app_commands.command(name="etanbot-profile-link-remove", description="Remove a link from your profile.")
+    @commands.hybrid_command(name="etanbot-profile-link-remove", description="Remove a link from your profile.", aliases=["profilelinkremove"])
     @app_commands.describe(platform="The platform of the link you want to remove.")
-    @app_commands.choices(platform=[
-        discord.app_commands.Choice(name="TikTok", value="tiktok"),
-        discord.app_commands.Choice(name="Instagram", value="instagram"),
-        discord.app_commands.Choice(name="Twitter", value="twitter"),
-        discord.app_commands.Choice(name="YouTube", value="youtube")
-    ])
-    async def removeprofilelink(self, interaction: discord.Interaction, platform: discord.app_commands.Choice[str]):
-        if not await handleCommandAccess(interaction, interaction.user.id, "removeprofilelink"):
+    async def removeprofilelink(self, ctx: commands.Context, platform: typing.Literal["tiktok", "instagram", "twitter", "youtube"]):
+        if not await handleCommandAccess(ctx, ctx.author.id, "removeprofilelink"):
             return
-        await interaction.response.defer(ephemeral=True)
-        setCooldown(interaction.user.id, "removeprofilelink", 10)
+        handle = await hybridDefer(ctx, ephemeral=True)
+        setCooldown(ctx.author.id, "removeprofilelink", 10)
         profiles = loadData("profiles")
-        if str(interaction.user.id) not in profiles.keys():
-            await interaction.edit_original_response(content=f"You don't have a profile yet! Use /etanbot-profile-create to create one.")
+        if str(ctx.author.id) not in profiles.keys():
+            await handle.edit(content=f"You don't have a profile yet! Use /etanbot-profile-create to create one.")
             return
-        if not "links" in profiles[str(interaction.user.id)] or platform.value not in profiles[str(interaction.user.id)]["links"]:
-            await interaction.edit_original_response(content=f"You don't have a link for that platform on your profile!")
+        if not "links" in profiles[str(ctx.author.id)] or platform not in profiles[str(ctx.author.id)]["links"]:
+            await handle.edit(content=f"You don't have a link for that platform on your profile!")
             return
-        del profiles[str(interaction.user.id)]["links"][platform.value]
+        del profiles[str(ctx.author.id)]["links"][platform]
         if not saveData("profiles", profiles):
-            await interaction.edit_original_response(content=f"An error occurred while removing the link from your profile. Please try again later.")
+            await handle.edit(content=f"An error occurred while removing the link from your profile. Please try again later.")
             return
-        await interaction.edit_original_response(content=f"Link removed successfully!")
+        await handle.edit(content=f"Link removed successfully!")
 
-    @app_commands.command(name="z-admin-profile-delete", description="Delete a user's profile.")
+    @commands.hybrid_command(name="z-admin-profile-delete", description="Delete a user's profile.", aliases=["adminprofiledelete"])
     @app_commands.describe(user="The user whose profile you want to delete.", userid="The user ID of the user whose profile you want to delete if you can't specify the user.")
-    async def admin_delete_profile(self, interaction: discord.Interaction, user: discord.User = None, userid: str = None):
-        if not await handleCommandAccess(interaction, interaction.user.id):
+    async def admin_delete_profile(self, ctx: commands.Context, user: discord.User = None, userid: str = None):
+        if not await handleCommandAccess(ctx, ctx.author.id):
             return
-        await interaction.response.defer(ephemeral=True)
-        if interaction.user.id != int(config["poweruserid"]):
-            await interaction.edit_original_response(content=f"You do not have permission to use this command.")
+        if not await requireDMOnly(ctx):
+            return
+        handle = await hybridDefer(ctx, ephemeral=True)
+        if ctx.author.id != int(config["poweruserid"]):
+            await handle.edit(content=f"You do not have permission to use this command.")
             return
         if user is None and userid is None:
-            await interaction.edit_original_response(content=f"You must specify either a user or a user ID.")
+            await handle.edit(content=f"You must specify either a user or a user ID.")
             return
         if user is not None:
             userid = str(user.id)
         profiles = loadData("profiles")
         if userid not in profiles.keys():
-            await interaction.edit_original_response(content=f"This user does not have a profile!")
+            await handle.edit(content=f"This user does not have a profile!")
             return
         del profiles[userid]
         if saveData("profiles", profiles):
-            await interaction.edit_original_response(content=f"Profile deleted successfully!")
+            await handle.edit(content=f"Profile deleted successfully!")
         else:
-            await interaction.edit_original_response(content=f"An error occurred while deleting the profile. Please try again later.")
+            await handle.edit(content=f"An error occurred while deleting the profile. Please try again later.")
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Profiles(bot))

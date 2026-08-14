@@ -5,7 +5,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from common import handleCommandAccess, saveData, loadData, userdatastores, sensitivestores, setCooldown, purgeUserData, ConfirmView
+from common import handleCommandAccess, saveData, loadData, userdatastores, sensitivestores, setCooldown, purgeUserData, ConfirmView, HybridHandle, hybridDefer
 
 ALLOWED_LINK_PLATFORMS = ("tiktok", "instagram", "twitter", "youtube")
 # 2MB — a self-exported file can now include the user's (redacted) gimmick inbox, which counts toward
@@ -52,13 +52,13 @@ class datamanagement(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @app_commands.command(name="etanbot-list-data", description="Exports everything that etan bot has stored on your user as a .json file!")
-    async def listData(self, interaction: discord.Interaction):
-        if not await handleCommandAccess(interaction, interaction.user.id, "listdata"):
+    @commands.hybrid_command(name="etanbot-list-data", description="Exports everything that etan bot has stored on your user as a .json file!", aliases=["listdata"])
+    async def listData(self, ctx: commands.Context):
+        if not await handleCommandAccess(ctx, ctx.author.id, "listdata"):
             return
 
-        await interaction.response.defer(ephemeral=True)
-        setCooldown(interaction.user.id, "listdata", 15)
+        handle = await hybridDefer(ctx, ephemeral=True)
+        setCooldown(ctx.author.id, "listdata", 15)
         data = {}
 
         for item in userdatastores:
@@ -66,10 +66,10 @@ class datamanagement(commands.Cog):
             if read == "":
                 data[item] = "[Failed to load]"
             elif item in sensitivestores:
-                data[item] = "[Linked - token hidden for security]" if str(interaction.user.id) in read else "[No data stored]"
+                data[item] = "[Linked - token hidden for security]" if str(ctx.author.id) in read else "[No data stored]"
             else:
                 try:
-                    data[item] = read[str(interaction.user.id)]
+                    data[item] = read[str(ctx.author.id)]
                 except Exception:
                     data[item] = "[No data stored]"
 
@@ -81,34 +81,34 @@ class datamanagement(commands.Cog):
             gimmickinbox = {}
         data["gimmickinbox"] = [
             {key: value for key, value in gimmick.items() if key != "sender_id"}
-            for gimmick in gimmickinbox.get(str(interaction.user.id), [])
+            for gimmick in gimmickinbox.get(str(ctx.author.id), [])
         ]
 
         payload = json.dumps(data, indent=4).encode("utf-8")
-        file = discord.File(io.BytesIO(payload), filename=f"etanbot-data-{interaction.user.id}.json")
-        await interaction.edit_original_response(content="Here's everything etan bot has stored on you. You can import the importable sections of this into a new instance of etan bot.\n-# Gimmicks are included for reference and transparency only and can't be re-imported.", attachments=[file])
+        file = discord.File(io.BytesIO(payload), filename=f"etanbot-data-{ctx.author.id}.json")
+        await handle.edit(content="Here's everything etan bot has stored on you. You can import the importable sections of this into a new instance of etan bot.\n-# Gimmicks are included for reference and transparency only and can't be re-imported.", attachments=[file])
 
-    @app_commands.command(name="etanbot-import-data", description="Import your data from a previously exported .json file.")
+    @commands.hybrid_command(name="etanbot-import-data", description="Import your data from a previously exported .json file.", aliases=["importdata"])
     @app_commands.describe(file="The .json file exported using /etanbot-list-data.")
-    async def importData(self, interaction: discord.Interaction, file: discord.Attachment):
-        if not await handleCommandAccess(interaction, interaction.user.id, "importdata"):
+    async def importData(self, ctx: commands.Context, file: discord.Attachment):
+        if not await handleCommandAccess(ctx, ctx.author.id, "importdata"):
             return
 
-        await interaction.response.defer(ephemeral=True)
+        handle = await hybridDefer(ctx, ephemeral=True)
 
         if file.size > MAX_IMPORT_FILE_SIZE:
-            await interaction.edit_original_response(content="That file is too large to be a valid data export.")
+            await handle.edit(content="That file is too large to be a valid data export.")
             return
 
         try:
             raw = await file.read()
             parsed = json.loads(raw.decode("utf-8"))
         except Exception:
-            await interaction.edit_original_response(content="Couldn't read that file. Make sure it's a valid .json export.")
+            await handle.edit(content="Couldn't read that file. Make sure it's a valid .json export.")
             return
 
         if not isinstance(parsed, dict):
-            await interaction.edit_original_response(content="Invalid data file: top level must be an object.")
+            await handle.edit(content="Invalid data file: top level must be an object.")
             return
 
         importable = [store for store in userdatastores if store not in sensitivestores]
@@ -139,25 +139,25 @@ class datamanagement(commands.Cog):
 
         if errors:
             errorlist = "\n".join(f"- {error}" for error in errors)
-            await interaction.edit_original_response(content=f"Import cancelled, found the following issue(s) with your file:\n{errorlist}")
+            await handle.edit(content=f"Import cancelled, found the following issue(s) with your file:\n{errorlist}")
             return
 
         if not to_write:
-            await interaction.edit_original_response(content="That file didn't contain any importable data.")
+            await handle.edit(content="That file didn't contain any importable data.")
             return
 
         summary = ", ".join(f"`{store}`" for store in to_write)
         skippednote = f"\n\nSkipped (can't be imported, or nothing to import): {', '.join(f'`{store}`' for store in skipped)}" if skipped else ""
         nonimportablenote = "\n\n" + "\n".join(f"Note: {NON_IMPORTABLE_STORES[store]}." for store in nonimportable) if nonimportable else ""
-        view = ConfirmView(interaction.user.id)
-        await interaction.edit_original_response(content=f"This will **overwrite** your existing data in: {summary}. This cannot be undone.{skippednote}{nonimportablenote}", view=view)
+        view = ConfirmView(ctx.author.id)
+        await handle.edit(content=f"This will **overwrite** your existing data in: {summary}. This cannot be undone.{skippednote}{nonimportablenote}", view=view)
         await view.wait()
 
         if view.value is not True:
-            await interaction.edit_original_response(content="Cancelled." if view.value is False else "Confirmation timed out, cancelled.", view=None)
+            await handle.edit(content="Cancelled." if view.value is False else "Confirmation timed out, cancelled.", view=None)
             return
 
-        setCooldown(interaction.user.id, "importdata", 15)
+        setCooldown(ctx.author.id, "importdata", 15)
 
         succeeded = []
         failed = []
@@ -165,7 +165,7 @@ class datamanagement(commands.Cog):
             data = loadData(store)
             if data == "":
                 data = {}
-            data[str(interaction.user.id)] = value
+            data[str(ctx.author.id)] = value
             if saveData(store, data):
                 succeeded.append(store)
             else:
@@ -181,26 +181,33 @@ class datamanagement(commands.Cog):
         if nonimportable:
             resultlines.append(f"Ignored (gimmicks can't be imported): {', '.join(f'`{store}`' for store in nonimportable)}")
 
-        await interaction.edit_original_response(content="\n".join(resultlines), view=None)
+        await handle.edit(content="\n".join(resultlines), view=None)
 
-    @app_commands.command(name="etanbot-delete-data", description="Deletes all your data from etan bot.")
-    async def deleteData(self, interaction: discord.Interaction):
-        if not await handleCommandAccess(interaction, interaction.user.id, "deletedata"):
+    @commands.hybrid_command(name="etanbot-delete-data", description="Deletes all your data from etan bot.", aliases=["deletedata"])
+    async def deleteData(self, ctx: commands.Context):
+        if not await handleCommandAccess(ctx, ctx.author.id, "deletedata"):
             return
 
-        view = ConfirmView(interaction.user.id)
-        await interaction.response.send_message(content="Are you sure you want to delete **all** your data from etan bot? This cannot be undone.", view=view, ephemeral=True)
+        view = ConfirmView(ctx.author.id)
+        handle = HybridHandle(ctx)
+        initial_kwargs = {"content": "Are you sure you want to delete **all** your data from etan bot? This cannot be undone.", "view": view}
+        if ctx.interaction is not None:
+            # HybridHandle.edit() only pops "attachments" before falling back to ctx.reply() in
+            # prefix mode, not "ephemeral" (Message.reply() doesn't accept it) — only pass it for
+            # the slash path, matching the original ephemeral=True send_message() behavior there.
+            initial_kwargs["ephemeral"] = True
+        await handle.edit(**initial_kwargs)
         await view.wait()
 
         if view.value is not True:
-            await interaction.edit_original_response(content="Cancelled." if view.value is False else "Confirmation timed out, cancelled.", view=None)
+            await handle.edit(content="Cancelled." if view.value is False else "Confirmation timed out, cancelled.", view=None)
             return
 
-        setCooldown(interaction.user.id, "deletedata", 15)
-        if purgeUserData(interaction.user.id):
-            await interaction.edit_original_response(content="All your data has been deleted from etan bot.", view=None)
+        setCooldown(ctx.author.id, "deletedata", 15)
+        if purgeUserData(ctx.author.id):
+            await handle.edit(content="All your data has been deleted from etan bot.", view=None)
         else:
-            await interaction.edit_original_response(content="An error occurred while deleting your data.", view=None)
+            await handle.edit(content="An error occurred while deleting your data.", view=None)
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(datamanagement(bot))

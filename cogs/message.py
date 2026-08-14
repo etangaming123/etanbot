@@ -3,7 +3,7 @@ from discord.ext import commands
 from discord import app_commands
 import random
 
-from common import handleCommandAccess, formatUsername, truncateMessage, setCooldown, config
+from common import handleCommandAccess, formatUsername, truncateMessage, setCooldown, config, hybridDefer
 
 class messageCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -52,15 +52,15 @@ class messageCog(commands.Cog):
         await interaction.response.send_modal(puppetForm())
 
         
-    @app_commands.command(name="etanbot-regional-indicator", description="Turn a sentence into regional indicator emojis!")
+    @commands.hybrid_command(name="etanbot-regional-indicator", description="Turn a sentence into regional indicator emojis!", aliases=["regional"])
     @app_commands.describe(text="The text to turn into emojis, only letters or numbers. Max 90 chars.", copyable="(click to copy on mobile) Whether to make the result copyable (defaults to false).")
-    async def regionalIndicators(self, interaction: discord.Interaction, text: str, copyable: bool = False):
-        if not await handleCommandAccess(interaction, interaction.user.id):
+    async def regionalIndicators(self, ctx: commands.Context, text: str, copyable: bool = False):
+        if not await handleCommandAccess(ctx, ctx.author.id):
             return
-        await interaction.response.defer()
+        handle = await hybridDefer(ctx)
         numbers = {"0": "zero", "1": "one", "2": "two", "3": "three", "4": "four", "5": "five", "6": "six", "7": "seven", "8": "eight", "9": "nine"}
         if len(text) > 90:
-            await interaction.edit_original_response(content="Please keep your text under 90 characters.")
+            await handle.edit(content="Please keep your text under 90 characters.")
             return
         text = text.lower()
         result = ""
@@ -72,31 +72,31 @@ class messageCog(commands.Cog):
             elif char == " ":
                 result += "   "
             else:
-                await interaction.edit_original_response(content="Please only use letters, numbers, and spaces.")
+                await handle.edit(content="Please only use letters, numbers, and spaces.")
                 return
         if copyable:
-            await interaction.edit_original_response(content=f"`{result}`")
+            await handle.edit(content=f"`{result}`")
         else:
-            await interaction.edit_original_response(content=result)
+            await handle.edit(content=result)
 
-    @app_commands.command(name="etanbot-read-indicator", description="Show a (barebones) indicator/message that you've read the message(s) in chat!")
-    async def readIndicator(self, interaction: discord.Interaction, fakeread: bool = None):
-        if not await handleCommandAccess(interaction, interaction.user.id):
+    @commands.hybrid_command(name="etanbot-read-indicator", description="Show a (barebones) indicator/message that you've read the message(s) in chat!", aliases=["read"])
+    async def readIndicator(self, ctx: commands.Context, fakeread: bool = None):
+        if not await handleCommandAccess(ctx, ctx.author.id):
             return
-        await interaction.response.defer()
+        handle = await hybridDefer(ctx)
         if fakeread is None:
             fakeread = False
         if fakeread:
-            await interaction.edit_original_response(content=f"⨯ Not read by {formatUsername(interaction.user)}")
+            await handle.edit(content=f"⨯ Not read by {formatUsername(ctx.author)}")
         else:
-            await interaction.edit_original_response(content=f"✓ Read by {formatUsername(interaction.user)}")
+            await handle.edit(content=f"✓ Read by {formatUsername(ctx.author)}")
 
-    @app_commands.command(name="etanbot-birthday", description="Whose birthday is it?")
+    @commands.hybrid_command(name="etanbot-birthday", description="Whose birthday is it?", aliases=["birthday"])
     @app_commands.describe(user="The user whose birthday it is (defaults to yourself).")
-    async def birthday(self, interaction: discord.Interaction, user: discord.User = None):
-        if not await handleCommandAccess(interaction, interaction.user.id):
+    async def birthday(self, ctx: commands.Context, user: discord.User = None):
+        if not await handleCommandAccess(ctx, ctx.author.id):
             return
-        await interaction.response.defer()
+        handle = await hybridDefer(ctx)
         bdaystrings = [
             "Happy birthday, USER!",
             "Birthday happy, USER!",
@@ -107,63 +107,63 @@ class messageCog(commands.Cog):
         ]
 
         if user is None:
-            user = interaction.user
-        if user == interaction.user:
-            await interaction.edit_original_response(content="Happy birthday to you!!!")
+            user = ctx.author
+        if user == ctx.author:
+            await handle.edit(content="Happy birthday to you!!!")
             return
         if user == self.bot.user:
-            await interaction.edit_original_response(content="thanks but i don't think it's my birthday...")
+            await handle.edit(content="thanks but i don't think it's my birthday...")
             return
-        await interaction.edit_original_response(content=random.choice(bdaystrings).replace("USER", user.mention))
+        await handle.edit(content=random.choice(bdaystrings).replace("USER", user.mention))
 
-    @app_commands.command(name="etanbot-shexonmyytilliz", description="she [x] on my [y] till i [z]")
+    @commands.hybrid_command(name="etanbot-shexonmyytilliz", description="she [x] on my [y] till i [z]", aliases=["shex"])
     @app_commands.describe(x="she does what [100 chars]", y="on your what [100 chars]", z="until you what [100 chars]")
-    async def shexonmyytilliz(self, interaction: discord.Interaction, x: str, y: str, z: str):
-        if not await handleCommandAccess(interaction, interaction.user.id):
+    async def shexonmyytilliz(self, ctx: commands.Context, x: str, y: str, z: str):
+        if not await handleCommandAccess(ctx, ctx.author.id):
             return
         if len(x) > 100 or len(y) > 100 or len(z) > 100:
-            await interaction.response.defer()
-            await interaction.edit_original_response(content="Please keep each input under 100 characters.")
+            handle = await hybridDefer(ctx)
+            await handle.edit(content="Please keep each input under 100 characters.")
             return
-        await interaction.response.defer()
-        await interaction.edit_original_response(content=f"she {x} on my {y} till i {z}")
+        handle = await hybridDefer(ctx)
+        await handle.edit(content=f"she {x} on my {y} till i {z}")
 
 
-    @app_commands.command(name="etanbot-reference", description="IS THAT A [something] REFERENCE?!")
+    @commands.hybrid_command(name="etanbot-reference", description="IS THAT A [something] REFERENCE?!", aliases=["reference"])
     @app_commands.describe(reference="The thing being referenced [200 character limit]")
-    async def isthatareference(self, interaction: discord.Interaction, reference: str):
-        if not await handleCommandAccess(interaction, interaction.user.id):
+    async def isthatareference(self, ctx: commands.Context, reference: str):
+        if not await handleCommandAccess(ctx, ctx.author.id):
             return
-        await interaction.response.defer()
+        handle = await hybridDefer(ctx)
         if len(reference) > 200:
-            await interaction.edit_original_response(content="Please keep the reference under 200 characters.")
+            await handle.edit(content="Please keep the reference under 200 characters.")
             return
-        await interaction.edit_original_response(content=f"IS THAT A {reference} REFERENCE?!")
+        await handle.edit(content=f"IS THAT A {reference} REFERENCE?!")
 
-    @app_commands.command(name="etanbot-headpat", description="Give someone a headpat, or headpats!") # dedicated to ruigoonr
+    @commands.hybrid_command(name="etanbot-headpat", description="Give someone a headpat, or headpats!", aliases=["headpat"]) # dedicated to ruigoonr
     @app_commands.describe(user="The user to give headpats to", amount="The amount of headpats to give.")
-    async def headpat(self, interaction: discord.Interaction, user: discord.User, amount: int):
-        if not await handleCommandAccess(interaction, interaction.user.id):
+    async def headpat(self, ctx: commands.Context, user: discord.User, amount: int):
+        if not await handleCommandAccess(ctx, ctx.author.id):
             return
-        await interaction.response.defer()
+        handle = await hybridDefer(ctx)
         amount = abs(amount) # stay positive!
-        if interaction.user == user:
-            await interaction.edit_original_response(content=f"You gave yourself {str(amount)} headpats!")
+        if ctx.author == user:
+            await handle.edit(content=f"You gave yourself {str(amount)} headpats!")
             return
-        await interaction.edit_original_response(content=f"You gave {user.mention} {str(amount)} headpats!")
+        await handle.edit(content=f"You gave {user.mention} {str(amount)} headpats!")
 
-    @app_commands.command(name="etanbot-sleep", description="Use this for when someone doesn't want to sleep but should!")
+    @commands.hybrid_command(name="etanbot-sleep", description="Use this for when someone doesn't want to sleep but should!", aliases=["sleep"])
     @app_commands.describe(user="The user that should head to sleep", customstring="A custom message, add USER to replace with a mention (required)")
-    async def etanbotsleep(self, interaction: discord.Interaction, user: discord.User, customstring: str = None):
-        if not await handleCommandAccess(interaction, interaction.user.id):
+    async def etanbotsleep(self, ctx: commands.Context, user: discord.User, customstring: str = None):
+        if not await handleCommandAccess(ctx, ctx.author.id):
             return
-        await interaction.response.defer()
+        handle = await hybridDefer(ctx)
         if customstring != None:
             if "USER" in customstring:
-                await interaction.edit_original_response(content=customstring.replace("USER", user.mention))
+                await handle.edit(content=customstring.replace("USER", user.mention))
                 return
             else:
-                await interaction.edit_original_response(content="You must include the word USER if using a custom string!")
+                await handle.edit(content="You must include the word USER if using a custom string!")
                 return
         sleepstrings = [
             "USER, you should head off to sleep now!",
@@ -171,20 +171,20 @@ class messageCog(commands.Cog):
             "GO TO SLEEP USER!!!",
             "Staying up late isn't good for you USER..."
         ]
-        await interaction.edit_original_response(content=random.choice(sleepstrings).replace("USER", user.mention))
+        await handle.edit(content=random.choice(sleepstrings).replace("USER", user.mention))
 
-    @app_commands.command(name="etanbot-lock-in", description="Tell someone to lock in!")
+    @commands.hybrid_command(name="etanbot-lock-in", description="Tell someone to lock in!", aliases=["lockin"])
     @app_commands.describe(user="The user that should lock in", customstring="A custom message, add USER to replace with a mention (required)")
-    async def etanbotlockin(self, interaction: discord.Interaction, user: discord.User, customstring: str = None):
-        if not await handleCommandAccess(interaction, interaction.user.id):
+    async def etanbotlockin(self, ctx: commands.Context, user: discord.User, customstring: str = None):
+        if not await handleCommandAccess(ctx, ctx.author.id):
             return
-        await interaction.response.defer()
+        handle = await hybridDefer(ctx)
         if customstring != None:
             if "USER" in customstring:
-                await interaction.edit_original_response(content=customstring.replace("USER", user.mention))
+                await handle.edit(content=customstring.replace("USER", user.mention))
                 return
             else:
-                await interaction.edit_original_response(content="You must include the word USER if using a custom string!")
+                await handle.edit(content="You must include the word USER if using a custom string!")
                 return
         lockinstrings = [
             "Lock in USER!!!",
@@ -192,32 +192,35 @@ class messageCog(commands.Cog):
             "You know, you should really do that thing right now USER...",
             "Stop geeking out and lock in USER!!!"
         ]
-        await interaction.edit_original_response(content=random.choice(lockinstrings).replace("USER", user.mention))
+        await handle.edit(content=random.choice(lockinstrings).replace("USER", user.mention))
 
-    @app_commands.command(name="etanbot-preview", description="Preview a message before sending it.")
-    async def preview(self, interaction: discord.Interaction):
-        if not await handleCommandAccess(interaction, interaction.user.id):
+    @commands.hybrid_command(name="etanbot-preview", description="Preview a message before sending it.", aliases=["preview"])
+    async def preview(self, ctx: commands.Context):
+        if not await handleCommandAccess(ctx, ctx.author.id):
             return
         class previewForm(discord.ui.Modal, title="Preview a message"):
             message = discord.ui.TextInput(label="Message", style=discord.TextStyle.paragraph, placeholder="Enter your message here. Max 1800 characters.", required=True, max_length=1800)
 
             async def on_submit(self, interaction: discord.Interaction):
                 await interaction.response.send_message(f"This is a preview of your message:\n\n{self.message.value}", ephemeral=True)
-            
-        await interaction.response.send_modal(previewForm())
 
-    @app_commands.command(name="etanbot-pizoelectric", description="[Thing] is turning [something else] into electricity!") # based off the infamous copypasta "Japan is turning footsteps into electricity! ⚡Using piezoelectric tiles, every step you take generates a small amount of energy. Millions of steps together can power LED lights and displays in busy places like Shibuya Station. A brilliant way to create a sustainable and smart city -- turning movement into clean, renewable energy 🌱💡"
-    @app_commands.describe(thing="Who is turning something into electricity?", somethingelse="What is being turned into electricity?")
-    async def pizoelectric(self, interaction: discord.Interaction, thing: str = None, somethingelse: str = None):
-        if not await handleCommandAccess(interaction, interaction.user.id):
+        if ctx.interaction is None:
+            await ctx.reply("This command needs to be used as a slash command (`/etanbot-preview`) because it opens a form.", mention_author=False)
             return
-        await interaction.response.defer()
+        await ctx.interaction.response.send_modal(previewForm())
+
+    @commands.hybrid_command(name="etanbot-pizoelectric", description="[Thing] is turning [something else] into electricity!", aliases=["pizo"]) # based off the infamous copypasta "Japan is turning footsteps into electricity! ⚡Using piezoelectric tiles, every step you take generates a small amount of energy. Millions of steps together can power LED lights and displays in busy places like Shibuya Station. A brilliant way to create a sustainable and smart city -- turning movement into clean, renewable energy 🌱💡"
+    @app_commands.describe(thing="Who is turning something into electricity?", somethingelse="What is being turned into electricity?")
+    async def pizoelectric(self, ctx: commands.Context, thing: str = None, somethingelse: str = None):
+        if not await handleCommandAccess(ctx, ctx.author.id):
+            return
+        handle = await hybridDefer(ctx)
         if thing is None:
             thing = "Japan"
         if somethingelse is None:
             somethingelse = "footsteps"
 
-        await interaction.edit_original_response(content=f"{thing} is turning {somethingelse} into electricity! ⚡Using piezoelectric tiles, every step you take generates a small amount of energy. Millions of steps together can power LED lights and displays in busy places like Shibuya Station. A brilliant way to create a sustainable and smart city -- turning movement into clean, renewable energy 🌱💡")
+        await handle.edit(content=f"{thing} is turning {somethingelse} into electricity! ⚡Using piezoelectric tiles, every step you take generates a small amount of energy. Millions of steps together can power LED lights and displays in busy places like Shibuya Station. A brilliant way to create a sustainable and smart city -- turning movement into clean, renewable energy 🌱💡")
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(messageCog(bot))

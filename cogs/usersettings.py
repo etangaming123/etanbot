@@ -1,8 +1,7 @@
 import discord
-from discord import app_commands
 from discord.ext import commands
 
-from common import get_user_setting, handleCommandAccess, set_user_setting
+from common import get_user_setting, handleCommandAccess, hybridReply, set_user_setting
 
 # Registry of per-user settings shown in /etanbot-settings. Other cogs' settings
 # can be added here later as this grows beyond gimmicks-only.
@@ -70,12 +69,12 @@ class usersettingsCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @app_commands.command(name="etanbot-settings", description="Configure your etan bot settings.")
-    async def settings(self, interaction: discord.Interaction):
-        if not await handleCommandAccess(interaction, interaction.user.id, "settings"):
+    @commands.hybrid_command(name="etanbot-settings", description="Configure your etan bot settings.", aliases=["settings"])
+    async def settings(self, ctx: commands.Context):
+        if not await handleCommandAccess(ctx, ctx.author.id, "settings"):
             return
-        view = OptionsView(interaction.user.id)
-        await interaction.response.send_message(content=view.render_content(), view=view, ephemeral=True)
+        view = OptionsView(ctx.author.id)
+        await hybridReply(ctx, content=view.render_content(), view=view, ephemeral=True)
 
 
 async def setup(bot: commands.Bot):

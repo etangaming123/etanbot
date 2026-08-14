@@ -6,7 +6,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from common import handleCommandAccess, setCooldown, truncateMessage
+from common import handleCommandAccess, hybridDefer, setCooldown, truncateMessage
 
 QUIZZES_DIR = Path(__file__).resolve().parent.parent / "quizzes"
 COOLDOWN_SECONDS = 10
@@ -211,26 +211,27 @@ class characterQuizCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @app_commands.command(name="etanbot-character-quiz", description="Take a quiz and find out which character you are!")
+    @commands.hybrid_command(name="etanbot-character-quiz", description="Take a quiz and find out which character you are!", aliases=["quiz"])
     @app_commands.describe(quiz="The quiz to take.", viewprivate="Whether to view the quiz privately or not. (defaults to public)")
-    async def character_quiz(self, interaction: discord.Interaction, quiz: str, viewprivate: bool = False):
-        if not await handleCommandAccess(interaction, interaction.user.id, "characterquiz"):
+    async def character_quiz(self, ctx: commands.Context, quiz: str, viewprivate: bool = False):
+        if not await handleCommandAccess(ctx, ctx.author.id, "characterquiz"):
             return
-        await interaction.response.defer(ephemeral=viewprivate)
+        handle = await hybridDefer(ctx, ephemeral=viewprivate)
 
         quiz_path = QUIZZES_DIR / f"{quiz}.json"
         quiz_data = load_quiz(quiz_path) if quiz_path.exists() else None
         if quiz_data is None:
-            await interaction.edit_original_response(content="Couldn't find that quiz. Please pick one from the autocomplete suggestions.")
+            await handle.edit(content="Couldn't find that quiz. Please pick one from the autocomplete suggestions.")
             return
         if not quiz_data.get("questions") or not quiz_data.get("characters"):
-            await interaction.edit_original_response(content="That quiz doesn't have enough questions/characters to run.")
+            await handle.edit(content="That quiz doesn't have enough questions/characters to run.")
             return
 
-        setCooldown(interaction.user.id, "characterquiz", COOLDOWN_SECONDS)
-        view = QuizView(quiz_data, interaction.user.id)
+        setCooldown(ctx.author.id, "characterquiz", COOLDOWN_SECONDS)
+        view = QuizView(quiz_data, ctx.author.id)
         embed = build_intro_embed(quiz_data)
-        view.message = await interaction.edit_original_response(embed=embed, view=view)
+        await handle.edit(embed=embed, view=view)
+        view.message = await ctx.interaction.original_response() if ctx.interaction is not None else handle._message
 
     @character_quiz.autocomplete("quiz")
     async def character_quiz_autocomplete(self, interaction: discord.Interaction, current: str):

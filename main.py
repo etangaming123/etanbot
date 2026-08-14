@@ -10,7 +10,7 @@ from git import Repo
 repo = Repo(os.curdir)
 import secure_token
 
-from common import developergithub, ensure_datastores, repositoryurl, inviteurl, supportserver, website, setCooldown, config, handleCommandAccess, readTextFile, statuses, checkforupdates
+from common import developergithub, ensure_datastores, repositoryurl, inviteurl, supportserver, website, setCooldown, config, handleCommandAccess, readTextFile, statuses, checkforupdates, hybridDefer
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -58,7 +58,7 @@ class etanBot(commands.Bot):
             except Exception as e:
                 print(f"Failed to load cog {item}: {e}")
 
-bot = etanBot(command_prefix='!', intents=intents)
+bot = etanBot(command_prefix='e>', intents=intents)
 bot.tree.allowed_installs = app_commands.AppInstallationType(guild=True, user=True)
 bot.tree.allowed_contexts = app_commands.AppCommandContext(guild=True, dm_channel=True, private_channel=True)
 
@@ -101,19 +101,19 @@ async def on_ready():
     print("Bot is up and running!")
 
 # general
-@bot.tree.command(name="etanbot-ping", description="Ping the bot")
-async def ping(interaction: discord.Interaction):
-    if not await handleCommandAccess(interaction, interaction.user.id):
+@bot.hybrid_command(name="etanbot-ping", description="Ping the bot", aliases=["ping"])
+async def ping(ctx: commands.Context):
+    if not await handleCommandAccess(ctx, ctx.author.id):
         return
-    await interaction.response.defer()
-    await interaction.edit_original_response(content=f"Pong! [{round(bot.latency * 1000)}ms]")
+    handle = await hybridDefer(ctx)
+    await handle.edit(content=f"Pong! [{round(bot.latency * 1000)}ms]")
 
-@bot.tree.command(name="etanbot-who-am-i", description="Information about the bot!")
-async def whoami(interaction: discord.Interaction):
-    if not await handleCommandAccess(interaction, interaction.user.id, "whoami"):
+@bot.hybrid_command(name="etanbot-who-am-i", description="Information about the bot!", aliases=["whoami"])
+async def whoami(ctx: commands.Context):
+    if not await handleCommandAccess(ctx, ctx.author.id, "whoami"):
         return
-    await interaction.response.defer()
-    setCooldown(interaction.user.id, "whoami", 10)
+    handle = await hybridDefer(ctx)
+    setCooldown(ctx.author.id, "whoami", 10)
     embed = discord.Embed(title="etanbot info", description="funny discord bot", color=0x8649D7)
     embed.add_field(name="Description", value=f"Funny Discord bot that can be added to your account and used anywhere within Discord.", inline=False)
     embed.add_field(name="Features", value="Various commands - link cleaner, MBTI personality type lookup, tonetag lookup, NEEDY STREAMER OVERLOAD Task Manager Generator, with more to come.", inline=False)
@@ -125,21 +125,21 @@ async def whoami(interaction: discord.Interaction):
     embed.set_thumbnail(url=bot.user.avatar.url if bot.user.avatar else "https://cdn.discordapp.com/embed/avatars/0.png")
     if bot.user.banner:
         embed.set_image(url=bot.user.banner.url)
-    await interaction.edit_original_response(embed=embed)
+    await handle.edit(embed=embed)
 
-@bot.tree.command(name="etanbot-invite", description="Get the invite link for the bot!")
-async def invite(interaction: discord.Interaction):
-    if not await handleCommandAccess(interaction, interaction.user.id):
+@bot.hybrid_command(name="etanbot-invite", description="Get the invite link for the bot!", aliases=["invite"])
+async def invite(ctx: commands.Context):
+    if not await handleCommandAccess(ctx, ctx.author.id):
         return
-    await interaction.response.defer()
-    await interaction.edit_original_response(content=f"[Add etan bot to your account]({inviteurl}), or [join the support server for updates and help]({supportserver})")
+    handle = await hybridDefer(ctx)
+    await handle.edit(content=f"[Add etan bot to your account]({inviteurl}), or [join the support server for updates and help]({supportserver})")
 
-@bot.tree.command(name="etanbot-status", description="Are we running the latest commit?")
-async def status(interaction: discord.Interaction):
-    if not await handleCommandAccess(interaction, interaction.user.id, "status"):
+@bot.hybrid_command(name="etanbot-status", description="Are we running the latest commit?", aliases=["status"])
+async def status(ctx: commands.Context):
+    if not await handleCommandAccess(ctx, ctx.author.id, "status"):
         return
-    await interaction.response.defer()
-    setCooldown(interaction.user.id, "status", 10)
+    handle = await hybridDefer(ctx)
+    setCooldown(ctx.author.id, "status", 10)
 
     branchnote = ""
     if currentbranch != "main":
@@ -148,15 +148,15 @@ async def status(interaction: discord.Interaction):
     if repo.is_dirty():
         dirtyfiles = [item.a_path for item in repo.index.diff(None)] + repo.untracked_files
         filelist = ", ".join(dirtyfiles[:10]) + ("..." if len(dirtyfiles) > 10 else "")
-        await interaction.edit_original_response(content=f"etanbot is running on a modified commit!{branchnote} Running commit: {currentcommithash}. Uncommitted changes: {filelist}")
+        await handle.edit(content=f"etanbot is running on a modified commit!{branchnote} Running commit: {currentcommithash}. Uncommitted changes: {filelist}")
         return
 
     latesthash = getLatestCommitHash(currentbranch)
     if latesthash == currentcommithash:
-        await interaction.edit_original_response(content=f"etanbot is up to date!{branchnote} Running commit: {currentcommithash}")
+        await handle.edit(content=f"etanbot is up to date!{branchnote} Running commit: {currentcommithash}")
     elif latesthash == "unknown":
-        await interaction.edit_original_response(content=f"etanbot is running commit: {currentcommithash}{branchnote}, we couldn't get the latest commit")
+        await handle.edit(content=f"etanbot is running commit: {currentcommithash}{branchnote}, we couldn't get the latest commit")
     else:
-        await interaction.edit_original_response(content=f"etanbot is not up to date.{branchnote} Running commit: {currentcommithash}, latest commit: {latesthash}. Please contact the developer to update the bot!")
+        await handle.edit(content=f"etanbot is not up to date.{branchnote} Running commit: {currentcommithash}, latest commit: {latesthash}. Please contact the developer to update the bot!")
 
 bot.run(secure_token.secure_token())

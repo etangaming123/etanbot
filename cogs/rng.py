@@ -2,8 +2,10 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 import random
+import typing
+from typing import Optional
 
-from common import handleCommandAccess, formatUsername, setCooldown, getDisplay, readTextFile, truncateMessage
+from common import handleCommandAccess, formatUsername, setCooldown, getDisplay, readTextFile, truncateMessage, hybridDefer
 
 deretypes = readTextFile("deretypes")
 
@@ -11,37 +13,28 @@ class rngCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @app_commands.command(name="etanbot-coinflip", description="Flip a coin!")
+    @commands.hybrid_command(name="etanbot-coinflip", description="Flip a coin!", aliases=["coinflip"])
     @app_commands.describe(choice="The option you're looking for (cosmetic)")
-    @app_commands.choices(choice=[
-        discord.app_commands.Choice(name="Heads", value="heads"),
-        discord.app_commands.Choice(name="Tails", value="tails")
-    ])
-    async def coinflip(self, interaction: discord.Interaction, choice: discord.app_commands.Choice[str] = None):
-        if not await handleCommandAccess(interaction, interaction.user.id):
+    async def coinflip(self, ctx: commands.Context, choice: Optional[typing.Literal["heads", "tails"]] = None):
+        if not await handleCommandAccess(ctx, ctx.author.id):
             return
-        await interaction.response.defer()
+        handle = await hybridDefer(ctx)
         result = random.choice(["Heads", "Tails"])
         if choice == None:
-            await interaction.edit_original_response(content=f"The coin landed on **{result}**!")
+            await handle.edit(content=f"The coin landed on **{result}**!")
         else:
-            if choice.value == result.lower():
-                await interaction.edit_original_response(content=f"You hoped for *{choice.value}*, and the coin landed on **{result}**!")
+            if choice == result.lower():
+                await handle.edit(content=f"You hoped for *{choice}*, and the coin landed on **{result}**!")
             else:
-                await interaction.edit_original_response(content=f"You hoped for *{choice.value}*, but the coin landed on **{result}**!")
+                await handle.edit(content=f"You hoped for *{choice}*, but the coin landed on **{result}**!")
 
 
-    @app_commands.command(name="etanbot-8ball", description="Ask the magic 8ball a question!") # use with caution. its completely random yet can be scarily accurate at times
+    @commands.hybrid_command(name="etanbot-8ball", description="Ask the magic 8ball a question!", aliases=["8ball"]) # use with caution. its completely random yet can be scarily accurate at times
     @app_commands.describe(question="The question to ask the 8ball. (a yes or no question, and keep it short!)", flavour="The flavour of the 8ball. (optional, defaults to classic)")
-    @app_commands.choices(flavour=[
-        discord.app_commands.Choice(name="classic", value="classic"),
-        discord.app_commands.Choice(name="casual", value="casual"),
-        discord.app_commands.Choice(name="tsundere", value="tsundere"),
-    ])
-    async def eight_ball(self, interaction: discord.Interaction, question: str, flavour: discord.app_commands.Choice[str] = None):
-        if not await handleCommandAccess(interaction, interaction.user.id):
+    async def eight_ball(self, ctx: commands.Context, question: str, flavour: Optional[typing.Literal["classic", "casual", "tsundere"]] = None):
+        if not await handleCommandAccess(ctx, ctx.author.id):
             return
-        await interaction.response.defer()
+        handle = await hybridDefer(ctx)
         responses_classic = [
             "It is certain.",
             "It is decidedly so.",
@@ -91,48 +84,48 @@ class rngCog(commands.Cog):
         # this is probably the worst way to do this but i cba finding a better one
         if flavour == None: # attempt 4 of fixing this stupid ass bug holy shit
             responses = responses_classic
-        elif flavour.value == "classic":
+        elif flavour == "classic":
             responses = responses_classic
-        elif flavour.value == "tsundere":
+        elif flavour == "tsundere":
             responses = responses_tsundere
-        elif flavour.value == "casual":
+        elif flavour == "casual":
             responses = responses_casual
 
         if flavour == None:
-            await interaction.edit_original_response(content=f"You asked the classic 8ball \"{question}\"...\nThe 8ball says... {random.choice(responses)}")
-            return  
-        await interaction.edit_original_response(content=f"You asked the {flavour.value} 8ball \"{question}\"...\nThe 8ball says... {random.choice(responses)}")
+            await handle.edit(content=f"You asked the classic 8ball \"{question}\"...\nThe 8ball says... {random.choice(responses)}")
+            return
+        await handle.edit(content=f"You asked the {flavour} 8ball \"{question}\"...\nThe 8ball says... {random.choice(responses)}")
 
-    @app_commands.command(name="etanbot-braincells", description="Check how many braincells you (or someone else) has left. (highest is 1000)")
+    @commands.hybrid_command(name="etanbot-braincells", description="Check how many braincells you (or someone else) has left. (highest is 1000)", aliases=["braincells"])
     @app_commands.describe(user="The user to check braincells for (defaults to yourself).")
-    async def braincells(self, interaction: discord.Interaction, user: discord.User = None):
-        if not await handleCommandAccess(interaction, interaction.user.id):
+    async def braincells(self, ctx: commands.Context, user: discord.User = None):
+        if not await handleCommandAccess(ctx, ctx.author.id):
             return
-        await interaction.response.defer()
+        handle = await hybridDefer(ctx)
         if user is None:
-            user = interaction.user
+            user = ctx.author
         braincellcount = random.randint(0, 1000)
-        await interaction.edit_original_response(content=f"{formatUsername(user)} has {braincellcount} braincells.")
+        await handle.edit(content=f"{formatUsername(user)} has {braincellcount} braincells.")
 
-    @app_commands.command(name="etanbot-randomnumber", description="Generate a random number between a specified range.")
+    @commands.hybrid_command(name="etanbot-randomnumber", description="Generate a random number between a specified range.", aliases=["rand"])
     @app_commands.describe(minimum="The minimum number (inclusive).", maximum="The maximum number (inclusive).")
-    async def random_number(self, interaction: discord.Interaction, minimum: int, maximum: int):
-        if not await handleCommandAccess(interaction, interaction.user.id):
+    async def random_number(self, ctx: commands.Context, minimum: int, maximum: int):
+        if not await handleCommandAccess(ctx, ctx.author.id):
             return
-        await interaction.response.defer()
+        handle = await hybridDefer(ctx)
         if minimum > maximum:
             minimum, maximum = maximum, minimum
         number = random.randint(minimum, maximum)
-        await interaction.edit_original_response(content=f"Your random number between {minimum} and {maximum} is: {number}")
+        await handle.edit(content=f"Your random number between {minimum} and {maximum} is: {number}")
 
-    @app_commands.command(name="etanbot-lie-detector", description="Check if someone is lying!")
+    @commands.hybrid_command(name="etanbot-lie-detector", description="Check if someone is lying!", aliases=["lie"])
     @app_commands.describe(user="The user who you think is lying. (Leave blank for yourself!)")
-    async def liedetector(self, interaction: discord.Interaction, user: discord.User = None):
+    async def liedetector(self, ctx: commands.Context, user: discord.User = None):
         if user == None:
-            user = interaction.user
-        if not await handleCommandAccess(interaction, interaction.user.id):
+            user = ctx.author
+        if not await handleCommandAccess(ctx, ctx.author.id):
             return
-        await interaction.response.defer()
+        handle = await hybridDefer(ctx)
         liestrings = [
             "USER is LYING!!!",
             "Nah, USER isn't telling the truth.",
@@ -149,32 +142,32 @@ class rngCog(commands.Cog):
         ]
 
         if random.randint(0, 1) == 0 and str(self.bot.user.id) != user.id: # the bot never lies.
-            await interaction.edit_original_response(content=random.choice(liestrings).replace("USER", formatUsername(user)))
+            await handle.edit(content=random.choice(liestrings).replace("USER", formatUsername(user)))
         else:
-            await interaction.edit_original_response(content=random.choice(truthstrings).replace("USER", formatUsername(user)))
+            await handle.edit(content=random.choice(truthstrings).replace("USER", formatUsername(user)))
 
-    @app_commands.command(name="etanbot-random-list", description="Picks a random choice in a list!")
+    @commands.hybrid_command(name="etanbot-random-list", description="Picks a random choice in a list!", aliases=["randlist"])
     @app_commands.describe(list="The list of names or otherwise, separated by commas [,] (max 50 characters for each, up to 15 entries)", reroll="The amount of times to reroll", replacement="If rerolling multiple times, whether to make rolling the same item allowed")
-    async def randomList(self, interaction: discord.Interaction, list: str, reroll: int = None, replacement: bool = False):
-        if not await handleCommandAccess(interaction, interaction.user.id, "randomlist"):
+    async def randomList(self, ctx: commands.Context, list: str, reroll: int = None, replacement: bool = False):
+        if not await handleCommandAccess(ctx, ctx.author.id, "randomlist"):
             return
-        await interaction.response.defer()
-        setCooldown(interaction.user.id, "randomlist", 10)
+        handle = await hybridDefer(ctx)
+        setCooldown(ctx.author.id, "randomlist", 10)
         try:
             actuallist = list.split(",")
         except Exception:
-            await interaction.edit_original_response(content="That doesn't seem to be a valid list! Please separate your valies with commas. --> `,`")
+            await handle.edit(content="That doesn't seem to be a valid list! Please separate your valies with commas. --> `,`")
             return
         if len(actuallist) < 2:
-            await interaction.edit_original_response(content="Your list must have 2 or more entries!")
+            await handle.edit(content="Your list must have 2 or more entries!")
             return
 
         if len(actuallist) > 15:
-            await interaction.edit_original_response(content="Your list must have less than 15 entries!")
+            await handle.edit(content="Your list must have less than 15 entries!")
 
         for item in actuallist:
             if len(item) > 50:
-                await interaction.edit_original_response(content="One or more items in your list is over 50 characters!")
+                await handle.edit(content="One or more items in your list is over 50 characters!")
                 return
 
         if reroll == None or reroll < 1:
@@ -199,30 +192,25 @@ class rngCog(commands.Cog):
             string = string + f"{item}, "
         indeexo = len(string) - 2
         string = string[:indeexo]
-        await interaction.edit_original_response(content=f"Rolling from `{list}`\nChoices picked: \n`{string}`")
+        await handle.edit(content=f"Rolling from `{list}`\nChoices picked: \n`{string}`")
 
-    @app_commands.command(name="etanbot-scan", description="Scan a user for a percentage of how much of something they are!")
+    @commands.hybrid_command(name="etanbot-scan", description="Scan a user for a percentage of how much of something they are!", aliases=["scan"])
     @app_commands.describe(user="The user to scan", scanfor="What to scan for (preferrably in one word, i.e goat, unemployed etc.)")
-    async def scanuser(self, interaction: discord.Interaction, user: discord.User, scanfor: str):
-        if not await handleCommandAccess(interaction, interaction.user.id):
+    async def scanuser(self, ctx: commands.Context, user: discord.User, scanfor: str):
+        if not await handleCommandAccess(ctx, ctx.author.id):
             return
-        await interaction.response.defer()
+        handle = await hybridDefer(ctx)
         if len(scanfor) > 100:
-            await interaction.edit_original_response(content="Please keep your `scanfor` field short! Less than 100 characters, please.")
+            await handle.edit(content="Please keep your `scanfor` field short! Less than 100 characters, please.")
         percentage = random.randint(0, 100)
-        await interaction.edit_original_response(content=f"{formatUsername(user)} is **{str(percentage)}%** `{scanfor}`!")
+        await handle.edit(content=f"{formatUsername(user)} is **{str(percentage)}%** `{scanfor}`!")
 
-    @app_commands.command(name="etanbot-ship", description="Ship 2 users with each other!")
+    @commands.hybrid_command(name="etanbot-ship", description="Ship 2 users with each other!", aliases=["ship"])
     @app_commands.describe(user1="The first user", user2="The second user (defaults to yourself)", method="The RNG method used to ship (defaults to set)")
-    @app_commands.choices(method=[
-        discord.app_commands.Choice(name="set", value="set"),
-        discord.app_commands.Choice(name="setInverse", value="setInverse"),
-        discord.app_commands.Choice(name="random", value="random"),
-    ])
-    async def ship(self, interaction: discord.Interaction, user1: discord.User, user2: discord.User = None, method: discord.app_commands.Choice[str] = None):
-        if not await handleCommandAccess(interaction, interaction.user.id):
+    async def ship(self, ctx: commands.Context, user1: discord.User, user2: discord.User = None, method: Optional[typing.Literal["set", "setInverse", "random"]] = None):
+        if not await handleCommandAccess(ctx, ctx.author.id):
             return
-        await interaction.response.defer()
+        handle = await hybridDefer(ctx)
 
         textvalues = {
             0: "Enemies",
@@ -239,13 +227,13 @@ class rngCog(commands.Cog):
         }
 
         if user2 == None:
-            user2 = interaction.user
+            user2 = ctx.author
 
-        if interaction.user.id == user1.id and interaction.user.id == user2.id:
-            await interaction.edit_original_response(content="You can't ship yourself with yourself!")
+        if ctx.author.id == user1.id and ctx.author.id == user2.id:
+            await handle.edit(content="You can't ship yourself with yourself!")
             return
         if user1.id == user2.id:
-            await interaction.edit_original_response(content="You can't ship a user with themselves!")
+            await handle.edit(content="You can't ship a user with themselves!")
             return
         
         if method == None or method == "set":
@@ -284,30 +272,30 @@ class rngCog(commands.Cog):
             embed.color = discord.Colour.pink()
 
         random.seed() # reset the seed so other random commands aren't affected by this one
-        await interaction.edit_original_response(content=f"Shipping `{formatUsername(user1)}` and `{formatUsername(user2)}`...", embed=embed)
+        await handle.edit(content=f"Shipping `{formatUsername(user1)}` and `{formatUsername(user2)}`...", embed=embed)
 
-    @app_commands.command(name="etanbot-slop-or-gem", description="Check if something is slop or gem!")
+    @commands.hybrid_command(name="etanbot-slop-or-gem", description="Check if something is slop or gem!", aliases=["slopgem"])
     @app_commands.describe(scan="Let's see if this thing is slop or gem!")
-    async def slopOrGem(self, interaction: discord.Interaction, scan: str):
-        if not await handleCommandAccess(interaction, interaction.user.id):
+    async def slopOrGem(self, ctx: commands.Context, scan: str):
+        if not await handleCommandAccess(ctx, ctx.author.id):
             return
-        await interaction.response.defer()
+        handle = await hybridDefer(ctx)
         if len(scan) > 500:
-            await interaction.edit_original_response(content="Your \"scan\" object is WAY too long!")
+            await handle.edit(content="Your \"scan\" object is WAY too long!")
             return
         randomnumber = random.randint(-100, 100)
         if randomnumber < 0:
-            await interaction.edit_original_response(content=f"`{scan}` is {abs(randomnumber)}% **slop**!")
+            await handle.edit(content=f"`{scan}` is {abs(randomnumber)}% **slop**!")
         else:
-            await interaction.edit_original_response(content=f"`{scan}` is {abs(randomnumber)}% **gem**!")
+            await handle.edit(content=f"`{scan}` is {abs(randomnumber)}% **gem**!")
 
-    @app_commands.command(name="paro", description="paro") # paro
+    @commands.hybrid_command(name="paro", description="paro") # paro
     @app_commands.describe(detailed="Whether to return detailed RNG results (defaults to false).")
-    async def paro(self, paro: discord.Interaction, detailed: bool = False): # paro
-        if not await handleCommandAccess(paro, paro.user.id, "paro"):
+    async def paro(self, ctx: commands.Context, detailed: bool = False): # paro
+        if not await handleCommandAccess(ctx, ctx.author.id, "paro"):
             return
-        await paro.response.defer() # paro
-        setCooldown(paro.user.id, "paro", 1)
+        handle = await hybridDefer(ctx) # paro
+        setCooldown(ctx.author.id, "paro", 1)
         randomnumber = random.randint(1, 1000)
         extrarandomnum = random.randint(1, 20)
         extrastring = ""
@@ -320,26 +308,26 @@ class rngCog(commands.Cog):
             extrastring = "*TEXT*"
         else:
             extrastring = "TEXT"
-        
+
         if detailed:
             extrastring = extrastring + f"\n-# rng `{randomnumber}` (1-1000) // extra rng `{extrarandomnum}` (1-20)"
 
         if randomnumber == 1: # 1 (1 in 1000)
-            await paro.edit_original_response(content=f"{extrastring.replace('TEXT', 'Paranoia')}") # Paranoia
+            await handle.edit(content=f"{extrastring.replace('TEXT', 'Paranoia')}") # Paranoia
         elif randomnumber < 12: # 2-11 (roughly 1 in 100)
-            await paro.edit_original_response(content=f"{extrastring.replace('TEXT', 'Parousia')}") # Parousia
+            await handle.edit(content=f"{extrastring.replace('TEXT', 'Parousia')}") # Parousia
         elif randomnumber < 113: # 12-112 (roughly 1 in 10)
-            await paro.edit_original_response(content=f"{extrastring.replace('TEXT', 'Paro')}") # Paro
+            await handle.edit(content=f"{extrastring.replace('TEXT', 'Paro')}") # Paro
         else: # the default
-            await paro.edit_original_response(content=f"{extrastring.replace('TEXT', 'paro')}") # paro
+            await handle.edit(content=f"{extrastring.replace('TEXT', 'paro')}") # paro
 
-    @app_commands.command(name="testify", description="[ Proceeding will make a decision that you can not reverse. ]") # testify
+    @commands.hybrid_command(name="testify", description="[ Proceeding will make a decision that you can not reverse. ]") # testify
     @app_commands.describe(detailed="Whether to return detailed RNG results (defaults to false).")
-    async def testify(self, testify: discord.Interaction, detailed: bool = False): # testify
-        if not await handleCommandAccess(testify, testify.user.id, "testify"):
+    async def testify(self, ctx: commands.Context, detailed: bool = False): # testify
+        if not await handleCommandAccess(ctx, ctx.author.id, "testify"):
             return
-        await testify.response.defer() # testify
-        setCooldown(testify.user.id, "testify", 1)
+        handle = await hybridDefer(ctx) # testify
+        setCooldown(ctx.author.id, "testify", 1)
         randomnumber = random.randint(1, 1000)
         extrarandomnum = random.randint(1, 20)
         extrastring = ""
@@ -352,25 +340,25 @@ class rngCog(commands.Cog):
             extrastring = "*TEXT*"
         else:
             extrastring = "TEXT"
-        
+
         if detailed:
             extrastring = extrastring + f"\n-# rng `{randomnumber}` (1-1000) // extra rng `{extrarandomnum}` (1-20)"
 
         if randomnumber == 1: # 1 (1 in 1000)
-            await testify.edit_original_response(content=f"{extrastring.replace('TEXT', 'And Testify.')}")
+            await handle.edit(content=f"{extrastring.replace('TEXT', 'And Testify.')}")
         elif randomnumber < 12: # 2-11 (roughly 1 in 100)
-            await testify.edit_original_response(content=f"{extrastring.replace('TEXT', 'I’ll end it all...')}")
+            await handle.edit(content=f"{extrastring.replace('TEXT', 'I’ll end it all...')}")
         elif randomnumber < 113: # 12-112 (roughly 1 in 10)
-            await testify.edit_original_response(content=f"{extrastring.replace('TEXT', 'Testify')}")
+            await handle.edit(content=f"{extrastring.replace('TEXT', 'Testify')}")
         else: # the default
-            await testify.edit_original_response(content=f"{extrastring.replace('TEXT', 'testify')}")
+            await handle.edit(content=f"{extrastring.replace('TEXT', 'testify')}")
 
-    @app_commands.command(name="etanbot-predict", description="[event] will happen [unspecified date/time]")
+    @commands.hybrid_command(name="etanbot-predict", description="[event] will happen [unspecified date/time]", aliases=["predict"])
     @app_commands.describe(event="The event you want to predict.")
-    async def predict(self, interaction: discord.Interaction, event: str):
-        if not await handleCommandAccess(interaction, interaction.user.id):
+    async def predict(self, ctx: commands.Context, event: str):
+        if not await handleCommandAccess(ctx, ctx.author.id):
             return
-        await interaction.response.defer()
+        handle = await hybridDefer(ctx)
         times = [
             "right now",
             "in a few seconds",
@@ -387,27 +375,23 @@ class rngCog(commands.Cog):
             "never"
         ]
         event = truncateMessage(event, 750)
-        await interaction.edit_original_response(content=f"Predicting when \"{event}\" will happen...\n\"{event}\" will happen {random.choice(times)}!")
+        await handle.edit(content=f"Predicting when \"{event}\" will happen...\n\"{event}\" will happen {random.choice(times)}!")
 
 
-    @app_commands.command(name="etanbot-random-dere", description="Get a random deretype based on a user!")
+    @commands.hybrid_command(name="etanbot-random-dere", description="Get a random deretype based on a user!", aliases=["randdere"])
     @app_commands.describe(user="The user to get the random deretype of (defaults to yourself)", method="The method to use for finding deretype (defaults to set)")
-    @app_commands.choices(method=[
-        discord.app_commands.Choice(name="set", value="set"),
-        discord.app_commands.Choice(name="random", value="random"),
-    ])
-    async def randomDere(self, interaction: discord.Interaction, user: discord.User = None, method: discord.app_commands.Choice[str] = None):
-        if not await handleCommandAccess(interaction, interaction.user.id):
+    async def randomDere(self, ctx: commands.Context, user: discord.User = None, method: Optional[typing.Literal["set", "random"]] = None):
+        if not await handleCommandAccess(ctx, ctx.author.id):
             return
-        await interaction.response.defer()
+        handle = await hybridDefer(ctx)
         if user == None:
-            user = interaction.user
+            user = ctx.author
 
         methodreal = ""
         if method == None:
             methodreal = "set"
         else:
-            methodreal = method.value
+            methodreal = method
 
         if methodreal == "set":
             random.seed(str(user.id)) # make the result consistent for the same user
@@ -416,7 +400,7 @@ class rngCog(commands.Cog):
 
         deretype = random.choice(list(deretypes.keys()))
         random.seed() # reset the seed so other random commands aren't affected by this one
-        await interaction.edit_original_response(content=f"{formatUsername(user)}'s a `{deretype}` >> {deretypes[deretype]}\n\n*This result is based on the `{methodreal}` method.*")
+        await handle.edit(content=f"{formatUsername(user)}'s a `{deretype}` >> {deretypes[deretype]}\n\n*This result is based on the `{methodreal}` method.*")
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(rngCog(bot))

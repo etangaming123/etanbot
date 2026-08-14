@@ -1,6 +1,7 @@
 import base64
 import json
 import time
+import typing
 import uuid
 import zlib
 from datetime import datetime, timezone
@@ -22,8 +23,12 @@ from common import (
     formatUsername,
     get_user_setting,
     handleCommandAccess,
+    hybridDefer,
+    hybridReply,
+    HybridHandle,
     loadData,
     report_webhook_url,
+    requireDMOnly,
     saveData,
     setCooldown,
     truncateMessage,
@@ -466,8 +471,8 @@ class GimmickViewerView(discord.ui.View):
 class PostedGimmickView(AutoDisableView):
     """Attached to a publicly posted gimmick. No interaction_check — anyone in the channel can report it, not just the poster."""
 
-    def __init__(self, interaction: discord.Interaction, recipient_id: int, item: dict, timeout: float = 600):
-        super().__init__(interaction, timeout=timeout)
+    def __init__(self, ctx: commands.Context, recipient_id: int, item: dict, timeout: float = 600):
+        super().__init__(ctx, timeout=timeout)
         self.recipient_id = recipient_id
         self.item = item
 
@@ -596,107 +601,109 @@ class gimmicksCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @app_commands.command(name="etanbot-gimmicks-guide", description="View the guide on the Gimmicks system.")
+    @commands.hybrid_command(name="etanbot-gimmicks-guide", description="View the guide on the Gimmicks system.", aliases=["gimmicksguide"])
     @app_commands.describe(viewprivate="Whether to view the guide privately (ephemeral) or in the channel.")
-    async def gimmicks_guide(self, interaction: discord.Interaction, viewprivate: bool = False):
-        if not await handleCommandAccess(interaction, interaction.user.id, "gimmicks-guide"):
+    async def gimmicks_guide(self, ctx: commands.Context, viewprivate: bool = False):
+        if not await handleCommandAccess(ctx, ctx.author.id, "gimmicks-guide"):
             return
-        await interaction.response.send_message(content="etan bot Gimmicks are based off strawpage's gimmicks feature, and allow you to send drawings and messages to other users.\nTo get started, run `/etanbot-gimmicks-optin` to enable sending and receiving gimmicks!\nYou can use `/etanbot-gimmicks-send` to send a gimmick to someone (a drawing or message, as of now), and `/etanbot-gimmicks` to view your received gimmicks!\nGimmicks can also be reported, if they contain offensive content. Or, if you don't like someone's gimmicks, you can block them (works for anonymous gimmicks too!)\nWant a DM when you get a new gimmick? Configure that with `/etanbot-settings`.\n\nThis is an optional feature, and you can always opt out (and delete associated gimmicks data, excluding ones you've sent) with `/etanbot-gimmicks-optout`.", ephemeral=viewprivate)
+        await hybridReply(ctx, content="etan bot Gimmicks are based off strawpage's gimmicks feature, and allow you to send drawings and messages to other users.\nTo get started, run `/etanbot-gimmicks-optin` to enable sending and receiving gimmicks!\nYou can use `/etanbot-gimmicks-send` to send a gimmick to someone (a drawing or message, as of now), and `/etanbot-gimmicks` to view your received gimmicks!\nGimmicks can also be reported, if they contain offensive content. Or, if you don't like someone's gimmicks, you can block them (works for anonymous gimmicks too!)\nWant a DM when you get a new gimmick? Configure that with `/etanbot-settings`.\n\nThis is an optional feature, and you can always opt out (and delete associated gimmicks data, excluding ones you've sent) with `/etanbot-gimmicks-optout`.", ephemeral=viewprivate)
 
-    @app_commands.command(name="etanbot-gimmicks-send", description="Send a drawing or message gimmick to someone.")
+    @commands.hybrid_command(name="etanbot-gimmicks-send", description="Send a drawing or message gimmick to someone.", aliases=["gimmicksend"])
     @app_commands.describe(target="Who to send the gimmick to.")
-    async def gimmicks_send(self, interaction: discord.Interaction, target: discord.User):
-        if not await handleCommandAccess(interaction, interaction.user.id):
+    async def gimmicks_send(self, ctx: commands.Context, target: discord.User):
+        if not await handleCommandAccess(ctx, ctx.author.id):
             return
         if target.bot:
-            await interaction.response.send_message(content="You can't send gimmicks to bots.", ephemeral=True)
+            await hybridReply(ctx, content="You can't send gimmicks to bots.", ephemeral=True)
             return
-        if target.id == interaction.user.id:
-            await interaction.response.send_message(content="You can't send a gimmick to yourself.", ephemeral=True)
+        if target.id == ctx.author.id:
+            await hybridReply(ctx, content="You can't send a gimmick to yourself.", ephemeral=True)
             return
-        if not is_opted_in(interaction.user.id):
-            await interaction.response.send_message(content="You need to opt into Gimmicks first — run `/etanbot-gimmicks-optin`.", ephemeral=True)
+        if not is_opted_in(ctx.author.id):
+            await hybridReply(ctx, content="You need to opt into Gimmicks first — run `/etanbot-gimmicks-optin`.", ephemeral=True)
             return
         if not is_opted_in(target.id):
-            await interaction.response.send_message(content=f"{formatUsername(target)} hasn't opted into Gimmicks, so you can't send them one.", ephemeral=True)
+            await hybridReply(ctx, content=f"{formatUsername(target)} hasn't opted into Gimmicks, so you can't send them one.", ephemeral=True)
             return
-        if is_blocked(target.id, interaction.user.id):
-            await interaction.response.send_message(content="You can't send a gimmick to that user.", ephemeral=True)
-            return
-
-        view = GimmickTypeView(interaction.user.id, target)
-        await interaction.response.send_message(content=f"What kind of gimmick do you want to send to {formatUsername(target)}?\nIf it's a drawing gimmick, [go here](<https://etanbot.etangaming.xyz/drawing.html>) to draw and get a code!", view=view, ephemeral=True)
-
-    @app_commands.command(name="etanbot-gimmicks", description="View gimmicks (drawings/messages) other people have sent you.")
-    async def gimmicks(self, interaction: discord.Interaction):
-        if not await handleCommandAccess(interaction, interaction.user.id, "gimmicks"):
-            return
-        if not is_opted_in(interaction.user.id):
-            await interaction.response.send_message(content="You haven't opted into Gimmicks yet — run `/etanbot-gimmicks-optin` to start sending and receiving them.", ephemeral=True)
+        if is_blocked(target.id, ctx.author.id):
+            await hybridReply(ctx, content="You can't send a gimmick to that user.", ephemeral=True)
             return
 
-        inbox = get_inbox(interaction.user.id)
+        view = GimmickTypeView(ctx.author.id, target)
+        await hybridReply(ctx, content=f"What kind of gimmick do you want to send to {formatUsername(target)}?\nIf it's a drawing gimmick, [go here](<https://etanbot.etangaming.xyz/drawing.html>) to draw and get a code!", view=view, ephemeral=True)
+
+    @commands.hybrid_command(name="etanbot-gimmicks", description="View gimmicks (drawings/messages) other people have sent you.", aliases=["gimmicks"])
+    async def gimmicks(self, ctx: commands.Context):
+        if not await handleCommandAccess(ctx, ctx.author.id, "gimmicks"):
+            return
+        if not is_opted_in(ctx.author.id):
+            await hybridReply(ctx, content="You haven't opted into Gimmicks yet — run `/etanbot-gimmicks-optin` to start sending and receiving them.", ephemeral=True)
+            return
+
+        inbox = get_inbox(ctx.author.id)
         if not inbox:
-            await interaction.response.send_message(content="Inbox zero!", ephemeral=True)
+            await hybridReply(ctx, content="Inbox zero!", ephemeral=True)
             return
 
-        view = GimmickViewerView(interaction.user.id)
-        content, file = await render_current_gimmick(interaction.client, interaction.user.id, 0)
+        view = GimmickViewerView(ctx.author.id)
+        content, file = await render_current_gimmick(ctx.bot, ctx.author.id, 0)
         if file is not None:
-            await interaction.response.send_message(content=content, file=file, view=view, ephemeral=True)
+            await hybridReply(ctx, content=content, file=file, view=view, ephemeral=True)
         else:
-            await interaction.response.send_message(content=content, view=view, ephemeral=True)
+            await hybridReply(ctx, content=content, view=view, ephemeral=True)
 
-    @app_commands.command(name="etanbot-gimmicks-post", description="Publicly post one of your received gimmicks in this channel.")
+    @commands.hybrid_command(name="etanbot-gimmicks-post", description="Publicly post one of your received gimmicks in this channel.", aliases=["gimmickspost"])
     @app_commands.describe(
         index="Which gimmick to post (matches the number shown in /etanbot-gimmicks, defaults to your oldest one).",
         reveal_author="Whether to reveal the sender's user (does not override sender's anonymity setting).",
     )
-    async def gimmicks_post(self, interaction: discord.Interaction, index: app_commands.Range[int, 1, None] = 1, reveal_author: bool = False):
-        if not await handleCommandAccess(interaction, interaction.user.id, "gimmicks-post"):
+    async def gimmicks_post(self, ctx: commands.Context, index: commands.Range[int, 1, None] = 1, reveal_author: bool = False):
+        if not await handleCommandAccess(ctx, ctx.author.id, "gimmicks-post"):
             return
-        if not is_opted_in(interaction.user.id):
-            await interaction.response.send_message(content="You haven't opted into Gimmicks yet — run `/etanbot-gimmicks-optin` to start sending and receiving them.", ephemeral=True)
+        if not is_opted_in(ctx.author.id):
+            await hybridReply(ctx, content="You haven't opted into Gimmicks yet — run `/etanbot-gimmicks-optin` to start sending and receiving them.", ephemeral=True)
             return
 
-        inbox = get_inbox(interaction.user.id)
+        inbox = get_inbox(ctx.author.id)
         if not inbox:
-            await interaction.response.send_message(content="You don't have any gimmicks to post.", ephemeral=True)
+            await hybridReply(ctx, content="You don't have any gimmicks to post.", ephemeral=True)
             return
         if index > len(inbox):
-            await interaction.response.send_message(content=f"You only have {len(inbox)} gimmick(s). Check the number shown in `/etanbot-gimmicks`.", ephemeral=True)
+            await hybridReply(ctx, content=f"You only have {len(inbox)} gimmick(s). Check the number shown in `/etanbot-gimmicks`.", ephemeral=True)
             return
 
         item = inbox[index - 1]
-        setCooldown(interaction.user.id, "gimmicks-post", 5)
+        setCooldown(ctx.author.id, "gimmicks-post", 5)
         effective_reveal = reveal_author and not item["anonymous"]
-        content, file = await render_gimmick(interaction.client, item, reveal_sender=effective_reveal)
-        view = PostedGimmickView(interaction, interaction.user.id, item)
+        content, file = await render_gimmick(ctx.bot, item, reveal_sender=effective_reveal)
+        view = PostedGimmickView(ctx, ctx.author.id, item)
         if file is not None:
-            await interaction.response.send_message(content=content, file=file, view=view)
+            sent_message = await ctx.send(content=content, file=file, view=view)
         else:
-            await interaction.response.send_message(content=content, view=view)
+            sent_message = await ctx.send(content=content, view=view)
+        view.bind_message(sent_message)
 
-    @app_commands.command(name="etanbot-gimmicks-optin", description="Opt into Gimmicks so you can send/receive drawings and messages.")
-    async def gimmicks_optin(self, interaction: discord.Interaction):
-        if not await handleCommandAccess(interaction, interaction.user.id, "gimmicks-optin"):
+    @commands.hybrid_command(name="etanbot-gimmicks-optin", description="Opt into Gimmicks so you can send/receive drawings and messages.", aliases=["gimmicksoptin"])
+    async def gimmicks_optin(self, ctx: commands.Context):
+        if not await handleCommandAccess(ctx, ctx.author.id, "gimmicks-optin"):
             return
-        if opt_in(interaction.user.id):
-            await interaction.response.send_message(content="You're opted into Gimmicks! Others can now send you drawings and messages with `/etanbot-gimmicks-send`, and you can send to other opted-in users too. Opt out at any time with `/etanbot-gimmicks-optout`.\nPsst - Want to get DMs on new gimmicks? Check out your `/etanbot-settings`!", ephemeral=True)
+        if opt_in(ctx.author.id):
+            await hybridReply(ctx, content="You're opted into Gimmicks! Others can now send you drawings and messages with `/etanbot-gimmicks-send`, and you can send to other opted-in users too. Opt out at any time with `/etanbot-gimmicks-optout`.\nPsst - Want to get DMs on new gimmicks? Check out your `/etanbot-settings`!", ephemeral=True)
         else:
-            await interaction.response.send_message(content="You're already opted into Gimmicks.", ephemeral=True)
+            await hybridReply(ctx, content="You're already opted into Gimmicks.", ephemeral=True)
 
-    @app_commands.command(name="etanbot-gimmicks-optout", description="Opt out of Gimmicks. Deletes all gimmicks currently in your inbox!")
-    async def gimmicks_optout(self, interaction: discord.Interaction):
-        if not await handleCommandAccess(interaction, interaction.user.id, "gimmicks-optout"):
+    @commands.hybrid_command(name="etanbot-gimmicks-optout", description="Opt out of Gimmicks. Deletes all gimmicks currently in your inbox!", aliases=["gimmicksoptout"])
+    async def gimmicks_optout(self, ctx: commands.Context):
+        if not await handleCommandAccess(ctx, ctx.author.id, "gimmicks-optout"):
             return
-        if not is_opted_in(interaction.user.id):
-            await interaction.response.send_message(content="You're not opted into Gimmicks.", ephemeral=True)
+        if not is_opted_in(ctx.author.id):
+            await hybridReply(ctx, content="You're not opted into Gimmicks.", ephemeral=True)
             return
 
-        pending_count = len(get_inbox(interaction.user.id))
-        view = ConfirmView(interaction.user.id)
-        await interaction.response.send_message(
+        pending_count = len(get_inbox(ctx.author.id))
+        view = ConfirmView(ctx.author.id)
+        handle = HybridHandle(ctx)
+        await handle.edit(
             content=(
                 f"Are you sure you want to opt out of Gimmicks? **This will permanently delete all {pending_count} gimmick(s) currently in your inbox** "
                 "(drawings/messages sent to you), and you won't be able to send or receive gimmicks until you opt back in with `/etanbot-gimmicks-optin`. This cannot be undone."
@@ -707,52 +714,57 @@ class gimmicksCog(commands.Cog):
         await view.wait()
 
         if view.value is not True:
-            await interaction.edit_original_response(content="Cancelled." if view.value is False else "Confirmation timed out, cancelled.", view=None)
+            await handle.edit(content="Cancelled." if view.value is False else "Confirmation timed out, cancelled.", view=None)
             return
 
-        if opt_out(interaction.user.id):
-            await interaction.edit_original_response(content="You've been opted out of Gimmicks. All your pending gimmicks have been deleted.", view=None)
+        if opt_out(ctx.author.id):
+            await handle.edit(content="You've been opted out of Gimmicks. All your pending gimmicks have been deleted.", view=None)
         else:
-            await interaction.edit_original_response(content="You weren't opted in to begin with.", view=None)
+            await handle.edit(content="You weren't opted in to begin with.", view=None)
 
-    @app_commands.command(name="etanbot-gimmicks-block", description="Block a user from sending you gimmicks.")
+    @commands.hybrid_command(name="etanbot-gimmicks-block", description="Block a user from sending you gimmicks.", aliases=["gimmicksblock"])
     @app_commands.describe(target="The user to block.")
-    async def gimmicks_block(self, interaction: discord.Interaction, target: discord.User):
-        if not await handleCommandAccess(interaction, interaction.user.id, "gimmicks-block"):
+    async def gimmicks_block(self, ctx: commands.Context, target: discord.User):
+        if not await handleCommandAccess(ctx, ctx.author.id, "gimmicks-block"):
             return
-        if target.id == interaction.user.id:
-            await interaction.response.send_message(content="You can't block yourself.", ephemeral=True)
+        if target.id == ctx.author.id:
+            await hybridReply(ctx, content="You can't block yourself.", ephemeral=True)
             return
-        add_block(interaction.user.id, target.id)
-        await interaction.response.send_message(content=f"Blocked {formatUsername(target)}. They won't be able to send you any more gimmicks.", ephemeral=True)
+        add_block(ctx.author.id, target.id)
+        await hybridReply(ctx, content=f"Blocked {formatUsername(target)}. They won't be able to send you any more gimmicks.", ephemeral=True)
 
-    @app_commands.command(name="etanbot-gimmicks-unblock", description="Unblock a user you previously blocked from sending you gimmicks.")
+    @commands.hybrid_command(name="etanbot-gimmicks-unblock", description="Unblock a user you previously blocked from sending you gimmicks.", aliases=["gimmicksunblock"])
     @app_commands.describe(target="The user to unblock.")
-    async def gimmicks_unblock(self, interaction: discord.Interaction, target: discord.User):
-        if not await handleCommandAccess(interaction, interaction.user.id, "gimmicks-unblock"):
+    async def gimmicks_unblock(self, ctx: commands.Context, target: discord.User):
+        if not await handleCommandAccess(ctx, ctx.author.id, "gimmicks-unblock"):
             return
-        if remove_block(interaction.user.id, target.id):
-            await interaction.response.send_message(content=f"Unblocked {formatUsername(target)}.", ephemeral=True)
+        if remove_block(ctx.author.id, target.id):
+            await hybridReply(ctx, content=f"Unblocked {formatUsername(target)}.", ephemeral=True)
         else:
-            await interaction.response.send_message(content=f"{formatUsername(target)} isn't blocked.", ephemeral=True)
+            await hybridReply(ctx, content=f"{formatUsername(target)} isn't blocked.", ephemeral=True)
 
-    @app_commands.command(name="etanbot-gimmick-drawing-render", description="Render a drawing gimmick code into an image.")
+    @commands.hybrid_command(name="etanbot-gimmick-drawing-render", description="Render a drawing gimmick code into an image.", aliases=["drawrender"])
     @app_commands.describe(viewprivate="Whether to send the rendered image privately (ephemeral) or in the channel.")
-    async def gimmick_drawing(self, interaction: discord.Interaction, viewprivate: bool = True):
-        if not await handleCommandAccess(interaction, interaction.user.id, "gimmick-drawing"):
+    async def gimmick_drawing(self, ctx: commands.Context, viewprivate: bool = True):
+        if not await handleCommandAccess(ctx, ctx.author.id, "gimmick-drawing"):
             return
-        await interaction.response.send_modal(RenderDrawingModal(viewprivate))
+        if ctx.interaction is None:
+            await ctx.reply("This command needs to be used as a slash command (`/etanbot-gimmick-drawing-render`) because it opens a form.", mention_author=False)
+            return
+        await ctx.interaction.response.send_modal(RenderDrawingModal(viewprivate))
 
-    @app_commands.command(name="z-admin-gimmick-logs", description="List gimmick log entries with sender/target/dismissed status. (Admin only)")
+    @commands.hybrid_command(name="z-admin-gimmick-logs", description="List gimmick log entries with sender/target/dismissed status. (Admin only)", aliases=["admingimmicklogs"])
     @app_commands.describe(user="Only show entries involving this user (as sender or recipient).")
-    async def gimmick_logs(self, interaction: discord.Interaction, user: discord.User = None):
-        if not await handleCommandAccess(interaction, interaction.user.id):
+    async def gimmick_logs(self, ctx: commands.Context, user: discord.User = None):
+        if not await handleCommandAccess(ctx, ctx.author.id):
             return
-        if interaction.user.id != int(config["poweruserid"]):
-            await interaction.response.send_message(content="You don't have permission to use this command.", ephemeral=True)
+        if not await requireDMOnly(ctx):
+            return
+        if ctx.author.id != int(config["poweruserid"]):
+            await hybridReply(ctx, content="You don't have permission to use this command.", ephemeral=True)
             return
 
-        await interaction.response.defer(ephemeral=True)
+        handle = await hybridDefer(ctx, ephemeral=True)
         log = loadData("gimmicklog")
         if log == "" or not isinstance(log, list):
             log = []
@@ -765,32 +777,29 @@ class gimmicksCog(commands.Cog):
             entries.append({**entry, "dismissed": entry["id"] not in pending_ids})
 
         if not entries:
-            await interaction.edit_original_response(content="No matching gimmick log entries.")
+            await handle.edit(content="No matching gimmick log entries.")
             return
 
         payload = json.dumps(entries, indent=2).encode("utf-8")
         file = discord.File(BytesIO(payload), filename="gimmicklogs.json")
         dismissed_count = sum(1 for e in entries if e["dismissed"])
-        await interaction.edit_original_response(
+        await handle.edit(
             content=f"{len(entries)} entr{'y' if len(entries) == 1 else 'ies'} ({dismissed_count} dismissed, {len(entries) - dismissed_count} still pending).",
             attachments=[file],
         )
 
-    @app_commands.command(name="z-admin-gimmick-logs-delete", description="Delete gimmick log entries to reduce stored data. (Admin only)")
+    @commands.hybrid_command(name="z-admin-gimmick-logs-delete", description="Delete gimmick log entries to reduce stored data. (Admin only)", aliases=["admingimmicklogsdelete"])
     @app_commands.describe(scope="Which entries to delete.", user="Delete entries involving this user. (required if scope is 'A specific user')")
-    @app_commands.choices(scope=[
-        app_commands.Choice(name="Dismissed/read gimmicks only (keeps records for still-pending ones)", value="dismissed"),
-        app_commands.Choice(name="All gimmick logs, including still-pending ones", value="all"),
-        app_commands.Choice(name="A specific user", value="user"),
-    ])
-    async def gimmick_logs_delete(self, interaction: discord.Interaction, scope: app_commands.Choice[str], user: discord.User = None):
-        if not await handleCommandAccess(interaction, interaction.user.id):
+    async def gimmick_logs_delete(self, ctx: commands.Context, scope: typing.Literal["dismissed", "all", "user"], user: discord.User = None):
+        if not await handleCommandAccess(ctx, ctx.author.id):
             return
-        if interaction.user.id != int(config["poweruserid"]):
-            await interaction.response.send_message(content="You don't have permission to use this command.", ephemeral=True)
+        if not await requireDMOnly(ctx):
             return
-        if scope.value == "user" and user is None:
-            await interaction.response.send_message(content="You must specify a user when scope is 'A specific user'.", ephemeral=True)
+        if ctx.author.id != int(config["poweruserid"]):
+            await hybridReply(ctx, content="You don't have permission to use this command.", ephemeral=True)
+            return
+        if scope == "user" and user is None:
+            await hybridReply(ctx, content="You must specify a user when scope is 'A specific user'.", ephemeral=True)
             return
 
         log = loadData("gimmicklog")
@@ -798,9 +807,9 @@ class gimmicksCog(commands.Cog):
             log = []
         pending_ids = get_pending_gimmick_ids()
 
-        if scope.value == "dismissed":
+        if scope == "dismissed":
             to_delete = [e for e in log if e["id"] not in pending_ids]
-        elif scope.value == "all":
+        elif scope == "all":
             to_delete = list(log)
         else:
             to_delete = [e for e in log if user.id in (e["sender_id"], e["target_id"])]
@@ -808,7 +817,7 @@ class gimmicksCog(commands.Cog):
         remaining = [e for e in log if e["id"] not in delete_ids]
 
         if not to_delete:
-            await interaction.response.send_message(content="No matching gimmick log entries to delete.", ephemeral=True)
+            await hybridReply(ctx, content="No matching gimmick log entries to delete.", ephemeral=True)
             return
 
         still_pending = sum(1 for e in to_delete if e["id"] in pending_ids)
@@ -816,8 +825,9 @@ class gimmicksCog(commands.Cog):
         if still_pending:
             warning = f"\n**Warning:** {still_pending} of these are for gimmicks that haven't been dismissed by their recipient yet. Deleting their log entry removes the ability to trace who sent them if reported later. (you probably shouldn't do this, unless in a test instance)"
 
-        view = ConfirmView(interaction.user.id)
-        await interaction.response.send_message(
+        view = ConfirmView(ctx.author.id)
+        handle = HybridHandle(ctx)
+        await handle.edit(
             content=f"This will permanently delete {len(to_delete)} gimmick log entr{'y' if len(to_delete) == 1 else 'ies'}. This cannot be undone.{warning}",
             view=view,
             ephemeral=True,
@@ -825,13 +835,13 @@ class gimmicksCog(commands.Cog):
         await view.wait()
 
         if view.value is not True:
-            await interaction.edit_original_response(content="Cancelled." if view.value is False else "Confirmation timed out, cancelled.", view=None)
+            await handle.edit(content="Cancelled." if view.value is False else "Confirmation timed out, cancelled.", view=None)
             return
 
         if saveData("gimmicklog", remaining):
-            await interaction.edit_original_response(content=f"Deleted {len(to_delete)} gimmick log entr{'y' if len(to_delete) == 1 else 'ies'}.", view=None)
+            await handle.edit(content=f"Deleted {len(to_delete)} gimmick log entr{'y' if len(to_delete) == 1 else 'ies'}.", view=None)
         else:
-            await interaction.edit_original_response(content="An error occurred while deleting log entries.", view=None)
+            await handle.edit(content="An error occurred while deleting log entries.", view=None)
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(gimmicksCog(bot))

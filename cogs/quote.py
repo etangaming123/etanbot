@@ -4,13 +4,18 @@ import traceback
 
 import aiohttp
 import discord
+from discord import app_commands
 from discord.ext import commands
 
 import quoteimage
-from common import website, getDisplay, checkIfBanned, checkIfCooldown, setCooldown, dmUser
+from common import website, getDisplay, checkIfBanned, checkIfCooldown, setCooldown, dmUser, handleCommandAccess, hybridDefer, hybridReply
 
 FONT_PATH = r"C:\Windows\Fonts\arial.ttf"
 MENTION_RE = re.compile(r"<@!?(\d+)>|<@&(\d+)>|<#(\d+)>")
+MESSAGE_LINK_RE = re.compile(
+    r"(?:https?://(?:ptb\.|canary\.)?discord(?:app)?\.com/channels/(?:\d+|@me)/(?P<channel_id>\d+)/(?P<message_id>\d+))"
+    r"|^(?P<bare_id>\d{15,20})$"
+)
 
 def resolveMentions(text, message):
     def repl(m):
@@ -28,32 +33,58 @@ def resolveMentions(text, message):
             return f"#{chan.name}" if chan else "#unknown-channel"
     return MENTION_RE.sub(repl, text)
 
+async def resolveTargetMessage(ctx: commands.Context, message_link: str = None):
+    """Returns (message, error). Slash invocations identify the target via a message link/ID
+    (there's no "this was a reply to X" concept for a slash command); prefix invocations
+    (e>quote) reuse the invoking message's own reply reference, same as the old mention-trigger did."""
+    if message_link:
+        m = MESSAGE_LINK_RE.match(message_link.strip())
+        if not m:
+            return None, "That doesn't look like a valid message link or ID."
+        if m.group("bare_id"):
+            channel, message_id = ctx.channel, int(m.group("bare_id"))
+        else:
+            channel_id = int(m.group("channel_id"))
+            channel = (ctx.guild.get_channel(channel_id) if ctx.guild else None) or ctx.channel
+            message_id = int(m.group("message_id"))
+        try:
+            return await channel.fetch_message(message_id), None
+        except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+            return None, "Couldn't find that message (bad link, or I can't see that channel)."
+
+    if ctx.message.reference is None:
+        if ctx.interaction is not None:
+            return None, "Pass a message link to quote (right-click a message > Copy Message Link) — reply-based quoting only works with `e>quote`."
+        return None, "Reply to the message you want to quote!"
+    try:
+        return await ctx.channel.fetch_message(ctx.message.reference.message_id), None
+    except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+        return None, "Couldn't find the message you replied to!"
+
 class quoteCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @commands.Cog.listener("on_message")
-    async def on_quote_mention(self, message: discord.Message):
-        if message.author.bot or not message.guild or self.bot.user not in message.mentions:
+    @commands.hybrid_command(name="etanbot-quote", description="Quote a message as an image. Reply to a message with e>quote, or (slash) pass a message link.", aliases=["quote"])
+    @app_commands.describe(message="Link to the message to quote (not needed with e>quote as a reply).")
+    async def quote(self, ctx: commands.Context, message: str = None):
+        if not ctx.guild:
+            await hybridReply(ctx, content="This only works in a server.")
             return
-        if not message.reference:
-            return  # bare mention, nothing to quote
+        if not await handleCommandAccess(ctx, ctx.author.id, "quote"):
+            return
 
-        if checkIfBanned(message.author.id):
+        original_message, error = await resolveTargetMessage(ctx, message)
+        if error:
+            await hybridReply(ctx, content=error)
             return
-        if checkIfCooldown(message.author.id, "quote") != -1:
-            return
-        setCooldown(message.author.id, "quote", 15)
 
-        try:
-            original_message = await message.channel.fetch_message(message.reference.message_id)
-        except (discord.NotFound, discord.Forbidden, discord.HTTPException):
-            await message.reply("Couldn't find the message you replied to!", mention_author=False)
-            return
+        setCooldown(ctx.author.id, "quote", 15)
+        handle = await hybridDefer(ctx)
 
         author = original_message.author
         if not isinstance(author, discord.Member):
-            author = message.guild.get_member(author.id) or author
+            author = ctx.guild.get_member(author.id) or author
 
         try:
             async with aiohttp.ClientSession() as session:
@@ -78,19 +109,19 @@ class quoteCog(commands.Cog):
                 watermark_text=f"etanbot // coded by etangaming123 // {website}",
             )
 
-            await message.reply(file=discord.File(io.BytesIO(png_bytes), filename="quote.png"), mention_author=False)
+            await handle.edit(content=None, attachments=[discord.File(io.BytesIO(png_bytes), filename="quote.png")])
         except discord.Forbidden:
             await dmUser(
                 self.bot,
-                message.author.id,
-                f"I don't have permission to send images in {message.channel.mention} (in **{message.guild.name}**), so I couldn't send your quote there. Ask a server admin to grant me the **Attach Files** and **Send Messages** permission in that channel, or in the server settings.",
+                ctx.author.id,
+                f"I don't have permission to send images in {ctx.channel.mention} (in **{ctx.guild.name}**), so I couldn't send your quote there. Ask a server admin to grant me the **Attach Files** and **Send Messages** permission in that channel, or in the server settings.",
             )
         except Exception as e:
             traceback.print_exc()
             try:
-                await message.reply(f"Something went wrong creating the quote image: {e}", mention_author=False)
+                await handle.edit(content=f"Something went wrong creating the quote image: {e}")
             except discord.Forbidden:
-                await dmUser(self.bot, message.author.id, "Something went wrong creating your quote image, and I also don't have permission to send messages in that channel. Ask a server admin to grant me the **Attach Files** and **Send Messages** permission in that channel, or in the server settings.")
+                await dmUser(self.bot, ctx.author.id, "Something went wrong creating your quote image, and I also don't have permission to send messages in that channel. Ask a server admin to grant me the **Attach Files** and **Send Messages** permission in that channel, or in the server settings.")
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(quoteCog(bot))

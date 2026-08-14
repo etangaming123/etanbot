@@ -6,7 +6,7 @@ import re
 
 from PIL import Image, ImageDraw
 
-from common import handleCommandAccess, setCooldown
+from common import handleCommandAccess, setCooldown, hybridDefer
 
 def clamp(value, minimum=0, maximum=255):
     return max(minimum, min(maximum, value))
@@ -60,13 +60,13 @@ class ColorCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @app_commands.command(name="etanbot-color-convert", description="Convert a color from hex, rgb, etc. to other formats!")
+    @commands.hybrid_command(name="etanbot-color-convert", description="Convert a color from hex, rgb, etc. to other formats!", aliases=["color"])
     @app_commands.describe(color="The color to convert (hex, rgb, hsl, etc.). Should be #ff0000, rgb(255, 0, 0), hsl(0, 100%, 50%)...")
-    async def colorConvert(self, interaction: discord.Interaction, color: str):
-        if not await handleCommandAccess(interaction, interaction.user.id):
+    async def colorConvert(self, ctx: commands.Context, color: str):
+        if not await handleCommandAccess(ctx, ctx.author.id):
             return
-        await interaction.response.defer()
-        setCooldown(interaction.user.id, "colorConvert", 5)
+        handle = await hybridDefer(ctx)
+        setCooldown(ctx.author.id, "colorConvert", 5)
         try:
             color_value = color.strip().lower()
             hex_match = re.fullmatch(r"#?([0-9a-f]{6}|[0-9a-f]{3})", color_value)
@@ -106,12 +106,12 @@ class ColorCog(commands.Cog):
             image_bytes.seek(0)
             preview_file = discord.File(image_bytes, filename="color_preview.png")
 
-            await interaction.edit_original_response(
+            await handle.edit(
                 content=f"Color conversion for `{color}`:\n- Hex: `{hex_color}`\n- RGB: `{rgb_color}`\n- HSL: `{hsl_color}`",
                 attachments=[preview_file],
             )
         except Exception as e:
-            await interaction.edit_original_response(content=f"Error converting color (did you input a valid color?) {e}")
+            await handle.edit(content=f"Error converting color (did you input a valid color?) {e}")
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(ColorCog(bot))

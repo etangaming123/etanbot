@@ -4,7 +4,7 @@ from discord import app_commands
 from datetime import datetime, time as datetime_time, timedelta, timezone
 import re
 
-from common import handleCommandAccess
+from common import handleCommandAccess, hybridDefer
 
 class timezonesCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -82,31 +82,31 @@ class timezonesCog(commands.Cog):
 
         raise ValueError("Use times like 11:39pm, 11:39 pm, or 23:39.")
 
-    @app_commands.command(name="etanbot-time", description="Get the current time in a specific UTC offset timezone.")
+    @commands.hybrid_command(name="etanbot-time", description="Get the current time in a specific UTC offset timezone.", aliases=["time"])
     @app_commands.describe(timezone="The timezone offset to use (e.g UTC+11, UTC-5, +11, or -05:30)")
-    async def get_time(self, interaction: discord.Interaction, timezone: str):
-        if not await handleCommandAccess(interaction, interaction.user.id, "timezones"):
+    async def get_time(self, ctx: commands.Context, timezone: str):
+        if not await handleCommandAccess(ctx, ctx.author.id, "timezones"):
             return
-        await interaction.response.defer()
+        handle = await hybridDefer(ctx)
         try:
             timezone_info, timezone_label = self._parse_timezone(timezone)
             current_time = datetime.now(timezone_info)
-            await interaction.edit_original_response(
+            await handle.edit(
                 content=f"The current time in **{timezone_label}** is `{current_time.strftime('%Y-%m-%d %I:%M:%S %p')}`."
             )
         except Exception as e:
-            await interaction.edit_original_response(content=f"An error occurred while fetching the time for {timezone}: {str(e)}")
+            await handle.edit(content=f"An error occurred while fetching the time for {timezone}: {str(e)}")
 
-    @app_commands.command(name="etanbot-time-convert", description="Convert a time from one UTC offset timezone to another.")
+    @commands.hybrid_command(name="etanbot-time-convert", description="Convert a time from one UTC offset timezone to another.", aliases=["timeconvert"])
     @app_commands.describe(
         time_value="The time to convert (e.g 11:39pm or 23:39)",
         source_timezone="The timezone the time is in (e.g UTC-5)",
         target_timezone="The timezone to convert the time to (e.g UTC+11)",
     )
-    async def convert_time(self, interaction: discord.Interaction, time_value: str, source_timezone: str, target_timezone: str):
-        if not await handleCommandAccess(interaction, interaction.user.id, "timezones"):
+    async def convert_time(self, ctx: commands.Context, time_value: str, source_timezone: str, target_timezone: str):
+        if not await handleCommandAccess(ctx, ctx.author.id, "timezones"):
             return
-        await interaction.response.defer()
+        handle = await hybridDefer(ctx)
         try:
             source_tz, source_label = self._parse_timezone(source_timezone)
             target_tz, target_label = self._parse_timezone(target_timezone)
@@ -124,13 +124,13 @@ class timezonesCog(commands.Cog):
             )
             target_datetime = source_datetime.astimezone(target_tz)
 
-            await interaction.edit_original_response(
+            await handle.edit(
                 content=(
                     f"**{time_value}** in **{source_label}** is `{target_datetime.strftime('%Y-%m-%d %I:%M:%S %p')}` in **{target_label}**.\n-# If today's date is in **{source_label}**."
                 )
             )
         except Exception as e:
-            await interaction.edit_original_response(content=f"An error occurred while converting {time_value}: {str(e)}")
+            await handle.edit(content=f"An error occurred while converting {time_value}: {str(e)}")
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(timezonesCog(bot))

@@ -6,6 +6,8 @@ import pickle
 import discord
 import time
 
+from discord.ext import commands
+
 from crypto_utils import encrypt_value, decrypt_value, resolve_and_upgrade
 
 # change these if you need
@@ -202,7 +204,7 @@ def checkIfBanned(userid: int):
         return bannedusers[ban_key]
     return False
 
-async def handleCommandAccess(interaction: discord.Interaction, userid: int, commandname: str = None):
+async def handleCommandAccess(ctx: commands.Context, userid: int, commandname: str = None):
     banned = checkIfBanned(userid)
     if banned:
         ban_length = banned.get("length")
@@ -219,13 +221,13 @@ async def handleCommandAccess(interaction: discord.Interaction, userid: int, com
 
         else:
             ban_until = "the bot gets shut down, apparently."
-        await interaction.response.send_message(content=f"You are banned from using etan bot until {ban_until}.\n\n{reason}", ephemeral=True)
+        await hybridReply(ctx, content=f"You are banned from using etan bot until {ban_until}.\n\n{reason}", ephemeral=True)
         return False
 
     if commandname != None:
         cooldown = checkIfCooldown(userid, commandname)
         if cooldown != -1:
-            await interaction.response.send_message(content=f"Slow down, dude! You can use this command again <t:{cooldown}:R>", ephemeral=True)
+            await hybridReply(ctx, content=f"Slow down, dude! You can use this command again <t:{cooldown}:R>", ephemeral=True)
             return False
 
     return True
@@ -257,13 +259,76 @@ def purgeUserData(userid: int):
 
 BUTTON_AUTO_DISABLE_SECONDS = 15
 
+async def hybridReply(ctx: commands.Context, **kwargs):
+    """One-shot response respecting invocation mode: slash -> normal interaction response
+    (ctx.send already does the right thing there), prefix -> a reply to the invoking message
+    (mention_author=False) so multi-command channels stay legible instead of posting a bare,
+    unreferenced message."""
+    if ctx.interaction is not None:
+        await ctx.send(**kwargs)
+    else:
+        kwargs.pop("ephemeral", None)
+        await ctx.reply(mention_author=False, **kwargs)
+
+class HybridHandle:
+    """Wraps the one response message for a hybrid command, whether it's a real channel
+    message (prefix) or the interaction's original response (slash). Both discord.Message.edit()
+    and discord.InteractionMessage.edit() accept the same content/embed/embeds/attachments/view
+    kwargs, so .edit() here replaces both interaction.response.send_message(...) (first call)
+    and interaction.edit_original_response(...) (every call after). Prefix mode's first send is
+    a reply to the invoking message, matching hybridReply's behavior."""
+
+    def __init__(self, ctx: commands.Context):
+        self.ctx = ctx
+        self._message = None  # prefix mode only, set after first send
+
+    async def edit(self, **kwargs):
+        interaction = self.ctx.interaction
+        if interaction is not None and not interaction.response.is_done():
+            files = kwargs.pop("attachments", None)
+            if files:
+                kwargs["files"] = files
+            await interaction.response.send_message(**kwargs)
+            return
+        # ephemeral is only a valid kwarg for the initial interaction.response.send_message
+        # above; edit_original_response, Message.edit, and Message.reply (below) all reject it.
+        kwargs.pop("ephemeral", None)
+        if interaction is not None:
+            await interaction.edit_original_response(**kwargs)
+            return
+        files = kwargs.pop("attachments", None)
+        if files:
+            kwargs["files"] = files
+        if self._message is None:
+            self._message = await self.ctx.reply(mention_author=False, **kwargs)
+        else:
+            self._message = await self._message.edit(**kwargs)
+
+async def hybridDefer(ctx: commands.Context, *, ephemeral: bool = False) -> HybridHandle:
+    """Replaces `await interaction.response.defer()` + later `interaction.edit_original_response(...)`.
+    Acks the interaction for slash; no-op for prefix (first handle.edit() sends the real message)."""
+    await ctx.defer(ephemeral=ephemeral)
+    return HybridHandle(ctx)
+
+async def requireDMOnly(ctx: commands.Context) -> bool:
+    """Admin-only (z-admin-*) commands must run in the bot's DMs, not a guild channel - a
+    prefix-invoked admin command would otherwise post a plainly visible message in public."""
+    if ctx.guild is not None:
+        await hybridReply(ctx, content="This command only works in my DMs.", ephemeral=True)
+        return False
+    return True
+
 class AutoDisableView(discord.ui.View):
     """Base view that disables its buttons BUTTON_AUTO_DISABLE_SECONDS after creation, regardless of the view's own (possibly longer) timeout."""
 
-    def __init__(self, interaction: discord.Interaction, *, timeout: float = 180):
+    def __init__(self, ctx: commands.Context, *, timeout: float = 180):
         super().__init__(timeout=timeout)
-        self._owning_interaction = interaction
+        self._ctx = ctx
+        self._message = None  # set via bind_message() after sending
         self._auto_disable_task = asyncio.create_task(self._auto_disable())
+
+    def bind_message(self, message: discord.Message):
+        self._message = message
 
     async def _auto_disable(self):
         await asyncio.sleep(BUTTON_AUTO_DISABLE_SECONDS)
@@ -273,8 +338,9 @@ class AutoDisableView(discord.ui.View):
             if isinstance(child, discord.ui.Button):
                 child.disabled = True
         try:
-            message = await self._owning_interaction.original_response()
-            await message.edit(view=self)
+            message = self._message or (await self._ctx.interaction.original_response() if self._ctx.interaction else None)
+            if message:
+                await message.edit(view=self)
         except discord.HTTPException:
             pass
 

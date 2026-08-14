@@ -4,7 +4,7 @@ from discord import app_commands
 import re
 import requests
 
-from common import handleCommandAccess, setCooldown
+from common import handleCommandAccess, setCooldown, hybridDefer
 
 def cleanLink(url, toremove):
     if toremove == "*": # if toremove is *, remove all parameters from the link
@@ -50,17 +50,17 @@ class linkCleanerCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @app_commands.command(name="etanbot-clean-link", description="Remove stinky link trackers.")
+    @commands.hybrid_command(name="etanbot-clean-link", description="Remove stinky link trackers.", aliases=["clean"])
     @app_commands.describe(link="The link you want to clean [Valid url with http:// or https://]", additional="Any additional parameters to remove, separated by commas (optional).")
-    async def clean_link(self, interaction: discord.Interaction, link: str, additional: str = None):
-        if not await handleCommandAccess(interaction, interaction.user.id, "cleanlink"):
+    async def clean_link(self, ctx: commands.Context, link: str, additional: str = None):
+        if not await handleCommandAccess(ctx, ctx.author.id, "cleanlink"):
             return
-        await interaction.response.defer()
+        handle = await hybridDefer(ctx)
         if not (link.startswith("http://") or link.startswith("https://")):
-            await interaction.edit_original_response(content="Please enter a valid URL that starts with http:// or https://")
+            await handle.edit(content="Please enter a valid URL that starts with http:// or https://")
             return
         if len(link) > 2000:
-            await interaction.edit_original_response(content="There's no way that's a real link. [Please enter a valid URL under 2000 characters.]")
+            await handle.edit(content="There's no way that's a real link. [Please enter a valid URL under 2000 characters.]")
             return
         toremove = ["igsh", "si", "fbclid", "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "is", "mibextid", "gclid", "dclid", "is_from_webapp", "sender_device", "_t", "_r", "t"] # common link trackers to remove
         if additional:
@@ -69,34 +69,34 @@ class linkCleanerCog(commands.Cog):
 
         if "tiktok.com" in cleaned_link and "vt.tiktok.com" not in cleaned_link: # Fuck you tiktok, we're removing ALL your parameters
             cleaned_link = cleanLink(link, "*")
-        
+
         if "www.tiktok.com/t/" in cleaned_link: # these are the same as vt links but like you can't get the original video url from a simple http request
             code = cleaned_link.split('www.tiktok.com/t/')[1].split('/')[0] # so we grab the share code
             cleaned_link = f"https://vt.tiktok.com/{code}" # and convert it into something we can grab the original video url from
 
         if "https://vt.tiktok" in cleaned_link[:17]: # wow tiktok that's slack
-            await interaction.edit_original_response(content=f"vt.tiktok links redirect you to a URL with trackers! Please wait as we get the real URL and clean that...")
+            await handle.edit(content=f"vt.tiktok links redirect you to a URL with trackers! Please wait as we get the real URL and clean that...")
             try:
-                await interaction.edit_original_response(content=f"{cleanTiktokLink(cleaned_link)}")
+                await handle.edit(content=f"{cleanTiktokLink(cleaned_link)}")
                 return
             except Exception as e:
                 print(f"Error cleaning link: {e}")
-                await interaction.edit_original_response(content="Something went wrong whilst trying to remove trackers. (Check your URL!)")
+                await handle.edit(content="Something went wrong whilst trying to remove trackers. (Check your URL!)")
                 return
-        await interaction.edit_original_response(content=f"Removed stinky link trackers: {cleaned_link}")
+        await handle.edit(content=f"Removed stinky link trackers: {cleaned_link}")
 
-    @app_commands.command(name="etanbot-clean-link-v2", description="Remove even more link trackers. May break some links.")
+    @commands.hybrid_command(name="etanbot-clean-link-v2", description="Remove even more link trackers. May break some links.", aliases=["cleanv2"])
     @app_commands.describe(link="The link you want to clean [Valid url with http:// or https://]", whitelist="Any parameters you want to keep, separated by commas (optional). (overrides default whitelist)")
-    async def clean_link_v2(self, interaction: discord.Interaction, link: str, whitelist: str = None):
-        if not await handleCommandAccess(interaction, interaction.user.id, "cleanlink"):
+    async def clean_link_v2(self, ctx: commands.Context, link: str, whitelist: str = None):
+        if not await handleCommandAccess(ctx, ctx.author.id, "cleanlink"):
             return
-        await interaction.response.defer()
-        setCooldown(interaction.user.id, "cleanlink", 5)
+        handle = await hybridDefer(ctx)
+        setCooldown(ctx.author.id, "cleanlink", 5)
         if not (link.startswith("http://") or link.startswith("https://")):
-            await interaction.edit_original_response(content="Please enter a valid URL that starts with http:// or https://")
+            await handle.edit(content="Please enter a valid URL that starts with http:// or https://")
             return
         if len(link) > 2000:
-            await interaction.edit_original_response(content="There's no way that's a real link. [Please enter a valid URL under 2000 characters.]")
+            await handle.edit(content="There's no way that's a real link. [Please enter a valid URL under 2000 characters.]")
             return
         defaultwhitelist = []
         whitelist_list = whitelist.split(",") if whitelist else defaultwhitelist
@@ -114,16 +114,16 @@ class linkCleanerCog(commands.Cog):
             cleaned_link = f"https://vt.tiktok.com/{code}" # and convert it into something we can grab the original video url from
 
         if "https://vt.tiktok" in cleaned_link[:17]: # wow tiktok that's slack
-            await interaction.edit_original_response(content=f"vt.tiktok links redirect you to a URL with trackers! Please wait as we get the real URL and clean that...")
+            await handle.edit(content=f"vt.tiktok links redirect you to a URL with trackers! Please wait as we get the real URL and clean that...")
             try:
-                await interaction.edit_original_response(content=f"{cleanTiktokLink(cleaned_link)}")
+                await handle.edit(content=f"{cleanTiktokLink(cleaned_link)}")
                 return
             except Exception as e:
                 print(f"Error cleaning link: {e}")
-                await interaction.edit_original_response(content="Something went wrong whilst trying to remove trackers. (Check your URL!)")
+                await handle.edit(content="Something went wrong whilst trying to remove trackers. (Check your URL!)")
                 return
 
-        await interaction.edit_original_response(content=f"Removed a BUNCH of query parameters: {cleaned_link}")
+        await handle.edit(content=f"Removed a BUNCH of query parameters: {cleaned_link}")
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(linkCleanerCog(bot))

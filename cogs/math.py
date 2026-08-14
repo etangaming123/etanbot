@@ -2,8 +2,9 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 import ast
+import typing
 
-from common import setCooldown, handleCommandAccess
+from common import setCooldown, handleCommandAccess, hybridReply, hybridDefer
 
 units = ["inches", "centimeters", "pounds", "kilograms", "meters", "kilometers", "miles", "feet", "yards", "grams", "ounces", "tons", "liters", "milliliters", "gallons", "quarts", "pints", "fahrenheit", "celsius"]
 
@@ -59,24 +60,24 @@ class Math(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
     
-    @app_commands.command(name="etanbot-calculator", description="A simple calculator for basic arithmetic operations.")
+    @commands.hybrid_command(name="etanbot-calculator", description="A simple calculator for basic arithmetic operations.", aliases=["calc"])
     @app_commands.describe(expression="The arithmetic expression to evaluate (e.g., 2 + 2 * 3).")
-    async def calculator(self, interaction: discord.Interaction, expression: str):
-        if not await handleCommandAccess(interaction, interaction.user.id, "calculator"):
+    async def calculator(self, ctx: commands.Context, expression: str):
+        if not await handleCommandAccess(ctx, ctx.author.id, "calculator"):
             return
-        await interaction.response.defer()
-        setCooldown(interaction.user.id, "calculator", 10)
-        
+        handle = await hybridDefer(ctx)
+        setCooldown(ctx.author.id, "calculator", 10)
+
         try:
             parsed = ast.parse(expression, mode="eval")
             result = safe_eval(parsed)
-            await interaction.edit_original_response(content=f"The result of `{expression}` is: `{result}`")
+            await handle.edit(content=f"The result of `{expression}` is: `{result}`")
         except Exception as e:
-            await interaction.edit_original_response(content=f"Error evaluating expression: {e}")
-    
-    @app_commands.command(name="etanbot-math-help", description="Provides help for using the calculator command.")
-    async def math_help(self, interaction: discord.Interaction):
-        if not await handleCommandAccess(interaction, interaction.user.id):
+            await handle.edit(content=f"Error evaluating expression: {e}")
+
+    @commands.hybrid_command(name="etanbot-math-help", description="Provides help for using the calculator command.", aliases=["mathhelp"])
+    async def math_help(self, ctx: commands.Context):
+        if not await handleCommandAccess(ctx, ctx.author.id):
             return
         help_message = (
             "To use the calculator, type an arithmetic expression after the command.\n"
@@ -84,16 +85,15 @@ class Math(commands.Cog):
             "Supported operations include addition (+), subtraction (-), multiplication (*), and division (/).\n"
             "Please ensure your expression is valid and does not contain any unsupported characters."
         )
-        await interaction.response.send_message(help_message, ephemeral=True)
+        await hybridReply(ctx, content=help_message, ephemeral=True)
 
-    @app_commands.command(name="etanbot-convert", description="Convert from a unit to another (e.g inches to cm, pounds to kg, etc.)")
+    @commands.hybrid_command(name="etanbot-convert", description="Convert from a unit to another (e.g inches to cm, pounds to kg, etc.)", aliases=["convert"])
     @app_commands.describe(valuereal="The value to convert.", from_unit="The unit to convert from.", to_unit="The unit to convert to.")
-    @app_commands.choices(from_unit=[app_commands.Choice(name=unit, value=unit) for unit in units], to_unit=[app_commands.Choice(name=unit, value=unit) for unit in units])
-    async def convert(self, interaction: discord.Interaction, valuereal: float, from_unit: discord.app_commands.Choice[str], to_unit: discord.app_commands.Choice[str]):
-        if not await handleCommandAccess(interaction, interaction.user.id, "convert"):
+    async def convert(self, ctx: commands.Context, valuereal: float, from_unit: typing.Literal[tuple(units)], to_unit: typing.Literal[tuple(units)]):
+        if not await handleCommandAccess(ctx, ctx.author.id, "convert"):
             return
-        await interaction.response.defer()
-        setCooldown(interaction.user.id, "convert", 10)
+        handle = await hybridDefer(ctx)
+        setCooldown(ctx.author.id, "convert", 10)
         
         try:
             # Conversion factors to base units
@@ -125,32 +125,32 @@ class Math(commands.Cog):
                 "fahrenheit": lambda f: (f - 32) * 5/9
             }
             
-            from_unit_lower = from_unit.value.lower()
-            to_unit_lower = to_unit.value.lower()
-            
+            from_unit_lower = from_unit.lower()
+            to_unit_lower = to_unit.lower()
+
             # Check if both units are length units
             if from_unit_lower in length_to_meters and to_unit_lower in length_to_meters:
                 converted_value = valuereal * length_to_meters[from_unit_lower] / length_to_meters[to_unit_lower]
-                await interaction.edit_original_response(content=f"{valuereal} {from_unit_lower} is equal to {converted_value:.2f} {to_unit_lower}.")
+                await handle.edit(content=f"{valuereal} {from_unit_lower} is equal to {converted_value:.2f} {to_unit_lower}.")
             # Check if both units are weight units
             elif from_unit_lower in weight_to_kg and to_unit_lower in weight_to_kg:
                 converted_value = valuereal * weight_to_kg[from_unit_lower] / weight_to_kg[to_unit_lower]
-                await interaction.edit_original_response(content=f"{valuereal} {from_unit_lower} is equal to {converted_value:.2f} {to_unit_lower}.")
+                await handle.edit(content=f"{valuereal} {from_unit_lower} is equal to {converted_value:.2f} {to_unit_lower}.")
             # Check if both units are fluid units
             elif from_unit_lower in fluid_to_liters and to_unit_lower in fluid_to_liters:
                 converted_value = valuereal * fluid_to_liters[from_unit_lower] / fluid_to_liters[to_unit_lower]
-                await interaction.edit_original_response(content=f"{valuereal} {from_unit_lower} is equal to {converted_value:.2f} {to_unit_lower}.")
+                await handle.edit(content=f"{valuereal} {from_unit_lower} is equal to {converted_value:.2f} {to_unit_lower}.")
             # Check if both units are temperature units
             elif from_unit_lower in temperature_to_celsius and to_unit_lower in temperature_to_celsius:
                 if from_unit_lower == "fahrenheit" and to_unit_lower == "celsius":
                     converted_value = temperature_to_celsius[from_unit_lower](valuereal)
                 elif from_unit_lower == "celsius" and to_unit_lower == "fahrenheit":
                     converted_value = valuereal * 9/5 + 32
-                await interaction.edit_original_response(content=f"{valuereal} {from_unit_lower} is equal to {converted_value:.2f} {to_unit_lower}.")
+                await handle.edit(content=f"{valuereal} {from_unit_lower} is equal to {converted_value:.2f} {to_unit_lower}.")
             else:
-                await interaction.edit_original_response(content=f"Conversion from {from_unit_lower} to {to_unit_lower} is not supported.")
+                await handle.edit(content=f"Conversion from {from_unit_lower} to {to_unit_lower} is not supported.")
         except Exception as e:
-            await interaction.edit_original_response(content=f"Error during conversion: {e}")
+            await handle.edit(content=f"Error during conversion: {e}")
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Math(bot))
