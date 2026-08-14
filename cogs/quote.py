@@ -9,11 +9,6 @@ from discord.ext import commands
 import quoteimage
 from common import website, getDisplay, checkIfBanned, checkIfCooldown, setCooldown, dmUser
 
-# Bot has no "message content" privileged intent (and we're not adding it), but Discord always
-# sends full content/mentions for messages that @mention the bot regardless of intents, and REST
-# fetches (fetch_message below) always return full content too - intents only gate gateway pushes.
-# Matches hvlbot's own font (its env.json "fontpath" isn't committed, but its fallback chain
-# bottoms out at Windows' Arial - same as here, both bots run on Windows/IIS).
 FONT_PATH = r"C:\Windows\Fonts\arial.ttf"
 MENTION_RE = re.compile(r"<@!?(\d+)>|<@&(\d+)>|<#(\d+)>")
 
