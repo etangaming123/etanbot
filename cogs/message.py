@@ -160,7 +160,7 @@ class messageCog(commands.Cog):
         await interaction.response.defer()
         if customstring != None:
             if "USER" in customstring:
-                await interaction.edit_original_response(content=customstring.replace("USER", user.mention))
+                await interaction.edit_original_response(content=f"{customstring.replace('USER', user.mention)}\n-# A custom string from {interaction.user.mention} was provided.")
                 return
             else:
                 await interaction.edit_original_response(content="You must include the word USER if using a custom string!")
@@ -181,7 +181,7 @@ class messageCog(commands.Cog):
         await interaction.response.defer()
         if customstring != None:
             if "USER" in customstring:
-                await interaction.edit_original_response(content=customstring.replace("USER", user.mention))
+                await interaction.edit_original_response(content=f"{customstring.replace('USER', user.mention)}\n-# A custom string from {interaction.user.mention} was provided.")
                 return
             else:
                 await interaction.edit_original_response(content="You must include the word USER if using a custom string!")
