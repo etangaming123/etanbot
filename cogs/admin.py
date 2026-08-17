@@ -22,7 +22,7 @@ class Admin(commands.Cog):
 
         matches = re.findall(r"(\d+)([dhms])", length.lower())
         if not matches:
-            return None
+            return "???"
 
         total = timedelta()
         for value, unit in matches:
@@ -39,7 +39,7 @@ class Admin(commands.Cog):
         return int((datetime.now(timezone.utc) + total).timestamp())
 
     @app_commands.command(name="z-admin-ban-user", description="Ban a user from using the bot. (Admin only)")
-    @app_commands.describe(user="The user to ban", length="The length of the ban (e.g 2d1h30m2s) (or set to a huge number for 'permanent')", reason="The reason for banning the user (will be shown)")
+    @app_commands.describe(user="The user to ban", length="The length of the ban (e.g 2d1h30m2s), 'permanent' for permanent, or 'ncmd' for next command", reason="The reason for banning the user (will be shown)")
     async def ban_user(self, interaction: discord.Interaction, user: discord.User, length: str, reason: str = None):
         if not await handleCommandAccess(interaction, interaction.user.id):
             return
@@ -55,7 +55,11 @@ class Admin(commands.Cog):
         ban_key = getUserHash(user.id)
         if ban_key in bannedusers:
             del bannedusers[ban_key]
-        bannedusers[getUserHash(user.id)] = {"length": self._parse_duration_to_timestamp(length), "reason": reason}
+        parsedduration = self._parse_duration_to_timestamp(length)
+        if parsedduration == "???":
+            await interaction.edit_original_response(content="Invalid length format. Please use a format like '2d1h30m2s', 'permanent', or 'ncmd'.")
+            return
+        bannedusers[getUserHash(user.id)] = {"length": parsedduration, "reason": reason}
         if saveData("bannedusers", bannedusers):
             getBannedUsers(refresh=True)  # Refresh the banned users list after saving
             await interaction.edit_original_response(content=f"User {formatUsername(user)} has been banned from using etan bot.")
