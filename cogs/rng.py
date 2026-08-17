@@ -171,6 +171,7 @@ class rngCog(commands.Cog):
 
         if len(actuallist) > 15:
             await interaction.edit_original_response(content="Your list must have less than 15 entries!")
+            return
 
         for item in actuallist:
             if len(item) > 50:
