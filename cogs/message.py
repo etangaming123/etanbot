@@ -96,6 +96,7 @@ class messageCog(commands.Cog):
     async def birthday(self, interaction: discord.Interaction, user: discord.User = None):
         if not await handleCommandAccess(interaction, interaction.user.id):
             return
+        setCooldown(interaction.response.user, "message-ping", 10)
         await interaction.response.defer()
         bdaystrings = [
             "Happy birthday, USER!",
@@ -145,6 +146,7 @@ class messageCog(commands.Cog):
     async def headpat(self, interaction: discord.Interaction, user: discord.User, amount: int):
         if not await handleCommandAccess(interaction, interaction.user.id):
             return
+        setCooldown(interaction.response.user, "message-ping", 10)
         await interaction.response.defer()
         amount = abs(amount) # stay positive!
         if interaction.user == user:
@@ -157,6 +159,7 @@ class messageCog(commands.Cog):
     async def etanbotsleep(self, interaction: discord.Interaction, user: discord.User, customstring: str = None):
         if not await handleCommandAccess(interaction, interaction.user.id):
             return
+        setCooldown(interaction.response.user, "message-ping", 10)
         await interaction.response.defer()
         if customstring != None:
             if "USER" in customstring:
@@ -178,6 +181,7 @@ class messageCog(commands.Cog):
     async def etanbotlockin(self, interaction: discord.Interaction, user: discord.User, customstring: str = None):
         if not await handleCommandAccess(interaction, interaction.user.id):
             return
+        setCooldown(interaction.response.user, "message-ping", 10)
         await interaction.response.defer()
         if customstring != None:
             if "USER" in customstring:
