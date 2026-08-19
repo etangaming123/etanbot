@@ -46,7 +46,7 @@ if not os.path.exists("config.json"):
         json.dump({"token": "your token here", "poweruserid": "your user id here (for certain commands)"}, f, indent=4)
     input("Created config.json with default values. Please edit the file with your bot token and user id, then press enter to continue...")
 
-cogs = ["kokolinking", "profiles", "nsotaskmanager", "gifs", "math", "slotmachine", "rngdle", "admin", "color", "linkcleaner", "rng", "message", "misc", "timezones", "datamanagement", "gimmicks", "usersettings", "characterquiz", "quote"]
+cogs = ["kokolinking", "profiles", "nsotaskmanager", "gifs", "math", "slotmachine", "rngdle", "admin", "color", "linkcleaner", "rng", "message", "misc", "timezones", "datamanagement", "gimmicks", "usersettings", "characterquiz", "quote", "sconf"]
 
 print("Loading additional commands...")
 class etanBot(commands.Bot):
@@ -101,14 +101,14 @@ async def on_ready():
     print("Bot is up and running!")
 
 # general
-@bot.tree.command(name="etanbot-ping", description="Ping the bot")
+@bot.tree.command(name="etanbot-ping", description="Ping the bot", extras={"essential": True})
 async def ping(interaction: discord.Interaction):
     if not await handleCommandAccess(interaction, interaction.user.id):
         return
     await interaction.response.defer()
     await interaction.edit_original_response(content=f"Pong! [{round(bot.latency * 1000)}ms]")
 
-@bot.tree.command(name="etanbot-who-am-i", description="Information about the bot!")
+@bot.tree.command(name="etanbot-who-am-i", description="Information about the bot!", extras={"essential": True})
 async def whoami(interaction: discord.Interaction):
     if not await handleCommandAccess(interaction, interaction.user.id, "whoami"):
         return
@@ -127,14 +127,14 @@ async def whoami(interaction: discord.Interaction):
         embed.set_image(url=bot.user.banner.url)
     await interaction.edit_original_response(embed=embed)
 
-@bot.tree.command(name="etanbot-invite", description="Get the invite link for the bot!")
+@bot.tree.command(name="etanbot-invite", description="Get the invite link for the bot!", extras={"essential": True})
 async def invite(interaction: discord.Interaction):
     if not await handleCommandAccess(interaction, interaction.user.id):
         return
     await interaction.response.defer()
     await interaction.edit_original_response(content=f"[Add etan bot to your account]({inviteurl}), or [join the support server for updates and help]({supportserver})")
 
-@bot.tree.command(name="etanbot-status", description="Are we running the latest commit?")
+@bot.tree.command(name="etanbot-status", description="Are we running the latest commit?", extras={"essential": True})
 async def status(interaction: discord.Interaction):
     if not await handleCommandAccess(interaction, interaction.user.id, "status"):
         return

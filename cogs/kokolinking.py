@@ -68,7 +68,7 @@ class KokoLinking(commands.Cog):
         ]
         await interaction.edit_original_response(content="\n".join(things))
 
-    @app_commands.command(name="etanbot-koko-link-card", description="Link your Koko Amusement card to your discord account to check your balance and transactions!")
+    @app_commands.command(name="etanbot-koko-link-card", description="Link your Koko Amusement card to your discord account to check your balance and transactions!", extras={"ephemeral": True})
     @app_commands.describe(token="/BalanceMobile.aspx?i=[this set of characters]")
     async def link_card(self, interaction: discord.Interaction, token: str):
         if not await handleCommandAccess(interaction, interaction.user.id, "link_card"):
@@ -140,7 +140,7 @@ class KokoLinking(commands.Cog):
             thingo += f"\nYou have approximately {totalbalance / creditcost:.2f} credits, if a credit is worth ${creditcost:.2f}." if creditcost > 0 else "\nInvalid credit cost provided, cannot calculate credits."
         await interaction.edit_original_response(content=thingo)
 
-    @app_commands.command(name="etanbot-koko-unlink-card", description="Unlink your koko amusement card from your discord account.")
+    @app_commands.command(name="etanbot-koko-unlink-card", description="Unlink your koko amusement card from your discord account.", extras={"ephemeral": True})
     async def unlink_card(self, interaction: discord.Interaction):
         if not await handleCommandAccess(interaction, interaction.user.id):
             return

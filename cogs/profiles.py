@@ -25,7 +25,7 @@ class Profiles(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @app_commands.command(name="etanbot-profile-create", description="Creates a profile for you, viewable using /etanbot-profile!")
+    @app_commands.command(name="etanbot-profile-create", description="Creates a profile for you, viewable using /etanbot-profile!", extras={"ephemeral": True})
     async def create_profile(self, interaction: discord.Interaction):
         if not await handleCommandAccess(interaction, interaction.user.id):
             return
@@ -87,7 +87,7 @@ class Profiles(commands.Cog):
         profile = profiles[str(interaction.user.id)]
         await interaction.response.send_modal(ProfileEditModal(profile))
 
-    @app_commands.command(name="etanbot-profile-delete", description="Delete your profile! This cannot be undone.")
+    @app_commands.command(name="etanbot-profile-delete", description="Delete your profile! This cannot be undone.", extras={"ephemeral": True})
     async def deleteprofile(self, interaction: discord.Interaction):
         if not await handleCommandAccess(interaction, interaction.user.id):
             return
@@ -102,7 +102,7 @@ class Profiles(commands.Cog):
         else:
             await interaction.edit_original_response(content=f"An error occurred while deleting your profile. Please try again later.")
 
-    @app_commands.command(name="etanbot-profile-color", description="Change the color of your profile embed! (hex code, no #, default is green)")
+    @app_commands.command(name="etanbot-profile-color", description="Change the color of your profile embed! (hex code, no #, default is green)", extras={"ephemeral": True})
     @app_commands.describe(color="The hex code of the color you want to set for your profile embed (no #, default is green)")
     async def changeprofilecolor(self, interaction: discord.Interaction, color: str):
         if not await handleCommandAccess(interaction, interaction.user.id, "changeprofilecolor"):
@@ -124,7 +124,7 @@ class Profiles(commands.Cog):
         else:
             await interaction.edit_original_response(content=f"An error occurred while updating your profile color. Please try again later.")
 
-    @app_commands.command(name="etanbot-profile-link-add", description="Add a link to your profile! (tiktok, instagram, twitter, more later!)")
+    @app_commands.command(name="etanbot-profile-link-add", description="Add a link to your profile! (tiktok, instagram, twitter, more later!)", extras={"ephemeral": True})
     @app_commands.describe(platform="Only shows supported platforms for now!", username="Your username/handle on the platform (no urls or @, just the username)")
     @app_commands.choices(platform=[
         discord.app_commands.Choice(name="TikTok", value="tiktok"),
@@ -150,7 +150,7 @@ class Profiles(commands.Cog):
             return
         await interaction.edit_original_response(content=f"Link added successfully!")
 
-    @app_commands.command(name="etanbot-profile-link-remove", description="Remove a link from your profile.")
+    @app_commands.command(name="etanbot-profile-link-remove", description="Remove a link from your profile.", extras={"ephemeral": True})
     @app_commands.describe(platform="The platform of the link you want to remove.")
     @app_commands.choices(platform=[
         discord.app_commands.Choice(name="TikTok", value="tiktok"),

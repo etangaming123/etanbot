@@ -52,7 +52,7 @@ class datamanagement(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @app_commands.command(name="etanbot-list-data", description="Exports everything that etan bot has stored on your user as a .json file!")
+    @app_commands.command(name="etanbot-list-data", description="Exports everything that etan bot has stored on your user as a .json file!", extras={"ephemeral": True})
     async def listData(self, interaction: discord.Interaction):
         if not await handleCommandAccess(interaction, interaction.user.id, "listdata"):
             return
@@ -88,7 +88,7 @@ class datamanagement(commands.Cog):
         file = discord.File(io.BytesIO(payload), filename=f"etanbot-data-{interaction.user.id}.json")
         await interaction.edit_original_response(content="Here's everything etan bot has stored on you. You can import the importable sections of this into a new instance of etan bot.\n-# Gimmicks are included for reference and transparency only and can't be re-imported.", attachments=[file])
 
-    @app_commands.command(name="etanbot-import-data", description="Import your data from a previously exported .json file.")
+    @app_commands.command(name="etanbot-import-data", description="Import your data from a previously exported .json file.", extras={"ephemeral": True})
     @app_commands.describe(file="The .json file exported using /etanbot-list-data.")
     async def importData(self, interaction: discord.Interaction, file: discord.Attachment):
         if not await handleCommandAccess(interaction, interaction.user.id, "importdata"):
@@ -183,7 +183,7 @@ class datamanagement(commands.Cog):
 
         await interaction.edit_original_response(content="\n".join(resultlines), view=None)
 
-    @app_commands.command(name="etanbot-delete-data", description="Deletes all your data from etan bot.")
+    @app_commands.command(name="etanbot-delete-data", description="Deletes all your data from etan bot.", extras={"ephemeral": True})
     async def deleteData(self, interaction: discord.Interaction):
         if not await handleCommandAccess(interaction, interaction.user.id, "deletedata"):
             return

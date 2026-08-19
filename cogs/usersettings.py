@@ -70,7 +70,7 @@ class usersettingsCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @app_commands.command(name="etanbot-settings", description="Configure your etan bot settings.")
+    @app_commands.command(name="etanbot-settings", description="Configure your etan bot settings.", extras={"ephemeral": True})
     async def settings(self, interaction: discord.Interaction):
         if not await handleCommandAccess(interaction, interaction.user.id, "settings"):
             return

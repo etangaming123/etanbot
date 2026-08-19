@@ -603,7 +603,7 @@ class gimmicksCog(commands.Cog):
             return
         await interaction.response.send_message(content="etan bot Gimmicks are based off strawpage's gimmicks feature, and allow you to send drawings and messages to other users.\nTo get started, run `/etanbot-gimmicks-optin` to enable sending and receiving gimmicks!\nYou can use `/etanbot-gimmicks-send` to send a gimmick to someone (a drawing or message, as of now), and `/etanbot-gimmicks` to view your received gimmicks!\nGimmicks can also be reported, if they contain offensive content. Or, if you don't like someone's gimmicks, you can block them (works for anonymous gimmicks too!)\nWant a DM when you get a new gimmick? Configure that with `/etanbot-settings`.\n\nThis is an optional feature, and you can always opt out (and delete associated gimmicks data, excluding ones you've sent) with `/etanbot-gimmicks-optout`.", ephemeral=viewprivate)
 
-    @app_commands.command(name="etanbot-gimmicks-send", description="Send a drawing or message gimmick to someone.")
+    @app_commands.command(name="etanbot-gimmicks-send", description="Send a drawing or message gimmick to someone.", extras={"ephemeral": True})
     @app_commands.describe(target="Who to send the gimmick to.")
     async def gimmicks_send(self, interaction: discord.Interaction, target: discord.User):
         if not await handleCommandAccess(interaction, interaction.user.id):
@@ -627,7 +627,7 @@ class gimmicksCog(commands.Cog):
         view = GimmickTypeView(interaction.user.id, target)
         await interaction.response.send_message(content=f"What kind of gimmick do you want to send to {formatUsername(target)}?\nIf it's a drawing gimmick, [go here](<https://etanbot.etangaming.xyz/drawing.html>) to draw and get a code!", view=view, ephemeral=True)
 
-    @app_commands.command(name="etanbot-gimmicks", description="View gimmicks (drawings/messages) other people have sent you.")
+    @app_commands.command(name="etanbot-gimmicks", description="View gimmicks (drawings/messages) other people have sent you.", extras={"ephemeral": True})
     async def gimmicks(self, interaction: discord.Interaction):
         if not await handleCommandAccess(interaction, interaction.user.id, "gimmicks"):
             return
@@ -677,7 +677,7 @@ class gimmicksCog(commands.Cog):
         else:
             await interaction.response.send_message(content=content, view=view)
 
-    @app_commands.command(name="etanbot-gimmicks-optin", description="Opt into Gimmicks so you can send/receive drawings and messages.")
+    @app_commands.command(name="etanbot-gimmicks-optin", description="Opt into Gimmicks so you can send/receive drawings and messages.", extras={"ephemeral": True})
     async def gimmicks_optin(self, interaction: discord.Interaction):
         if not await handleCommandAccess(interaction, interaction.user.id, "gimmicks-optin"):
             return
@@ -686,7 +686,7 @@ class gimmicksCog(commands.Cog):
         else:
             await interaction.response.send_message(content="You're already opted into Gimmicks.", ephemeral=True)
 
-    @app_commands.command(name="etanbot-gimmicks-optout", description="Opt out of Gimmicks. Deletes all gimmicks currently in your inbox!")
+    @app_commands.command(name="etanbot-gimmicks-optout", description="Opt out of Gimmicks. Deletes all gimmicks currently in your inbox!", extras={"ephemeral": True})
     async def gimmicks_optout(self, interaction: discord.Interaction):
         if not await handleCommandAccess(interaction, interaction.user.id, "gimmicks-optout"):
             return
@@ -715,7 +715,7 @@ class gimmicksCog(commands.Cog):
         else:
             await interaction.edit_original_response(content="You weren't opted in to begin with.", view=None)
 
-    @app_commands.command(name="etanbot-gimmicks-block", description="Block a user from sending you gimmicks.")
+    @app_commands.command(name="etanbot-gimmicks-block", description="Block a user from sending you gimmicks.", extras={"ephemeral": True})
     @app_commands.describe(target="The user to block.")
     async def gimmicks_block(self, interaction: discord.Interaction, target: discord.User):
         if not await handleCommandAccess(interaction, interaction.user.id, "gimmicks-block"):
@@ -726,7 +726,7 @@ class gimmicksCog(commands.Cog):
         add_block(interaction.user.id, target.id)
         await interaction.response.send_message(content=f"Blocked {formatUsername(target)}. They won't be able to send you any more gimmicks.", ephemeral=True)
 
-    @app_commands.command(name="etanbot-gimmicks-unblock", description="Unblock a user you previously blocked from sending you gimmicks.")
+    @app_commands.command(name="etanbot-gimmicks-unblock", description="Unblock a user you previously blocked from sending you gimmicks.", extras={"ephemeral": True})
     @app_commands.describe(target="The user to unblock.")
     async def gimmicks_unblock(self, interaction: discord.Interaction, target: discord.User):
         if not await handleCommandAccess(interaction, interaction.user.id, "gimmicks-unblock"):

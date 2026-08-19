@@ -23,7 +23,7 @@ enablecooldowns = True
 
 # no touchy! unless you want more datastores
 userdatastores = ["linkedkokocards", "profiles", "usersettings"]
-otherdatastores = ["bannedusers", "gifs", "gimmickinbox", "gimmick-blocked-users"]
+otherdatastores = ["bannedusers", "gifs", "gimmickinbox", "gimmick-blocked-users", "guildcommandtoggles"]
 datastoresbuttheseonesarelists = ["gimmicklog"]
 
 sensitivestores = ["linkedkokocards"] # datastores whose values should never be shown raw (e.g. in /etanbot-list-data)
@@ -114,6 +114,10 @@ config = loadData("config")
 poweruserid = config["poweruserid"] # to bypass cooldowns if you're cool B)
 report_webhook_url = config.get("report_webhook_url")
 bannedusers = loadData("bannedusers") # load once
+guildcommandtoggles = loadData("guildcommandtoggles") # load once
+
+def isPoweruser(userid: int):
+    return poweruserid != None and userid == int(poweruserid)
 
 def getUserHash(userid: int):
     return hashlib.sha1(str(userid).encode("utf-8")).hexdigest()
@@ -202,6 +206,30 @@ def checkIfBanned(userid: int):
         return bannedusers[ban_key]
     return False
 
+def isCommandDisabled(guild_id: int, commandname: str): # reads the in-memory cache only, never hits disk (called on every command invocation)
+    if not isinstance(guildcommandtoggles, dict): # no data file yet (or it failed to load) - assume nothing is disabled
+        return False
+    return commandname in guildcommandtoggles.get(str(guild_id), [])
+
+def getDisabledCommandsForGuild(guild_id: int):
+    if not isinstance(guildcommandtoggles, dict):
+        return []
+    return list(guildcommandtoggles.get(str(guild_id), []))
+
+def setCommandDisabled(guild_id: int, commandname: str, disabled: bool) -> bool:
+    global guildcommandtoggles
+    if not isinstance(guildcommandtoggles, dict): # data file didn't exist - start fresh, saveData below creates it
+        guildcommandtoggles = {}
+    guild_key = str(guild_id)
+    disabled_list = guildcommandtoggles.setdefault(guild_key, [])
+    if disabled and commandname not in disabled_list:
+        disabled_list.append(commandname)
+    elif not disabled and commandname in disabled_list:
+        disabled_list.remove(commandname)
+    if not disabled_list:
+        guildcommandtoggles.pop(guild_key, None)
+    return saveData("guildcommandtoggles", guildcommandtoggles)
+
 async def handleCommandAccess(interaction: discord.Interaction, userid: int, commandname: str = None):
     banned = checkIfBanned(userid)
     if banned:
@@ -221,6 +249,14 @@ async def handleCommandAccess(interaction: discord.Interaction, userid: int, com
             ban_until = "the bot gets shut down, apparently (permanent)"
         await interaction.response.send_message(content=f"You are banned from using etan bot until {ban_until}.\n\n{reason}", ephemeral=True)
         return False
+
+    if interaction.guild is not None and not isPoweruser(userid):
+        resolved_name = commandname or (interaction.command.qualified_name if interaction.command else None)
+        cmd_extras = interaction.command.extras if interaction.command else {}
+        is_exempt = resolved_name is None or resolved_name.startswith("sconf-") or cmd_extras.get("ephemeral") or cmd_extras.get("essential")
+        if not is_exempt and isCommandDisabled(interaction.guild_id, resolved_name):
+            await interaction.response.send_message(content="This command is disabled in this server.", ephemeral=True)
+            return False
 
     if commandname != None:
         cooldown = checkIfCooldown(userid, commandname)

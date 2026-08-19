@@ -74,7 +74,7 @@ class Math(commands.Cog):
         except Exception as e:
             await interaction.edit_original_response(content=f"Error evaluating expression: {e}")
     
-    @app_commands.command(name="etanbot-math-help", description="Provides help for using the calculator command.")
+    @app_commands.command(name="etanbot-math-help", description="Provides help for using the calculator command.", extras={"ephemeral": True})
     async def math_help(self, interaction: discord.Interaction):
         if not await handleCommandAccess(interaction, interaction.user.id):
             return
