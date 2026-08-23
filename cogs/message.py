@@ -223,6 +223,57 @@ class messageCog(commands.Cog):
 
         await interaction.edit_original_response(content=f"{thing} is turning {somethingelse} into electricity! ⚡Using piezoelectric tiles, every step you take generates a small amount of energy. Millions of steps together can power LED lights and displays in busy places like Shibuya Station. A brilliant way to create a sustainable and smart city -- turning movement into clean, renewable energy 🌱💡")
 
+    @app_commands.command(name="etanbot-tsunderefy", description="Turns a given phrase into a tsundere-style one!")
+    @app_commands.describe(text="The text you wish to tsunderefy. Keep it short! (about a sentence)", showoriginal="Whether to show the original in the bot's response (defaults to false)")
+    async def tsunderefy(self, interaction: discord.Interaction, text: str, showoriginal: bool = False):
+        if not await handleCommandAccess(interaction, interaction.user.id):
+            return
+        await interaction.response.defer()
+
+        prefixes = ["Hmph.", "H-hey.", "W-well.", "Ugh."]
+        suffixes = [
+            "Hmph!", "Baka!", "N-not that I care!", "It's not like I did this for you or anything!",
+            "D-don't get the wrong idea!", "S-stupid!", "...b-baka.", "Whatever!"
+        ]
+        pronoun_stutters = {"i": "I-I", "you": "y-you", "you're": "y-you're", "youre": "y-youre"}
+        repeattimes = 3
+        punctuation = ".,!?;:"
+
+        words = text.split()
+
+        for i, word in enumerate(words):
+            stripped = word.strip(punctuation)
+            replacement = pronoun_stutters.get(stripped.lower())
+            if replacement:
+                words[i] = word.replace(stripped, replacement, 1)
+
+        for _ in range(repeattimes):
+            eligible_words = [
+                word for word in words
+                if (len(word) > 1 and word[0].isalpha() and word[1].isalpha())
+                or (len(word) == 1 and word[0].isalpha())
+            ]
+
+            if not eligible_words:
+                continue
+
+            selectedword = random.choice(eligible_words)
+            selectedrandom = words.index(selectedword)
+            words[selectedrandom] = f"{selectedword[0]}-{selectedword}"
+
+        finalstring = " ".join(words)
+
+        if finalstring and finalstring[-1] not in punctuation:
+            finalstring += "!"
+        elif finalstring.endswith("!"):
+            finalstring += "!"
+
+        if random.random() < 0.4:
+            finalstring = f"{random.choice(prefixes)} {finalstring}"
+
+        finalstring += f" {random.choice(suffixes)}"
+        await interaction.edit_original_response(content=f"{finalstring}\n{'-# Original: ' + text if showoriginal else ''}")
+
     @app_commands.command(name="yumeship", description="Dedicated to Paro")
     async def yumeship(self, yumeship: discord.Interaction):
         if not await handleCommandAccess(yumeship, yumeship.user.id):
