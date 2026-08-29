@@ -451,6 +451,66 @@ def drawStyledRun(img, draw, x, y, text, font, color, style):
         draw.line([(x, ly), (x + rule_w, ly)], fill=fill, width=line_w)
     return consumed_w
 
+SPOTLIGHT_SAMPLE = 96      # avatar is downsampled to this before quantizing
+SPOTLIGHT_PALETTE = 16     # representative colors median-cut reduces it to
+SPOTLIGHT_MIN_CHROMA = 0.10  # below this the avatar is effectively greyscale
+SPOTLIGHT_MIN_VALUE = 180  # lift dark colors so the spotlight still reads on black
+
+def dominantColor(img, fallback=(255, 255, 255)):
+    """The avatar's main color, for the spotlight behind it.
+
+    Averaging the pixels gives mud, and the most *populous* color is usually a
+    flat background (white, black, grey), so the image is median-cut down to a
+    handful of representative colors and those are scored by pixel count
+    weighted by chroma - a small vivid area beats a large drab one. Only the
+    circular crop the card actually shows is sampled.
+
+    Chroma (hi - lo) rather than HSV saturation ((hi - lo) / hi), because
+    saturation is meaningless down near black: pure black with one channel a
+    single step up scores a perfect 1.0 and would win on any dark avatar.
+
+    Near-greyscale avatars score nothing and return the fallback, since a grey
+    spotlight on a black background is no spotlight at all. The winner is
+    scaled up to SPOTLIGHT_MIN_VALUE if it's dark; scaling RGB uniformly moves
+    only the brightness, leaving hue and saturation intact.
+    """
+    try:
+        small = img.convert("RGBA").resize((SPOTLIGHT_SAMPLE, SPOTLIGHT_SAMPLE), Image.LANCZOS)
+        px = small.load()
+        radius = SPOTLIGHT_SAMPLE / 2
+        pixels = []
+        for y in range(SPOTLIGHT_SAMPLE):
+            for x in range(SPOTLIGHT_SAMPLE):
+                if (x - radius + 0.5) ** 2 + (y - radius + 0.5) ** 2 > radius ** 2:
+                    continue  # outside the circular mask, never visible on the card
+                r, g, b, a = px[x, y]
+                if a > 128:
+                    pixels.append((r, g, b))
+        if not pixels:
+            return fallback
+
+        flat = Image.new("RGB", (len(pixels), 1))
+        flat.putdata(pixels)
+        quantized = flat.quantize(colors=SPOTLIGHT_PALETTE, method=Image.MEDIANCUT)
+        palette = quantized.getpalette()
+
+        best, best_score = fallback, 0.0
+        for count, index in quantized.getcolors(SPOTLIGHT_PALETTE) or []:
+            color = tuple(palette[index * 3: index * 3 + 3])
+            chroma = (max(color) - min(color)) / 255
+            score = count * chroma
+            if chroma >= SPOTLIGHT_MIN_CHROMA and score > best_score:
+                best, best_score = color, score
+        if best_score == 0.0:
+            return fallback
+
+        hi = max(best)
+        if hi < SPOTLIGHT_MIN_VALUE:
+            best = tuple(min(255, round(c * SPOTLIGHT_MIN_VALUE / hi)) for c in best)
+        return best
+    except Exception:
+        return fallback  # a spotlight in the wrong color beats no card at all
+
 async def fetchEmojiImage(session, kind, data, size):
     cache_key = (kind, data.get("id") or data.get("char"))
     if cache_key not in _emoji_img_cache:
@@ -485,12 +545,15 @@ async def renderQuoteImage(
     author_username,
     avatar_bytes,
     font_path,
-    role_color=(255, 255, 255),
+    role_color=(255, 255, 255),  # only a fallback now: see dominantColor()
     max_chars=200,
     watermark_text="etanbot // coded by etangaming123",
     emoji_session=None,
 ):
     """Render a quote card, returning (png_bytes, had_spoiler).
+
+    The spotlight behind the avatar is tinted with the avatar's own main color;
+    role_color is the fallback for avatars too close to greyscale to pick one.
 
     had_spoiler says whether any of the text that actually made it onto the
     card was marked ||spoiler||, so the caller can flag the attachment as a
@@ -506,7 +569,8 @@ async def renderQuoteImage(
     # Black background
     img = Image.new('RGB', (W, H), (0, 0, 0))
 
-    # Radial spotlight gradient with user's role color
+    # Radial spotlight gradient, tinted with the avatar's own main color
+    spotlight_color = dominantColor(avatar_img, fallback=role_color)
     y_coords, x_coords = np.mgrid[0:H, 0:W]
     cx, cy = W // 4, H // 2
     max_r = H * 0.78
@@ -515,9 +579,9 @@ async def renderQuoteImage(
     brightness = (brightness * 255).astype(np.uint8)
 
     brightness_f = brightness.astype(np.float32)
-    r = (brightness_f * role_color[0] / 255).astype(np.uint8)
-    g = (brightness_f * role_color[1] / 255).astype(np.uint8)
-    b = (brightness_f * role_color[2] / 255).astype(np.uint8)
+    r = (brightness_f * spotlight_color[0] / 255).astype(np.uint8)
+    g = (brightness_f * spotlight_color[1] / 255).astype(np.uint8)
+    b = (brightness_f * spotlight_color[2] / 255).astype(np.uint8)
     gradient = Image.fromarray(np.stack([r, g, b], axis=2), 'RGB')
     img.paste(gradient, (0, 0), Image.fromarray(brightness))
 

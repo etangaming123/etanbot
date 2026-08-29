@@ -64,6 +64,8 @@ class quoteCog(commands.Cog):
                 async with session.get(author.display_avatar.url) as resp:
                     avatar_bytes = await resp.read()
 
+            # the spotlight is tinted with the avatar's own main color; this is
+            # only the fallback for avatars too close to greyscale to pick one
             role_color = (255, 255, 255)
             available_colors = [role.color.to_rgb() for role in getattr(author, "roles", []) if role.color.value != 0]
             available_colors.reverse()  # reverse so higher roles take precedence

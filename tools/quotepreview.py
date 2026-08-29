@@ -56,10 +56,11 @@ async def main():
     ap.add_argument("--only", action="append", help="render only these samples (repeatable); default is all of them")
     ap.add_argument("--out", default="quotepreview", help="output directory (default: ./quotepreview)")
     ap.add_argument("--font", default=None, help="body font path (default: whatever quoteimage resolves for this OS)")
+    ap.add_argument("--avatar", default=None, help="avatar image path; the spotlight is tinted with its main color")
     ap.add_argument("--name", default="Test User")
     ap.add_argument("--username", default="testuser")
     ap.add_argument("--max-chars", type=int, default=400, help="truncation limit; the bot itself uses 200")
-    ap.add_argument("--color", default="90,140,255", help="role color as R,G,B")
+    ap.add_argument("--color", default="90,140,255", help="role color as R,G,B; only used if the avatar is near-greyscale")
     args = ap.parse_args()
 
     font_path = args.font or quoteimage.resolveFontPath()
@@ -75,8 +76,9 @@ async def main():
         samples = {k: samples[k] for k in args.only}
 
     os.makedirs(args.out, exist_ok=True)
-    avatar_bytes = placeholderAvatar()
+    avatar_bytes = open(args.avatar, "rb").read() if args.avatar else placeholderAvatar()
     print(f"font: {font_path}")
+    print(f"spotlight: {quoteimage.dominantColor(Image.open(io.BytesIO(avatar_bytes)), fallback=role_color)}")
     for name, text in samples.items():
         png_bytes, had_spoiler = await quoteimage.renderQuoteImage(
             content_text=text,
