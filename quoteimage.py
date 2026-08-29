@@ -455,8 +455,9 @@ SPOTLIGHT_SAMPLE = 96      # avatar is downsampled to this before quantizing
 SPOTLIGHT_PALETTE = 16     # representative colors median-cut reduces it to
 SPOTLIGHT_MIN_CHROMA = 0.10  # below this the avatar is effectively greyscale
 SPOTLIGHT_MIN_VALUE = 180  # lift dark colors so the spotlight still reads on black
+SPOTLIGHT_FALLBACK = (255, 255, 255)  # for avatars with no color worth picking
 
-def dominantColor(img, fallback=(255, 255, 255)):
+def dominantColor(img, fallback=SPOTLIGHT_FALLBACK):
     """The avatar's main color, for the spotlight behind it.
 
     Averaging the pixels gives mud, and the most *populous* color is usually a
@@ -469,8 +470,8 @@ def dominantColor(img, fallback=(255, 255, 255)):
     saturation is meaningless down near black: pure black with one channel a
     single step up scores a perfect 1.0 and would win on any dark avatar.
 
-    Near-greyscale avatars score nothing and return the fallback, since a grey
-    spotlight on a black background is no spotlight at all. The winner is
+    Near-greyscale avatars score nothing and return the fallback - plain white,
+    which the gradient's own falloff carries fine. The winner is
     scaled up to SPOTLIGHT_MIN_VALUE if it's dark; scaling RGB uniformly moves
     only the brightness, leaving hue and saturation intact.
     """
@@ -545,15 +546,13 @@ async def renderQuoteImage(
     author_username,
     avatar_bytes,
     font_path,
-    role_color=(255, 255, 255),  # only a fallback now: see dominantColor()
     max_chars=200,
     watermark_text="etanbot // coded by etangaming123",
     emoji_session=None,
 ):
     """Render a quote card, returning (png_bytes, had_spoiler).
 
-    The spotlight behind the avatar is tinted with the avatar's own main color;
-    role_color is the fallback for avatars too close to greyscale to pick one.
+    The spotlight behind the avatar is tinted with the avatar's own main color.
 
     had_spoiler says whether any of the text that actually made it onto the
     card was marked ||spoiler||, so the caller can flag the attachment as a
@@ -570,7 +569,7 @@ async def renderQuoteImage(
     img = Image.new('RGB', (W, H), (0, 0, 0))
 
     # Radial spotlight gradient, tinted with the avatar's own main color
-    spotlight_color = dominantColor(avatar_img, fallback=role_color)
+    spotlight_color = dominantColor(avatar_img)
     y_coords, x_coords = np.mgrid[0:H, 0:W]
     cx, cy = W // 4, H // 2
     max_r = H * 0.78

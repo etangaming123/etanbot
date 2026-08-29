@@ -60,13 +60,11 @@ async def main():
     ap.add_argument("--name", default="Test User")
     ap.add_argument("--username", default="testuser")
     ap.add_argument("--max-chars", type=int, default=400, help="truncation limit; the bot itself uses 200")
-    ap.add_argument("--color", default="90,140,255", help="role color as R,G,B; only used if the avatar is near-greyscale")
     args = ap.parse_args()
 
     font_path = args.font or quoteimage.resolveFontPath()
     if not os.path.exists(font_path):
         print(f"warning: {font_path} does not exist; text will fall back and may look wrong", file=sys.stderr)
-    role_color = tuple(int(c) for c in args.color.split(","))
 
     samples = {"custom": args.text} if args.text else SAMPLES
     if args.only:
@@ -78,7 +76,7 @@ async def main():
     os.makedirs(args.out, exist_ok=True)
     avatar_bytes = open(args.avatar, "rb").read() if args.avatar else placeholderAvatar()
     print(f"font: {font_path}")
-    print(f"spotlight: {quoteimage.dominantColor(Image.open(io.BytesIO(avatar_bytes)), fallback=role_color)}")
+    print(f"spotlight: {quoteimage.dominantColor(Image.open(io.BytesIO(avatar_bytes)))}")
     for name, text in samples.items():
         png_bytes, had_spoiler = await quoteimage.renderQuoteImage(
             content_text=text,
@@ -86,7 +84,6 @@ async def main():
             author_username=args.username,
             avatar_bytes=avatar_bytes,
             font_path=font_path,
-            role_color=role_color,
             max_chars=args.max_chars,
         )
         path = os.path.join(args.out, f"{name}.png")
