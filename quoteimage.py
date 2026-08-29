@@ -11,7 +11,7 @@ import io
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 import emoji as emojilib
-from fontTools.ttLib import TTFont
+from fontTools.ttLib import TTFont, TTLibFileIsCollectionError
 
 CUSTOM_EMOJI_RE = re.compile(r"<(a?):(\w+):(\d+)>")
 
@@ -33,24 +33,73 @@ FALLBACK_FONT_PATHS = [
     "/System/Library/Fonts/Apple Symbols.ttf",  # macOS equivalent: broad symbol/script coverage
     r"C:\Windows\Fonts\msyh.ttc",      # Microsoft YaHei: Chinese
     "/System/Library/Fonts/STHeiti Medium.ttc",  # macOS equivalent: Chinese
+    "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",  # Linux equivalent (WenQuanYi Zen Hei): CJK
     r"C:\Windows\Fonts\malgun.ttf",    # Malgun Gothic: Korean
     "/System/Library/Fonts/AppleSDGothicNeo.ttc",  # macOS equivalent: Korean
     r"C:\Windows\Fonts\meiryo.ttc",    # Meiryo: Japanese
     "/System/Library/Fonts/ヒラギノ角ゴシック W4.ttc",  # macOS equivalent (Hiragino Kaku Gothic): Japanese
     r"C:\Windows\Fonts\arial.ttf",     # Arial: broad Latin/Cyrillic/Greek fallback
     "/System/Library/Fonts/Supplemental/Arial.ttf",  # macOS equivalent: broad Latin/Cyrillic/Greek fallback
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",  # Linux equivalent (metric-compatible with Arial)
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",  # Linux: very broad Latin/Cyrillic/Greek/symbol coverage
+    "/usr/share/fonts/truetype/freefont/FreeSans.ttf",  # Linux: last-ditch, ships with most distros
 ]
+
+# Body font for the quote itself. Same ordering idea as above: the first one
+# actually installed wins, so one code path renders on Windows, macOS and Linux
+# instead of silently collapsing to PIL's tiny bitmap default.
+PRIMARY_FONT_PATHS = [
+    r"C:\Windows\Fonts\arial.ttf",
+    "/System/Library/Fonts/Supplemental/Arial.ttf",
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
+]
+
+# How families name their bold/italic/bold-italic faces relative to the regular
+# one. Tried in order against the regular font's own directory: "arial.ttf" ->
+# "arialbd.ttf", "DejaVuSans.ttf" -> "DejaVuSans-Bold.ttf", "FreeSans.ttf" ->
+# "FreeSansOblique.ttf", and so on.
+FONT_STYLE_SUFFIXES = {
+    (True, False): ["bd", "b", "-Bold", "Bold", " Bold"],
+    (False, True): ["i", "-Italic", "-Oblique", "Italic", "Oblique", " Italic", " Oblique"],
+    (True, True): ["bi", "z", "-BoldItalic", "-BoldOblique", "BoldItalic", "BoldOblique", " Bold Italic", " Bold Oblique"],
+}
+# Families that spell the regular face out ("LiberationSans-Regular.ttf") swap
+# that token instead of appending to it.
+FONT_REGULAR_TOKENS = ["-Regular", " Regular", "Regular"]
+FONT_STYLE_REPLACEMENTS = {
+    (True, False): ["-Bold", " Bold", "Bold"],
+    (False, True): ["-Italic", "-Oblique", " Italic", " Oblique", "Italic", "Oblique"],
+    (True, True): ["-BoldItalic", "-BoldOblique", " Bold Italic", " Bold Oblique", "BoldItalic", "BoldOblique"],
+}
 
 _cmap_cache = {}
 _font_obj_cache = {}
 _emoji_img_cache = {}
+_style_path_cache = {}
+
+def resolveFontPath():
+    """First body font actually installed on this machine.
+
+    Falls back to the Windows path so the failure mode stays the old one
+    (fallback chain, then tofu) rather than a crash on a bare container.
+    """
+    return next((p for p in PRIMARY_FONT_PATHS if os.path.exists(p)), PRIMARY_FONT_PATHS[0])
 
 def fontHasGlyph(path, ch):
     if ch.isspace():
         return os.path.exists(path)  # trust space is in-cmap for any font that actually loads; avoids stranding it on a dead primary_path
     if path not in _cmap_cache:
         try:
-            ttf = TTFont(path, lazy=True)
+            try:
+                ttf = TTFont(path, lazy=True)
+            except TTLibFileIsCollectionError:
+                # .ttc collections need an explicit face index or fontTools refuses
+                # to open them; index 0 is the one ImageFont.truetype loads too.
+                # Every CJK fallback below is a .ttc, so without this they all
+                # report "no glyph" and Chinese/Japanese renders as tofu.
+                ttf = TTFont(path, lazy=True, fontNumber=0)
             cmap = ttf.getBestCmap() or {}
             ttf.close()
             _cmap_cache[path] = cmap
@@ -72,23 +121,67 @@ def getFontObj(path, size):
         try:
             _font_obj_cache[key] = ImageFont.truetype(path, size)
         except Exception:
-            return ImageFont.load_default()  # don't cache the failure; retry next time in case it was transient
+            # don't cache the failure; retry next time in case it was transient.
+            # ask load_default for the size so we get a scalable face with real
+            # metrics - the bare bitmap default has no .size/.getmetrics(), which
+            # the styled-run drawing below relies on.
+            try:
+                return ImageFont.load_default(size)
+            except Exception:
+                return ImageFont.load_default()
     return _font_obj_cache[key]
 
-def buildRuns(word, size, primary_path):
-    # split a word into (text, font) runs so mixed-script words each render with a font that has the glyphs
+def styledFontPath(regular_path, style):
+    """Path to the real bold/italic face beside regular_path, or None.
+
+    Faking bold with an outline stroke and italic with a shear is a last resort;
+    nearly every family ships the real faces next to the regular one under a
+    predictable name, and the real ones look far better.
+    """
+    want = ("bold" in style, "italic" in style)
+    if not any(want):
+        return None
+    key = (regular_path, want)
+    if key not in _style_path_cache:
+        stem, ext = os.path.splitext(regular_path)
+        candidates = [stem + suffix + ext for suffix in FONT_STYLE_SUFFIXES[want]]
+        for token in FONT_REGULAR_TOKENS:
+            if stem.endswith(token):
+                base = stem[: -len(token)]
+                candidates = [base + rep + ext for rep in FONT_STYLE_REPLACEMENTS[want]] + candidates
+                break
+        _style_path_cache[key] = next((c for c in candidates if os.path.exists(c)), None)
+    return _style_path_cache[key]
+
+def fontMetrics(font):
+    # (ascent, descent) below/above the line top. font.size is the nominal em and
+    # is smaller than ascent+descent for most faces, so decorations placed off it
+    # land inside the glyphs instead of around them.
+    try:
+        return font.getmetrics()
+    except Exception:
+        size = getattr(font, "size", 16)
+        return int(size * 0.8), int(size * 0.2)
+
+def buildRuns(word, size, primary_path, style=frozenset()):
+    # split a word into (text, font, style) runs so mixed-script words each render
+    # with a font that has the glyphs. A run that resolved to a real bold/italic
+    # face drops those flags, so drawStyledRun doesn't fake them on top of a face
+    # that already has them.
     runs = []
-    cur_path, cur_text = None, ""
+    cur_key, cur_text = None, ""
     for ch in word:
-        path = choosePathForChar(ch, primary_path)
-        if path == cur_path:
+        base = choosePathForChar(ch, primary_path)
+        styled = styledFontPath(base, style)
+        key = (styled, style - {"bold", "italic"}) if styled and fontHasGlyph(styled, ch) else (base, style)
+        if key == cur_key:
             cur_text += ch
         else:
             if cur_text:
-                runs.append((cur_text, getFontObj(cur_path, size)))
-            cur_path, cur_text = path, ch
+                runs.append((cur_text, getFontObj(cur_key[0], size), cur_key[1]))
+            cur_key, cur_text = key, ch
     if cur_text:
-        runs.append((cur_text, getFontObj(cur_path, size)))
+        runs.append((cur_text, getFontObj(cur_key[0], size), cur_key[1]))
     return runs
 
 def parseDiscordMarkdown(text):
@@ -228,53 +321,82 @@ def tokenizeContent(text):
 
 BOLD_STROKE = 1
 ITALIC_SHEAR = 0.22
+SHEAR_PAD = 2  # slack on the scratch layer for ink straying past the metric box
 CODE_BG = (40, 40, 40)
 CODE_FG = (255, 200, 120)
+SPOILER_BG = (28, 28, 33)
+SPOILER_FG = (145, 145, 155)
+
+def italicShift(font):
+    # Horizontal room the fake italic needs on top of the upright width. Keyed to
+    # the font rather than the text so runWidth and drawStyledRun always agree -
+    # if they disagree, runs overlap and lines overflow the text column.
+    ascent, descent = fontMetrics(font)
+    return int((ascent + descent) * ITALIC_SHEAR)
 
 def runWidth(draw, text, font, style):
     stroke_w = BOLD_STROKE if "bold" in style else 0
-    w = draw.textbbox((0, 0), text, font=font, stroke_width=stroke_w)[2]
+    w = draw.textbbox((0, 0), text, font=font, stroke_width=stroke_w)[2] + stroke_w
     if "italic" in style:
-        w += int(font.size * ITALIC_SHEAR)
+        w += italicShift(font)
     return w
 
 def drawStyledRun(img, draw, x, y, text, font, color, style):
     """Draw one (text, font) run with Discord-style emphasis, return width consumed.
 
-    Bold is faked with a text outline stroke (no bold font file guaranteed to
-    exist), italic by shearing the glyphs on a scratch RGBA layer and
-    pasting the result, since PIL has no native oblique transform.
+    "bold"/"italic" only reach here when the family had no real face for them
+    (buildRuns strips the flags when it found one). Bold is then faked with an
+    outline stroke, italic by shearing the glyphs on a scratch RGBA layer, since
+    PIL has no native oblique transform.
+
+    Underline/strike/backgrounds are placed off the font's real ascent and
+    descent, not font.size: font.size is the nominal em, which is smaller than
+    the glyph box for most faces, so a rule at y + font.size cuts through the
+    descenders instead of clearing them.
     """
+    ascent, descent = fontMetrics(font)
     stroke_w = BOLD_STROKE if "bold" in style else 0
-    fill = CODE_FG if "code" in style else color
+    fill = CODE_FG if "code" in style else (SPOILER_FG if "spoiler" in style else color)
     bbox = draw.textbbox((0, 0), text, font=font, stroke_width=stroke_w)
-    plain_w = bbox[2]
+    plain_w = bbox[2] + stroke_w  # the stroke also bleeds left of x, so draw it shifted in by stroke_w
+    shift = italicShift(font) if "italic" in style else 0
+    consumed_w = plain_w + shift
 
-    if "italic" in style:
-        left, top, right, bottom = bbox
-        left, top = min(left, 0), min(top, 0)
-        tmp_w, tmp_h = right - left, bottom - top
-        shift = int(tmp_h * ITALIC_SHEAR)
+    bg = CODE_BG if "code" in style else (SPOILER_BG if "spoiler" in style else None)
+    if bg is not None:
+        draw.rectangle([x - 4, y - 2, x + consumed_w + 4, y + ascent + descent + 2], fill=bg)
+
+    if shift:
+        tmp_w, tmp_h = plain_w + shift + 2 * SHEAR_PAD, ascent + descent + 2 * SHEAR_PAD
         tmp = Image.new("RGBA", (tmp_w, tmp_h), (0, 0, 0, 0))
-        ImageDraw.Draw(tmp).text((-left, -top), text, font=font, fill=fill, stroke_width=stroke_w, stroke_fill=fill)
-        sheared = tmp.transform((tmp_w + shift, tmp_h), Image.AFFINE, (1, ITALIC_SHEAR, 0, 0, 1, 0), resample=Image.BICUBIC)
-        if "code" in style:
-            draw.rectangle([x - 4, y - 2, x + plain_w + shift + 4, y + font.size + 4], fill=CODE_BG)
-        img.paste(sheared, (x + left, y + top), sheared)
-        consumed_w = plain_w + shift
+        ImageDraw.Draw(tmp).text((SHEAR_PAD + stroke_w, SHEAR_PAD), text, font=font, fill=fill, stroke_width=stroke_w, stroke_fill=fill)
+        # The -shift translation is what keeps the glyphs whole. transform() reads
+        # output (x, y) from input (x + ITALIC_SHEAR*y + c): with c = 0 the lower
+        # rows sample from x < 0 and the bottom-left of the run is shaved clean
+        # off, while the extra `shift` columns on the right stay empty. c = -shift
+        # slides the whole lean right by one full step, so the baseline row lands
+        # back on x = 0 and the tops occupy the added columns.
+        sheared = tmp.transform((tmp_w, tmp_h), Image.AFFINE, (1, ITALIC_SHEAR, -shift, 0, 1, 0), resample=Image.BICUBIC)
+        img.paste(sheared, (x - SHEAR_PAD, y - SHEAR_PAD), sheared)
     else:
-        if "code" in style:
-            draw.rectangle([x - 4, y - 2, x + plain_w + 4, y + font.size + 4], fill=CODE_BG)
-        draw.text((x, y), text, font=font, fill=fill, stroke_width=stroke_w, stroke_fill=fill)
-        consumed_w = plain_w
+        draw.text((x + stroke_w, y), text, font=font, fill=fill, stroke_width=stroke_w, stroke_fill=fill)
 
-    line_w = max(1, font.size // 16)
+    line_w = max(1, (ascent + descent) // 20)
+    # rules span the upright extent: a sheared run's top overhangs to the right,
+    # but its baseline - where the rules live - does not
+    rule_w = plain_w
     if "underline" in style:
-        ly = y + font.size + 1
-        draw.line([(x, ly), (x + consumed_w, ly)], fill=color, width=line_w)
+        # below the descender line, not through it: descenders reach exactly
+        # ascent + descent, so anything shorter bisects every g/y/p/q/j. The
+        # line box (see lineMetrics) always leaves room for this.
+        ly = y + ascent + descent + line_w
+        draw.line([(x, ly), (x + rule_w, ly)], fill=fill, width=line_w)
     if "strike" in style:
-        ly = y + int(font.size * 0.55)
-        draw.line([(x, ly), (x + consumed_w, ly)], fill=color, width=line_w)
+        _, x_top, _, x_bottom = font.getbbox("x")
+        # middle of the x-height, however tall this face runs it; a font with no
+        # "x" at all (symbol/CJK-only) reports an empty box, so estimate instead
+        ly = y + ((x_top + x_bottom) // 2 if x_bottom > x_top else int(ascent * 0.7))
+        draw.line([(x, ly), (x + rule_w, ly)], fill=fill, width=line_w)
     return consumed_w
 
 async def fetchEmojiImage(session, kind, data, size):
@@ -316,7 +438,11 @@ async def renderQuoteImage(
     watermark_text="etanbot // coded by etangaming123",
     emoji_session=None,
 ):
-    """Render a quote card and return raw PNG bytes.
+    """Render a quote card, returning (png_bytes, had_spoiler).
+
+    had_spoiler says whether any of the text that actually made it onto the
+    card was marked ||spoiler||, so the caller can flag the attachment as a
+    spoiler too - the image shows the text dimmed rather than hiding it.
 
     All inputs are plain Python types (strings/bytes), no discord.py objects,
     so this can be called from a bare asyncio script for testing.
@@ -390,16 +516,15 @@ async def renderQuoteImage(
     def elementWidth(el):
         if el[0] == "emoji":
             return el[2]
-        runs, style = el[1], el[2]
-        return sum(runWidth(draw, t, f, style) for t, f in runs)
+        return sum(runWidth(draw, t, f, run_style) for t, f, run_style in el[1])
 
-    def splitLongWord(word, font_size):
+    def splitLongWord(word, font_size, style):
         # break an unbroken run (e.g. "MEMEMEME...") into chunks that each
-        # fit text_w, so it wraps instead of overflowing past the text area
+        # fit text_w, so it wraps instead of overflowing past the text area.
+        # measured with the word's own style, since bold/italic are wider
         chunks, cur, cur_w = [], "", 0
         for ch in word:
-            path = choosePathForChar(ch, font_path)
-            ch_w = runWidth(draw, ch, getFontObj(path, font_size), frozenset())
+            ch_w = elementWidth(("text", buildRuns(ch, font_size, font_path, style), style))
             if cur and cur_w + ch_w > text_w:
                 chunks.append(cur)
                 cur, cur_w = ch, ch_w
@@ -414,24 +539,32 @@ async def renderQuoteImage(
         # returns [(element, needs_space_before), ...]; chunks split out of
         # one long word are glued together (no space between them)
         if kind == "word":
-            el = ("text", buildRuns(data, font_size, font_path), style)
+            el = ("text", buildRuns(data, font_size, font_path, style), style)
             if elementWidth(el) <= text_w:
                 return [(el, True)]
-            chunks = splitLongWord(data, font_size)
-            return [(("text", buildRuns(c, font_size, font_path), style), i == 0)
+            chunks = splitLongWord(data, font_size, style)
+            return [(("text", buildRuns(c, font_size, font_path, style), style), i == 0)
                     for i, c in enumerate(chunks)]
         img128 = emoji_images.get((kind, data.get("id") or data.get("char")))
         if img128 is None:
             # custom emoji has no "char" fallback glyph (deleted/CDN failure);
             # show its name instead of silently dropping the atom
             fallback_text = data.get("char") or f":{data.get('name', 'emoji')}:"
-            el = ("text", buildRuns(fallback_text, font_size, font_path), style)
+            el = ("text", buildRuns(fallback_text, font_size, font_path, style), style)
         else:
             el = ("emoji", img128.resize((font_size, font_size), Image.LANCZOS), font_size)
         return [(el, True)]
 
+    def lineMetrics(font_size):
+        # line box from the font's real metrics; the old font_size * 1.25 guess
+        # is shorter than ascent + descent on plenty of faces, which left the
+        # last line's descenders and underline running into the author name
+        f = getFontObj(choosePathForChar("A", font_path), font_size)
+        ascent, descent = fontMetrics(f)
+        return ascent, descent, ascent + descent + max(2, font_size // 8)
+
     def wrapAtoms(font_size):
-        space_w = draw.textbbox((0, 0), " ", font=getFontObj(font_path, font_size))[2]
+        space_w = draw.textbbox((0, 0), " ", font=getFontObj(choosePathForChar(" ", font_path), font_size))[2]
         lines, cur, cur_w = [], [], 0
         for kind, data, style in atoms:
             for el, spacer in atomElements(kind, data, style, font_size):
@@ -450,14 +583,13 @@ async def renderQuoteImage(
     # Dynamically shrink font until the wrapped content fits vertically
     max_text_h = H - 80 - (NAME_SIZE + 8) - USERNAME_SIZE - 20
     font_size = 62
-    while font_size >= 16:
+    while True:
         quote_lines, space_w = wrapAtoms(font_size)
-        lh = int(font_size * 1.25)
-        if len(quote_lines) * lh <= max_text_h:
-            break
+        ascent, descent, lh = lineMetrics(font_size)
+        if len(quote_lines) * lh <= max_text_h or font_size <= 16:
+            break  # exit with quote_lines/lh from the same size, never a mix of two
         font_size -= 2
 
-    lh = int(font_size * 1.25)
     total_q_h = len(quote_lines) * lh
     name_h = NAME_SIZE + 8
     uname_h = USERNAME_SIZE
@@ -476,20 +608,19 @@ async def renderQuoteImage(
                 x += space_w
             if el[0] == "emoji":
                 emoji_img = el[1]
-                img.paste(emoji_img, (x, yy), emoji_img)
+                img.paste(emoji_img, (x, yy + ascent - el[2]), emoji_img)  # bottom on the baseline, not floating at the line top
                 x += el[2]
             else:
-                runs, style = el[1], el[2]
-                for t, f in runs:
-                    x += drawStyledRun(img, draw, x, yy, t, f, (255, 255, 255), style)
+                for t, f, run_style in el[1]:
+                    x += drawStyledRun(img, draw, x, yy, t, f, (255, 255, 255), run_style)
 
     y = start_y + total_q_h + 10
 
     def drawCenteredRuns(text, size, y_top, color):
         runs = buildRuns(text, size, font_path)
-        w = sum(draw.textbbox((0, 0), t, font=f)[2] for t, f in runs)
+        w = sum(draw.textbbox((0, 0), t, font=f)[2] for t, f, _ in runs)
         x = tx + (text_w - w) // 2
-        for t, f in runs:
+        for t, f, _ in runs:
             draw.text((x, y_top), t, fill=color, font=f)
             x += draw.textbbox((0, 0), t, font=f)[2]
 
@@ -503,7 +634,9 @@ async def renderQuoteImage(
     # Watermark bottom-right
     draw.text((W - 12, H - 12), watermark_text, fill=(90, 90, 90), font=font_wm, anchor="rb")
 
+    had_spoiler = any("spoiler" in style for _, _, style in atoms)
+
     buffered = io.BytesIO()
     img.save(buffered, format="PNG")
     buffered.seek(0)
-    return buffered.read()
+    return buffered.read(), had_spoiler

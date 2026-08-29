@@ -9,7 +9,7 @@ from discord.ext import commands
 import quoteimage
 from common import website, getDisplay, checkIfBanned, checkIfCooldown, setCooldown, dmUser
 
-FONT_PATH = r"C:\Windows\Fonts\arial.ttf"
+FONT_PATH = quoteimage.resolveFontPath()  # first body font installed on this host, so the bot renders the same on Windows/macOS/Linux
 MENTION_RE = re.compile(r"<@!?(\d+)>|<@&(\d+)>|<#(\d+)>")
 
 def resolveMentions(text, message):
@@ -72,7 +72,7 @@ class quoteCog(commands.Cog):
 
             resolved_text = resolveMentions(original_message.content, original_message) or "*[no text content]*"
 
-            png_bytes = await quoteimage.renderQuoteImage(
+            png_bytes, had_spoiler = await quoteimage.renderQuoteImage(
                 content_text=resolved_text,
                 author_display_name=getDisplay(author),
                 author_username=author.name,
@@ -82,7 +82,9 @@ class quoteCog(commands.Cog):
                 watermark_text=f"etanbot // coded by etangaming123 // {website}",
             )
 
-            await message.reply(file=discord.File(io.BytesIO(png_bytes), filename="quote.png"), mention_author=False)
+            # the card shows spoilered text dimmed rather than hidden, so spoiler
+            # the attachment too and let the reader opt in
+            await message.reply(file=discord.File(io.BytesIO(png_bytes), filename="quote.png", spoiler=had_spoiler), mention_author=False)
         except discord.Forbidden:
             await dmUser(
                 self.bot,
