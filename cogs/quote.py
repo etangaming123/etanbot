@@ -9,7 +9,7 @@ from discord.ext import commands
 import quoteimage
 from common import website, getDisplay, checkIfBanned, checkIfCooldown, setCooldown, dmUser
 
-FONT_PATH = r"C:\Windows\Fonts\arial.ttf"
+FONT_PATH = quoteimage.resolveFontPath()  # first body font installed on this host, so the bot renders the same on Windows/macOS/Linux
 MENTION_RE = re.compile(r"<@!?(\d+)>|<@&(\d+)>|<#(\d+)>")
 
 def resolveMentions(text, message):
@@ -27,6 +27,26 @@ def resolveMentions(text, message):
             chan = discord.utils.get(message.channel_mentions, id=cid) or (message.guild.get_channel(cid) if message.guild else None)
             return f"#{chan.name}" if chan else "#unknown-channel"
     return MENTION_RE.sub(repl, text)
+
+async def resolveMember(guild, user):
+    """Best Member object for `user`, so the card uses their server profile.
+
+    display_avatar prefers a guild-specific avatar, but only on a Member that
+    actually carries one: the Member built from a message's partial payload
+    doesn't always, and get_member is a cache lookup that misses whenever the
+    members intent is off. fetch_member is a single REST call and needs no
+    privileged intent (unlike fetch_members), so it's the dependable way to see
+    a server profile - worth one request per quote. As a bonus it also gets the
+    server nickname for getDisplay.
+    """
+    known = [c for c in (user if isinstance(user, discord.Member) else None, guild.get_member(user.id)) if c is not None]
+    for candidate in known:
+        if candidate.guild_avatar is not None:
+            return candidate  # already holding the server pfp, don't spend a request on it
+    try:
+        return await guild.fetch_member(user.id)
+    except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+        return known[0] if known else user  # left the server, or the fetch failed: global profile it is
 
 class quoteCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -54,35 +74,29 @@ class quoteCog(commands.Cog):
         if original_message.author.id == self.bot.user.id:
             return  # don't quote the bot's own messages
 
-        author = original_message.author
-        if not isinstance(author, discord.Member):
-            author = message.guild.get_member(author.id) or author
-
         try:
             await message.channel.typing()
+            author = await resolveMember(message.guild, original_message.author)
+            # 512 is plenty: the card draws the avatar at 300px, and the
+            # un-sized URL hands back 1024
             async with aiohttp.ClientSession() as session:
-                async with session.get(author.display_avatar.url) as resp:
+                async with session.get(author.display_avatar.with_size(512).url) as resp:
                     avatar_bytes = await resp.read()
-
-            role_color = (255, 255, 255)
-            available_colors = [role.color.to_rgb() for role in getattr(author, "roles", []) if role.color.value != 0]
-            available_colors.reverse()  # reverse so higher roles take precedence
-            if available_colors:
-                role_color = available_colors[0]
 
             resolved_text = resolveMentions(original_message.content, original_message) or "*[no text content]*"
 
-            png_bytes = await quoteimage.renderQuoteImage(
+            png_bytes, had_spoiler = await quoteimage.renderQuoteImage(
                 content_text=resolved_text,
                 author_display_name=getDisplay(author),
                 author_username=author.name,
                 avatar_bytes=avatar_bytes,
                 font_path=FONT_PATH,
-                role_color=role_color,
                 watermark_text=f"etanbot // coded by etangaming123 // {website}",
             )
 
-            await message.reply(file=discord.File(io.BytesIO(png_bytes), filename="quote.png"), mention_author=False)
+            # the card shows spoilered text dimmed rather than hidden, so spoiler
+            # the attachment too and let the reader opt in
+            await message.reply(file=discord.File(io.BytesIO(png_bytes), filename="quote.png", spoiler=had_spoiler), mention_author=False)
         except discord.Forbidden:
             await dmUser(
                 self.bot,

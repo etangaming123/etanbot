@@ -11,7 +11,7 @@ import io
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 import emoji as emojilib
-from fontTools.ttLib import TTFont
+from fontTools.ttLib import TTFont, TTLibFileIsCollectionError
 
 CUSTOM_EMOJI_RE = re.compile(r"<(a?):(\w+):(\d+)>")
 
@@ -33,24 +33,73 @@ FALLBACK_FONT_PATHS = [
     "/System/Library/Fonts/Apple Symbols.ttf",  # macOS equivalent: broad symbol/script coverage
     r"C:\Windows\Fonts\msyh.ttc",      # Microsoft YaHei: Chinese
     "/System/Library/Fonts/STHeiti Medium.ttc",  # macOS equivalent: Chinese
+    "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",  # Linux equivalent (WenQuanYi Zen Hei): CJK
     r"C:\Windows\Fonts\malgun.ttf",    # Malgun Gothic: Korean
     "/System/Library/Fonts/AppleSDGothicNeo.ttc",  # macOS equivalent: Korean
     r"C:\Windows\Fonts\meiryo.ttc",    # Meiryo: Japanese
     "/System/Library/Fonts/ヒラギノ角ゴシック W4.ttc",  # macOS equivalent (Hiragino Kaku Gothic): Japanese
     r"C:\Windows\Fonts\arial.ttf",     # Arial: broad Latin/Cyrillic/Greek fallback
     "/System/Library/Fonts/Supplemental/Arial.ttf",  # macOS equivalent: broad Latin/Cyrillic/Greek fallback
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",  # Linux equivalent (metric-compatible with Arial)
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",  # Linux: very broad Latin/Cyrillic/Greek/symbol coverage
+    "/usr/share/fonts/truetype/freefont/FreeSans.ttf",  # Linux: last-ditch, ships with most distros
 ]
+
+# Body font for the quote itself. Same ordering idea as above: the first one
+# actually installed wins, so one code path renders on Windows, macOS and Linux
+# instead of silently collapsing to PIL's tiny bitmap default.
+PRIMARY_FONT_PATHS = [
+    r"C:\Windows\Fonts\arial.ttf",
+    "/System/Library/Fonts/Supplemental/Arial.ttf",
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
+]
+
+# How families name their bold/italic/bold-italic faces relative to the regular
+# one. Tried in order against the regular font's own directory: "arial.ttf" ->
+# "arialbd.ttf", "DejaVuSans.ttf" -> "DejaVuSans-Bold.ttf", "FreeSans.ttf" ->
+# "FreeSansOblique.ttf", and so on.
+FONT_STYLE_SUFFIXES = {
+    (True, False): ["bd", "b", "-Bold", "Bold", " Bold"],
+    (False, True): ["i", "-Italic", "-Oblique", "Italic", "Oblique", " Italic", " Oblique"],
+    (True, True): ["bi", "z", "-BoldItalic", "-BoldOblique", "BoldItalic", "BoldOblique", " Bold Italic", " Bold Oblique"],
+}
+# Families that spell the regular face out ("LiberationSans-Regular.ttf") swap
+# that token instead of appending to it.
+FONT_REGULAR_TOKENS = ["-Regular", " Regular", "Regular"]
+FONT_STYLE_REPLACEMENTS = {
+    (True, False): ["-Bold", " Bold", "Bold"],
+    (False, True): ["-Italic", "-Oblique", " Italic", " Oblique", "Italic", "Oblique"],
+    (True, True): ["-BoldItalic", "-BoldOblique", " Bold Italic", " Bold Oblique", "BoldItalic", "BoldOblique"],
+}
 
 _cmap_cache = {}
 _font_obj_cache = {}
 _emoji_img_cache = {}
+_style_path_cache = {}
+
+def resolveFontPath():
+    """First body font actually installed on this machine.
+
+    Falls back to the Windows path so the failure mode stays the old one
+    (fallback chain, then tofu) rather than a crash on a bare container.
+    """
+    return next((p for p in PRIMARY_FONT_PATHS if os.path.exists(p)), PRIMARY_FONT_PATHS[0])
 
 def fontHasGlyph(path, ch):
     if ch.isspace():
         return os.path.exists(path)  # trust space is in-cmap for any font that actually loads; avoids stranding it on a dead primary_path
     if path not in _cmap_cache:
         try:
-            ttf = TTFont(path, lazy=True)
+            try:
+                ttf = TTFont(path, lazy=True)
+            except TTLibFileIsCollectionError:
+                # .ttc collections need an explicit face index or fontTools refuses
+                # to open them; index 0 is the one ImageFont.truetype loads too.
+                # Every CJK fallback below is a .ttc, so without this they all
+                # report "no glyph" and Chinese/Japanese renders as tofu.
+                ttf = TTFont(path, lazy=True, fontNumber=0)
             cmap = ttf.getBestCmap() or {}
             ttf.close()
             _cmap_cache[path] = cmap
@@ -72,24 +121,72 @@ def getFontObj(path, size):
         try:
             _font_obj_cache[key] = ImageFont.truetype(path, size)
         except Exception:
-            return ImageFont.load_default()  # don't cache the failure; retry next time in case it was transient
+            # don't cache the failure; retry next time in case it was transient.
+            # ask load_default for the size so we get a scalable face with real
+            # metrics - the bare bitmap default has no .size/.getmetrics(), which
+            # the styled-run drawing below relies on.
+            try:
+                return ImageFont.load_default(size)
+            except Exception:
+                return ImageFont.load_default()
     return _font_obj_cache[key]
 
-def buildRuns(word, size, primary_path):
-    # split a word into (text, font) runs so mixed-script words each render with a font that has the glyphs
+def styledFontPath(regular_path, style):
+    """Path to the real bold/italic face beside regular_path, or None.
+
+    Faking bold with an outline stroke and italic with a shear is a last resort;
+    nearly every family ships the real faces next to the regular one under a
+    predictable name, and the real ones look far better.
+    """
+    want = ("bold" in style, "italic" in style)
+    if not any(want):
+        return None
+    key = (regular_path, want)
+    if key not in _style_path_cache:
+        stem, ext = os.path.splitext(regular_path)
+        candidates = [stem + suffix + ext for suffix in FONT_STYLE_SUFFIXES[want]]
+        for token in FONT_REGULAR_TOKENS:
+            if stem.endswith(token):
+                base = stem[: -len(token)]
+                candidates = [base + rep + ext for rep in FONT_STYLE_REPLACEMENTS[want]] + candidates
+                break
+        _style_path_cache[key] = next((c for c in candidates if os.path.exists(c)), None)
+    return _style_path_cache[key]
+
+def fontMetrics(font):
+    # (ascent, descent) below/above the line top. font.size is the nominal em and
+    # is smaller than ascent+descent for most faces, so decorations placed off it
+    # land inside the glyphs instead of around them.
+    try:
+        return font.getmetrics()
+    except Exception:
+        size = getattr(font, "size", 16)
+        return int(size * 0.8), int(size * 0.2)
+
+def buildRuns(word, size, primary_path, style=frozenset()):
+    # split a word into (text, font, style) runs so mixed-script words each render
+    # with a font that has the glyphs. A run that resolved to a real bold/italic
+    # face drops those flags, so drawStyledRun doesn't fake them on top of a face
+    # that already has them.
     runs = []
-    cur_path, cur_text = None, ""
+    cur_key, cur_text = None, ""
     for ch in word:
-        path = choosePathForChar(ch, primary_path)
-        if path == cur_path:
+        base = choosePathForChar(ch, primary_path)
+        styled = styledFontPath(base, style)
+        key = (styled, style - {"bold", "italic"}) if styled and fontHasGlyph(styled, ch) else (base, style)
+        if key == cur_key:
             cur_text += ch
         else:
             if cur_text:
-                runs.append((cur_text, getFontObj(cur_path, size)))
-            cur_path, cur_text = path, ch
+                runs.append((cur_text, getFontObj(cur_key[0], size), cur_key[1]))
+            cur_key, cur_text = key, ch
     if cur_text:
-        runs.append((cur_text, getFontObj(cur_path, size)))
+        runs.append((cur_text, getFontObj(cur_key[0], size), cur_key[1]))
     return runs
+
+def buildSegmentRuns(segments, size, primary_path):
+    # a word's (text, style) pieces flattened into one list of drawable runs
+    return [run for text, style in segments for run in buildRuns(text, size, primary_path, style)]
 
 def parseDiscordMarkdown(text):
     """Strip Discord markdown delimiters, returning (plain_text, style_ranges).
@@ -176,15 +273,34 @@ def parseDiscordMarkdown(text):
     return "".join(plain), ranges
 
 def styleFor(style_ranges, span_start, span_end):
-    # a word can straddle a style boundary when markdown touches text with no
-    # surrounding space (e.g. "un**believable**"); use whichever style covers
-    # most of the span rather than just the first character's style
+    # for spans that can only carry one style (an emoji): whichever style covers
+    # most of it, rather than just the first character's
     best_style, best_overlap = frozenset(), 0
     for start, end, style in style_ranges:
         overlap = min(end, span_end) - max(start, span_start)
         if overlap > best_overlap:
             best_overlap, best_style = overlap, style
     return best_style
+
+def styleSegments(style_ranges, span_start, span_end):
+    """Cut [span_start, span_end) into (start, end, style) pieces.
+
+    Markdown can open and close inside a word when it touches text with no
+    surrounding space ("un**bel**ievable"), so a word is not one style - it is
+    a sequence of them. style_ranges covers the text contiguously, so the
+    pieces come out ordered and gapless; neighbours sharing a style are merged
+    to keep the run count down.
+    """
+    pieces = []
+    for start, end, style in style_ranges:
+        lo, hi = max(start, span_start), min(end, span_end)
+        if lo >= hi:
+            continue
+        if pieces and pieces[-1][2] == style and pieces[-1][1] == lo:
+            pieces[-1] = (pieces[-1][0], hi, style)
+        else:
+            pieces.append((lo, hi, style))
+    return pieces or [(span_start, span_end, frozenset())]
 
 def findEmojiSpans(text):
     spans = [(m.start(), m.end(), "custom", {"animated": bool(m.group(1)), "name": m.group(2), "id": m.group(3)}) for m in CUSTOM_EMOJI_RE.finditer(text)]
@@ -220,62 +336,181 @@ def tokenizeContent(text):
     atoms = []
     for kind, data, start_pos, end_pos in tokens:
         if kind == "text":
-            for m in re.finditer(r"\S+", data):
-                atoms.append(("word", m.group(0), styleFor(style_ranges, start_pos + m.start(), start_pos + m.end())))
+            # "\n" first so newlines survive as their own atoms; \S+ can't span
+            # one anyway, it just used to get dropped along with the other
+            # whitespace, running every paragraph together into one blob
+            for m in re.finditer(r"\n|\S+", data):
+                if m.group(0) == "\n":
+                    atoms.append(("break", None, frozenset()))
+                    continue
+                lo, hi = start_pos + m.start(), start_pos + m.end()
+                segments = [(plain_text[a:b], st) for a, b, st in styleSegments(style_ranges, lo, hi)]
+                union = frozenset().union(*(st for _, st in segments))
+                atoms.append(("word", segments, union))
         else:
             atoms.append((kind, data, styleFor(style_ranges, start_pos, end_pos)))
-    return atoms
+    return trimBreaks(atoms)
+
+def trimBreaks(atoms, max_run=2):
+    """Drop leading/trailing blank lines and cap runs of them.
+
+    A message padded with newlines would otherwise shrink the card's font to the
+    floor to make room for empty lines. max_run=2 leaves at most one blank line
+    between paragraphs, which is what the spacing is for.
+    """
+    trimmed, run = [], 0
+    for atom in atoms:
+        if atom[0] == "break":
+            run += 1
+            if run > max_run or not trimmed:
+                continue  # over the cap, or still before any content
+        else:
+            run = 0
+        trimmed.append(atom)
+    while trimmed and trimmed[-1][0] == "break":
+        trimmed.pop()
+    return trimmed
 
 BOLD_STROKE = 1
 ITALIC_SHEAR = 0.22
+SHEAR_PAD = 2  # slack on the scratch layer for ink straying past the metric box
 CODE_BG = (40, 40, 40)
 CODE_FG = (255, 200, 120)
+SPOILER_BG = (28, 28, 33)
+SPOILER_FG = (145, 145, 155)
+
+def italicShift(font):
+    # Horizontal room the fake italic needs on top of the upright width. Keyed to
+    # the font rather than the text so runWidth and drawStyledRun always agree -
+    # if they disagree, runs overlap and lines overflow the text column.
+    ascent, descent = fontMetrics(font)
+    return int((ascent + descent) * ITALIC_SHEAR)
 
 def runWidth(draw, text, font, style):
     stroke_w = BOLD_STROKE if "bold" in style else 0
-    w = draw.textbbox((0, 0), text, font=font, stroke_width=stroke_w)[2]
+    w = draw.textbbox((0, 0), text, font=font, stroke_width=stroke_w)[2] + stroke_w
     if "italic" in style:
-        w += int(font.size * ITALIC_SHEAR)
+        w += italicShift(font)
     return w
 
 def drawStyledRun(img, draw, x, y, text, font, color, style):
     """Draw one (text, font) run with Discord-style emphasis, return width consumed.
 
-    Bold is faked with a text outline stroke (no bold font file guaranteed to
-    exist), italic by shearing the glyphs on a scratch RGBA layer and
-    pasting the result, since PIL has no native oblique transform.
+    "bold"/"italic" only reach here when the family had no real face for them
+    (buildRuns strips the flags when it found one). Bold is then faked with an
+    outline stroke, italic by shearing the glyphs on a scratch RGBA layer, since
+    PIL has no native oblique transform.
+
+    Underline/strike/backgrounds are placed off the font's real ascent and
+    descent, not font.size: font.size is the nominal em, which is smaller than
+    the glyph box for most faces, so a rule at y + font.size cuts through the
+    descenders instead of clearing them.
     """
+    ascent, descent = fontMetrics(font)
     stroke_w = BOLD_STROKE if "bold" in style else 0
-    fill = CODE_FG if "code" in style else color
+    fill = CODE_FG if "code" in style else (SPOILER_FG if "spoiler" in style else color)
     bbox = draw.textbbox((0, 0), text, font=font, stroke_width=stroke_w)
-    plain_w = bbox[2]
+    plain_w = bbox[2] + stroke_w  # the stroke also bleeds left of x, so draw it shifted in by stroke_w
+    shift = italicShift(font) if "italic" in style else 0
+    consumed_w = plain_w + shift
 
-    if "italic" in style:
-        left, top, right, bottom = bbox
-        left, top = min(left, 0), min(top, 0)
-        tmp_w, tmp_h = right - left, bottom - top
-        shift = int(tmp_h * ITALIC_SHEAR)
+    bg = CODE_BG if "code" in style else (SPOILER_BG if "spoiler" in style else None)
+    if bg is not None:
+        draw.rectangle([x - 4, y - 2, x + consumed_w + 4, y + ascent + descent + 2], fill=bg)
+
+    if shift:
+        tmp_w, tmp_h = plain_w + shift + 2 * SHEAR_PAD, ascent + descent + 2 * SHEAR_PAD
         tmp = Image.new("RGBA", (tmp_w, tmp_h), (0, 0, 0, 0))
-        ImageDraw.Draw(tmp).text((-left, -top), text, font=font, fill=fill, stroke_width=stroke_w, stroke_fill=fill)
-        sheared = tmp.transform((tmp_w + shift, tmp_h), Image.AFFINE, (1, ITALIC_SHEAR, 0, 0, 1, 0), resample=Image.BICUBIC)
-        if "code" in style:
-            draw.rectangle([x - 4, y - 2, x + plain_w + shift + 4, y + font.size + 4], fill=CODE_BG)
-        img.paste(sheared, (x + left, y + top), sheared)
-        consumed_w = plain_w + shift
+        ImageDraw.Draw(tmp).text((SHEAR_PAD + stroke_w, SHEAR_PAD), text, font=font, fill=fill, stroke_width=stroke_w, stroke_fill=fill)
+        # The -shift translation is what keeps the glyphs whole. transform() reads
+        # output (x, y) from input (x + ITALIC_SHEAR*y + c): with c = 0 the lower
+        # rows sample from x < 0 and the bottom-left of the run is shaved clean
+        # off, while the extra `shift` columns on the right stay empty. c = -shift
+        # slides the whole lean right by one full step, so the baseline row lands
+        # back on x = 0 and the tops occupy the added columns.
+        sheared = tmp.transform((tmp_w, tmp_h), Image.AFFINE, (1, ITALIC_SHEAR, -shift, 0, 1, 0), resample=Image.BICUBIC)
+        img.paste(sheared, (x - SHEAR_PAD, y - SHEAR_PAD), sheared)
     else:
-        if "code" in style:
-            draw.rectangle([x - 4, y - 2, x + plain_w + 4, y + font.size + 4], fill=CODE_BG)
-        draw.text((x, y), text, font=font, fill=fill, stroke_width=stroke_w, stroke_fill=fill)
-        consumed_w = plain_w
+        draw.text((x + stroke_w, y), text, font=font, fill=fill, stroke_width=stroke_w, stroke_fill=fill)
 
-    line_w = max(1, font.size // 16)
+    line_w = max(1, (ascent + descent) // 20)
+    # rules span the upright extent: a sheared run's top overhangs to the right,
+    # but its baseline - where the rules live - does not
+    rule_w = plain_w
     if "underline" in style:
-        ly = y + font.size + 1
-        draw.line([(x, ly), (x + consumed_w, ly)], fill=color, width=line_w)
+        # below the descender line, not through it: descenders reach exactly
+        # ascent + descent, so anything shorter bisects every g/y/p/q/j. The
+        # line box (see lineMetrics) always leaves room for this.
+        ly = y + ascent + descent + line_w
+        draw.line([(x, ly), (x + rule_w, ly)], fill=fill, width=line_w)
     if "strike" in style:
-        ly = y + int(font.size * 0.55)
-        draw.line([(x, ly), (x + consumed_w, ly)], fill=color, width=line_w)
+        _, x_top, _, x_bottom = font.getbbox("x")
+        # middle of the x-height, however tall this face runs it; a font with no
+        # "x" at all (symbol/CJK-only) reports an empty box, so estimate instead
+        ly = y + ((x_top + x_bottom) // 2 if x_bottom > x_top else int(ascent * 0.7))
+        draw.line([(x, ly), (x + rule_w, ly)], fill=fill, width=line_w)
     return consumed_w
+
+SPOTLIGHT_SAMPLE = 96      # avatar is downsampled to this before quantizing
+SPOTLIGHT_PALETTE = 16     # representative colors median-cut reduces it to
+SPOTLIGHT_MIN_CHROMA = 0.10  # below this the avatar is effectively greyscale
+SPOTLIGHT_MIN_VALUE = 180  # lift dark colors so the spotlight still reads on black
+SPOTLIGHT_FALLBACK = (255, 255, 255)  # for avatars with no color worth picking
+
+def dominantColor(img, fallback=SPOTLIGHT_FALLBACK):
+    """The avatar's main color, for the spotlight behind it.
+
+    Averaging the pixels gives mud, and the most *populous* color is usually a
+    flat background (white, black, grey), so the image is median-cut down to a
+    handful of representative colors and those are scored by pixel count
+    weighted by chroma - a small vivid area beats a large drab one. Only the
+    circular crop the card actually shows is sampled.
+
+    Chroma (hi - lo) rather than HSV saturation ((hi - lo) / hi), because
+    saturation is meaningless down near black: pure black with one channel a
+    single step up scores a perfect 1.0 and would win on any dark avatar.
+
+    Near-greyscale avatars score nothing and return the fallback - plain white,
+    which the gradient's own falloff carries fine. The winner is
+    scaled up to SPOTLIGHT_MIN_VALUE if it's dark; scaling RGB uniformly moves
+    only the brightness, leaving hue and saturation intact.
+    """
+    try:
+        small = img.convert("RGBA").resize((SPOTLIGHT_SAMPLE, SPOTLIGHT_SAMPLE), Image.LANCZOS)
+        px = small.load()
+        radius = SPOTLIGHT_SAMPLE / 2
+        pixels = []
+        for y in range(SPOTLIGHT_SAMPLE):
+            for x in range(SPOTLIGHT_SAMPLE):
+                if (x - radius + 0.5) ** 2 + (y - radius + 0.5) ** 2 > radius ** 2:
+                    continue  # outside the circular mask, never visible on the card
+                r, g, b, a = px[x, y]
+                if a > 128:
+                    pixels.append((r, g, b))
+        if not pixels:
+            return fallback
+
+        flat = Image.new("RGB", (len(pixels), 1))
+        flat.putdata(pixels)
+        quantized = flat.quantize(colors=SPOTLIGHT_PALETTE, method=Image.MEDIANCUT)
+        palette = quantized.getpalette()
+
+        best, best_score = fallback, 0.0
+        for count, index in quantized.getcolors(SPOTLIGHT_PALETTE) or []:
+            color = tuple(palette[index * 3: index * 3 + 3])
+            chroma = (max(color) - min(color)) / 255
+            score = count * chroma
+            if chroma >= SPOTLIGHT_MIN_CHROMA and score > best_score:
+                best, best_score = color, score
+        if best_score == 0.0:
+            return fallback
+
+        hi = max(best)
+        if hi < SPOTLIGHT_MIN_VALUE:
+            best = tuple(min(255, round(c * SPOTLIGHT_MIN_VALUE / hi)) for c in best)
+        return best
+    except Exception:
+        return fallback  # a spotlight in the wrong color beats no card at all
 
 async def fetchEmojiImage(session, kind, data, size):
     cache_key = (kind, data.get("id") or data.get("char"))
@@ -311,12 +546,17 @@ async def renderQuoteImage(
     author_username,
     avatar_bytes,
     font_path,
-    role_color=(255, 255, 255),
     max_chars=200,
     watermark_text="etanbot // coded by etangaming123",
     emoji_session=None,
 ):
-    """Render a quote card and return raw PNG bytes.
+    """Render a quote card, returning (png_bytes, had_spoiler).
+
+    The spotlight behind the avatar is tinted with the avatar's own main color.
+
+    had_spoiler says whether any of the text that actually made it onto the
+    card was marked ||spoiler||, so the caller can flag the attachment as a
+    spoiler too - the image shows the text dimmed rather than hiding it.
 
     All inputs are plain Python types (strings/bytes), no discord.py objects,
     so this can be called from a bare asyncio script for testing.
@@ -328,7 +568,8 @@ async def renderQuoteImage(
     # Black background
     img = Image.new('RGB', (W, H), (0, 0, 0))
 
-    # Radial spotlight gradient with user's role color
+    # Radial spotlight gradient, tinted with the avatar's own main color
+    spotlight_color = dominantColor(avatar_img)
     y_coords, x_coords = np.mgrid[0:H, 0:W]
     cx, cy = W // 4, H // 2
     max_r = H * 0.78
@@ -337,9 +578,9 @@ async def renderQuoteImage(
     brightness = (brightness * 255).astype(np.uint8)
 
     brightness_f = brightness.astype(np.float32)
-    r = (brightness_f * role_color[0] / 255).astype(np.uint8)
-    g = (brightness_f * role_color[1] / 255).astype(np.uint8)
-    b = (brightness_f * role_color[2] / 255).astype(np.uint8)
+    r = (brightness_f * spotlight_color[0] / 255).astype(np.uint8)
+    g = (brightness_f * spotlight_color[1] / 255).astype(np.uint8)
+    b = (brightness_f * spotlight_color[2] / 255).astype(np.uint8)
     gradient = Image.fromarray(np.stack([r, g, b], axis=2), 'RGB')
     img.paste(gradient, (0, 0), Image.fromarray(brightness))
 
@@ -390,21 +631,24 @@ async def renderQuoteImage(
     def elementWidth(el):
         if el[0] == "emoji":
             return el[2]
-        runs, style = el[1], el[2]
-        return sum(runWidth(draw, t, f, style) for t, f in runs)
+        return sum(runWidth(draw, t, f, run_style) for t, f, run_style in el[1])
 
-    def splitLongWord(word, font_size):
-        # break an unbroken run (e.g. "MEMEMEME...") into chunks that each
-        # fit text_w, so it wraps instead of overflowing past the text area
-        chunks, cur, cur_w = [], "", 0
-        for ch in word:
-            path = choosePathForChar(ch, font_path)
-            ch_w = runWidth(draw, ch, getFontObj(path, font_size), frozenset())
-            if cur and cur_w + ch_w > text_w:
-                chunks.append(cur)
-                cur, cur_w = ch, ch_w
-            else:
-                cur += ch
+    def splitLongWord(segments, font_size):
+        # break an unbroken run (e.g. "MEMEMEME...") into chunks that each fit
+        # text_w, so it wraps instead of overflowing past the text area. Chunks
+        # are themselves (text, style) segment lists, since the styles can
+        # change partway through the word being split
+        chunks, cur, cur_w = [], [], 0
+        for text, style in segments:
+            for ch in text:
+                ch_w = elementWidth(("text", buildRuns(ch, font_size, font_path, style)))
+                if cur and cur_w + ch_w > text_w:
+                    chunks.append(cur)
+                    cur, cur_w = [], 0
+                if cur and cur[-1][1] == style:
+                    cur[-1] = (cur[-1][0] + ch, style)
+                else:
+                    cur.append((ch, style))
                 cur_w += ch_w
         if cur:
             chunks.append(cur)
@@ -414,26 +658,38 @@ async def renderQuoteImage(
         # returns [(element, needs_space_before), ...]; chunks split out of
         # one long word are glued together (no space between them)
         if kind == "word":
-            el = ("text", buildRuns(data, font_size, font_path), style)
+            el = ("text", buildSegmentRuns(data, font_size, font_path))
             if elementWidth(el) <= text_w:
                 return [(el, True)]
             chunks = splitLongWord(data, font_size)
-            return [(("text", buildRuns(c, font_size, font_path), style), i == 0)
+            return [(("text", buildSegmentRuns(c, font_size, font_path)), i == 0)
                     for i, c in enumerate(chunks)]
         img128 = emoji_images.get((kind, data.get("id") or data.get("char")))
         if img128 is None:
             # custom emoji has no "char" fallback glyph (deleted/CDN failure);
             # show its name instead of silently dropping the atom
             fallback_text = data.get("char") or f":{data.get('name', 'emoji')}:"
-            el = ("text", buildRuns(fallback_text, font_size, font_path), style)
+            el = ("text", buildRuns(fallback_text, font_size, font_path, style))
         else:
             el = ("emoji", img128.resize((font_size, font_size), Image.LANCZOS), font_size)
         return [(el, True)]
 
+    def lineMetrics(font_size):
+        # line box from the font's real metrics; the old font_size * 1.25 guess
+        # is shorter than ascent + descent on plenty of faces, which left the
+        # last line's descenders and underline running into the author name
+        f = getFontObj(choosePathForChar("A", font_path), font_size)
+        ascent, descent = fontMetrics(f)
+        return ascent, descent, ascent + descent + max(2, font_size // 8)
+
     def wrapAtoms(font_size):
-        space_w = draw.textbbox((0, 0), " ", font=getFontObj(font_path, font_size))[2]
+        space_w = draw.textbbox((0, 0), " ", font=getFontObj(choosePathForChar(" ", font_path), font_size))[2]
         lines, cur, cur_w = [], [], 0
         for kind, data, style in atoms:
+            if kind == "break":
+                lines.append(cur)  # may be empty: that's a deliberate blank line
+                cur, cur_w = [], 0
+                continue
             for el, spacer in atomElements(kind, data, style, font_size):
                 w = elementWidth(el)
                 add_w = w if not cur else (space_w if spacer else 0) + w
@@ -450,14 +706,13 @@ async def renderQuoteImage(
     # Dynamically shrink font until the wrapped content fits vertically
     max_text_h = H - 80 - (NAME_SIZE + 8) - USERNAME_SIZE - 20
     font_size = 62
-    while font_size >= 16:
+    while True:
         quote_lines, space_w = wrapAtoms(font_size)
-        lh = int(font_size * 1.25)
-        if len(quote_lines) * lh <= max_text_h:
-            break
+        ascent, descent, lh = lineMetrics(font_size)
+        if len(quote_lines) * lh <= max_text_h or font_size <= 16:
+            break  # exit with quote_lines/lh from the same size, never a mix of two
         font_size -= 2
 
-    lh = int(font_size * 1.25)
     total_q_h = len(quote_lines) * lh
     name_h = NAME_SIZE + 8
     uname_h = USERNAME_SIZE
@@ -476,20 +731,19 @@ async def renderQuoteImage(
                 x += space_w
             if el[0] == "emoji":
                 emoji_img = el[1]
-                img.paste(emoji_img, (x, yy), emoji_img)
+                img.paste(emoji_img, (x, yy + ascent - el[2]), emoji_img)  # bottom on the baseline, not floating at the line top
                 x += el[2]
             else:
-                runs, style = el[1], el[2]
-                for t, f in runs:
-                    x += drawStyledRun(img, draw, x, yy, t, f, (255, 255, 255), style)
+                for t, f, run_style in el[1]:
+                    x += drawStyledRun(img, draw, x, yy, t, f, (255, 255, 255), run_style)
 
     y = start_y + total_q_h + 10
 
     def drawCenteredRuns(text, size, y_top, color):
         runs = buildRuns(text, size, font_path)
-        w = sum(draw.textbbox((0, 0), t, font=f)[2] for t, f in runs)
+        w = sum(draw.textbbox((0, 0), t, font=f)[2] for t, f, _ in runs)
         x = tx + (text_w - w) // 2
-        for t, f in runs:
+        for t, f, _ in runs:
             draw.text((x, y_top), t, fill=color, font=f)
             x += draw.textbbox((0, 0), t, font=f)[2]
 
@@ -503,7 +757,9 @@ async def renderQuoteImage(
     # Watermark bottom-right
     draw.text((W - 12, H - 12), watermark_text, fill=(90, 90, 90), font=font_wm, anchor="rb")
 
+    had_spoiler = any("spoiler" in style for _, _, style in atoms)
+
     buffered = io.BytesIO()
     img.save(buffered, format="PNG")
     buffered.seek(0)
-    return buffered.read()
+    return buffered.read(), had_spoiler
