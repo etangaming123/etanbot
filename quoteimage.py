@@ -184,6 +184,10 @@ def buildRuns(word, size, primary_path, style=frozenset()):
         runs.append((cur_text, getFontObj(cur_key[0], size), cur_key[1]))
     return runs
 
+def buildSegmentRuns(segments, size, primary_path):
+    # a word's (text, style) pieces flattened into one list of drawable runs
+    return [run for text, style in segments for run in buildRuns(text, size, primary_path, style)]
+
 def parseDiscordMarkdown(text):
     """Strip Discord markdown delimiters, returning (plain_text, style_ranges).
 
@@ -269,15 +273,34 @@ def parseDiscordMarkdown(text):
     return "".join(plain), ranges
 
 def styleFor(style_ranges, span_start, span_end):
-    # a word can straddle a style boundary when markdown touches text with no
-    # surrounding space (e.g. "un**believable**"); use whichever style covers
-    # most of the span rather than just the first character's style
+    # for spans that can only carry one style (an emoji): whichever style covers
+    # most of it, rather than just the first character's
     best_style, best_overlap = frozenset(), 0
     for start, end, style in style_ranges:
         overlap = min(end, span_end) - max(start, span_start)
         if overlap > best_overlap:
             best_overlap, best_style = overlap, style
     return best_style
+
+def styleSegments(style_ranges, span_start, span_end):
+    """Cut [span_start, span_end) into (start, end, style) pieces.
+
+    Markdown can open and close inside a word when it touches text with no
+    surrounding space ("un**bel**ievable"), so a word is not one style - it is
+    a sequence of them. style_ranges covers the text contiguously, so the
+    pieces come out ordered and gapless; neighbours sharing a style are merged
+    to keep the run count down.
+    """
+    pieces = []
+    for start, end, style in style_ranges:
+        lo, hi = max(start, span_start), min(end, span_end)
+        if lo >= hi:
+            continue
+        if pieces and pieces[-1][2] == style and pieces[-1][1] == lo:
+            pieces[-1] = (pieces[-1][0], hi, style)
+        else:
+            pieces.append((lo, hi, style))
+    return pieces or [(span_start, span_end, frozenset())]
 
 def findEmojiSpans(text):
     spans = [(m.start(), m.end(), "custom", {"animated": bool(m.group(1)), "name": m.group(2), "id": m.group(3)}) for m in CUSTOM_EMOJI_RE.finditer(text)]
@@ -313,11 +336,40 @@ def tokenizeContent(text):
     atoms = []
     for kind, data, start_pos, end_pos in tokens:
         if kind == "text":
-            for m in re.finditer(r"\S+", data):
-                atoms.append(("word", m.group(0), styleFor(style_ranges, start_pos + m.start(), start_pos + m.end())))
+            # "\n" first so newlines survive as their own atoms; \S+ can't span
+            # one anyway, it just used to get dropped along with the other
+            # whitespace, running every paragraph together into one blob
+            for m in re.finditer(r"\n|\S+", data):
+                if m.group(0) == "\n":
+                    atoms.append(("break", None, frozenset()))
+                    continue
+                lo, hi = start_pos + m.start(), start_pos + m.end()
+                segments = [(plain_text[a:b], st) for a, b, st in styleSegments(style_ranges, lo, hi)]
+                union = frozenset().union(*(st for _, st in segments))
+                atoms.append(("word", segments, union))
         else:
             atoms.append((kind, data, styleFor(style_ranges, start_pos, end_pos)))
-    return atoms
+    return trimBreaks(atoms)
+
+def trimBreaks(atoms, max_run=2):
+    """Drop leading/trailing blank lines and cap runs of them.
+
+    A message padded with newlines would otherwise shrink the card's font to the
+    floor to make room for empty lines. max_run=2 leaves at most one blank line
+    between paragraphs, which is what the spacing is for.
+    """
+    trimmed, run = [], 0
+    for atom in atoms:
+        if atom[0] == "break":
+            run += 1
+            if run > max_run or not trimmed:
+                continue  # over the cap, or still before any content
+        else:
+            run = 0
+        trimmed.append(atom)
+    while trimmed and trimmed[-1][0] == "break":
+        trimmed.pop()
+    return trimmed
 
 BOLD_STROKE = 1
 ITALIC_SHEAR = 0.22
@@ -518,18 +570,22 @@ async def renderQuoteImage(
             return el[2]
         return sum(runWidth(draw, t, f, run_style) for t, f, run_style in el[1])
 
-    def splitLongWord(word, font_size, style):
-        # break an unbroken run (e.g. "MEMEMEME...") into chunks that each
-        # fit text_w, so it wraps instead of overflowing past the text area.
-        # measured with the word's own style, since bold/italic are wider
-        chunks, cur, cur_w = [], "", 0
-        for ch in word:
-            ch_w = elementWidth(("text", buildRuns(ch, font_size, font_path, style), style))
-            if cur and cur_w + ch_w > text_w:
-                chunks.append(cur)
-                cur, cur_w = ch, ch_w
-            else:
-                cur += ch
+    def splitLongWord(segments, font_size):
+        # break an unbroken run (e.g. "MEMEMEME...") into chunks that each fit
+        # text_w, so it wraps instead of overflowing past the text area. Chunks
+        # are themselves (text, style) segment lists, since the styles can
+        # change partway through the word being split
+        chunks, cur, cur_w = [], [], 0
+        for text, style in segments:
+            for ch in text:
+                ch_w = elementWidth(("text", buildRuns(ch, font_size, font_path, style)))
+                if cur and cur_w + ch_w > text_w:
+                    chunks.append(cur)
+                    cur, cur_w = [], 0
+                if cur and cur[-1][1] == style:
+                    cur[-1] = (cur[-1][0] + ch, style)
+                else:
+                    cur.append((ch, style))
                 cur_w += ch_w
         if cur:
             chunks.append(cur)
@@ -539,18 +595,18 @@ async def renderQuoteImage(
         # returns [(element, needs_space_before), ...]; chunks split out of
         # one long word are glued together (no space between them)
         if kind == "word":
-            el = ("text", buildRuns(data, font_size, font_path, style), style)
+            el = ("text", buildSegmentRuns(data, font_size, font_path))
             if elementWidth(el) <= text_w:
                 return [(el, True)]
-            chunks = splitLongWord(data, font_size, style)
-            return [(("text", buildRuns(c, font_size, font_path, style), style), i == 0)
+            chunks = splitLongWord(data, font_size)
+            return [(("text", buildSegmentRuns(c, font_size, font_path)), i == 0)
                     for i, c in enumerate(chunks)]
         img128 = emoji_images.get((kind, data.get("id") or data.get("char")))
         if img128 is None:
             # custom emoji has no "char" fallback glyph (deleted/CDN failure);
             # show its name instead of silently dropping the atom
             fallback_text = data.get("char") or f":{data.get('name', 'emoji')}:"
-            el = ("text", buildRuns(fallback_text, font_size, font_path, style), style)
+            el = ("text", buildRuns(fallback_text, font_size, font_path, style))
         else:
             el = ("emoji", img128.resize((font_size, font_size), Image.LANCZOS), font_size)
         return [(el, True)]
@@ -567,6 +623,10 @@ async def renderQuoteImage(
         space_w = draw.textbbox((0, 0), " ", font=getFontObj(choosePathForChar(" ", font_path), font_size))[2]
         lines, cur, cur_w = [], [], 0
         for kind, data, style in atoms:
+            if kind == "break":
+                lines.append(cur)  # may be empty: that's a deliberate blank line
+                cur, cur_w = [], 0
+                continue
             for el, spacer in atomElements(kind, data, style, font_size):
                 w = elementWidth(el)
                 add_w = w if not cur else (space_w if spacer else 0) + w

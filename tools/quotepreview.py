@@ -29,6 +29,8 @@ SAMPLES = {
     "italic": "*fluffy jiggly pyjamas, glowing quietly*",
     "descenders": "__ggyypqj__ ~~ggyypqj~~ `ggyypqj`",
     "edges": "un**bel**ievable snake_case_name **unmatched *a*",
+    "intraword": "un**bel**ievable ~~super~~cali*fragilistic*expiali`docious`",
+    "multiline": "first line\nsecond line\n\nafter a blank line\n\n\n\nand a **capped** run of them",
     "codeblock": "look at this:\n```python\nprint('hello')\n```",
     "spoiler": "the twist is ||he was the killer|| all along",
     "long": "**this is a much longer quote** that should *shrink the font* down a fair bit and also wrap across ~~several~~ many lines while keeping every `styled` run inside the text column",
