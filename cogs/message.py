@@ -44,10 +44,11 @@ class messageCog(commands.Cog):
             say = discord.ui.TextInput(label="What should the bot say?", style=discord.TextStyle.paragraph, placeholder="Enter your message here. Max 2000 characters.", required=True, max_length=2000)
 
             async def on_submit(self, interaction: discord.Interaction):
+                sayreal = self.say.value
                 if interaction.user.id != int(config["poweruserid"]):
-                    say = f"-# triggered by {interaction.user.mention}\n{say}"
-                say = truncateMessage(self.say.value, 2000)
-                await interaction.response.send_message(f"{self.say.value}", ephemeral=False)
+                    sayreal = f"-# triggered by {interaction.user.mention}\n{sayreal}"
+                sayreal = truncateMessage(self.say.value, 2000)
+                await interaction.response.send_message(f"{sayreal}", ephemeral=False)
             
         await interaction.response.send_modal(puppetForm())
 
