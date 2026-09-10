@@ -10,3 +10,4 @@ aiohttp
 numpy
 emoji
 fonttools
+deep-translator

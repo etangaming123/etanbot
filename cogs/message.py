@@ -16,7 +16,7 @@ class messageCog(commands.Cog):
             return
         await interaction.response.defer()
         setCooldown(interaction.user.id, "puppet", 5)
-        if interaction.user.id != int(config["poweruserid"]):
+        if str(interaction.user.id) != str(config["poweruserid"]):
             say = f"-# triggered by {interaction.user.mention}\n{say}"
         realthing = truncateMessage(say, 2000)
         await interaction.edit_original_response(content=realthing)
@@ -29,7 +29,7 @@ class messageCog(commands.Cog):
             return
         await interaction.response.defer()
         setCooldown(interaction.user.id, "puppet", 5)
-        if interaction.user.id != int(config["poweruserid"]):
+        if str(interaction.user.id) != str(config["poweruserid"]):
             say = f"-# triggered by {interaction.user.mention}\n{say}"
         say = say.replace("<nl>", "\n")
         realthing = truncateMessage(say, 2000)
@@ -45,7 +45,7 @@ class messageCog(commands.Cog):
 
             async def on_submit(self, interaction: discord.Interaction):
                 sayreal = self.say.value
-                if interaction.user.id != int(config["poweruserid"]):
+                if str(interaction.user.id) != str(config["poweruserid"]):
                     sayreal = f"-# triggered by {interaction.user.mention}\n{sayreal}"
                 sayreal = truncateMessage(self.say.value, 2000)
                 await interaction.response.send_message(f"{sayreal}", ephemeral=False)

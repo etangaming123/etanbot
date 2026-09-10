@@ -3,6 +3,7 @@ import json
 import os
 import hashlib
 import pickle
+import re
 import discord
 import time
 
@@ -121,6 +122,24 @@ def isPoweruser(userid: int):
 
 def getUserHash(userid: int):
     return hashlib.sha1(str(userid).encode("utf-8")).hexdigest()
+
+MENTION_RE = re.compile(r"<@!?(\d+)>|<@&(\d+)>|<#(\d+)>")
+
+def resolveMentions(text, message):
+    def repl(m):
+        if m.group(1):
+            uid = int(m.group(1))
+            user = discord.utils.get(message.mentions, id=uid) or (message.guild.get_member(uid) if message.guild else None)
+            return f"@{getDisplay(user)}" if user else "@unknown-user"
+        if m.group(2):
+            rid = int(m.group(2))
+            role = discord.utils.get(message.role_mentions, id=rid) or (message.guild.get_role(rid) if message.guild else None)
+            return f"@{role.name}" if role else "@unknown-role"
+        if m.group(3):
+            cid = int(m.group(3))
+            chan = discord.utils.get(message.channel_mentions, id=cid) or (message.guild.get_channel(cid) if message.guild else None)
+            return f"#{chan.name}" if chan else "#unknown-channel"
+    return MENTION_RE.sub(repl, text)
 
 def removeFormatting(string: str): # Remove Discord formatting from a string (using backslashes to escape formatting characters)
     formatting_chars = ['*', '_', '~', '`', '>', '|']

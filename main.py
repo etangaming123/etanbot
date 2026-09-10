@@ -46,7 +46,7 @@ if not os.path.exists("config.json"):
         json.dump({"token": "your token here", "poweruserid": "your user id here (for certain commands)"}, f, indent=4)
     input("Created config.json with default values. Please edit the file with your bot token and user id, then press enter to continue...")
 
-cogs = ["kokolinking", "profiles", "nsotaskmanager", "gifs", "math", "slotmachine", "rngdle", "admin", "color", "linkcleaner", "rng", "message", "misc", "timezones", "datamanagement", "gimmicks", "usersettings", "characterquiz", "quote", "sconf"]
+cogs = ["kokolinking", "profiles", "nsotaskmanager", "gifs", "math", "slotmachine", "rngdle", "admin", "color", "linkcleaner", "rng", "message", "misc", "timezones", "datamanagement", "gimmicks", "usersettings", "characterquiz", "quote", "sconf", "translate"]
 
 print("Loading additional commands...")
 class etanBot(commands.Bot):

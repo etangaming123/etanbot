@@ -549,6 +549,7 @@ async def renderQuoteImage(
     max_chars=200,
     watermark_text="etanbot // coded by etangaming123",
     emoji_session=None,
+    corner_dot_color=None,
 ):
     """Render a quote card, returning (png_bytes, had_spoiler).
 
@@ -557,6 +558,10 @@ async def renderQuoteImage(
     had_spoiler says whether any of the text that actually made it onto the
     card was marked ||spoiler||, so the caller can flag the attachment as a
     spoiler too - the image shows the text dimmed rather than hiding it.
+
+    corner_dot_color, if given, draws a small filled dot in the bottom-left
+    corner - a marker for cards built by hand (e.g. /etanbot-quote) rather
+    than pulled from a real message.
 
     All inputs are plain Python types (strings/bytes), no discord.py objects,
     so this can be called from a bare asyncio script for testing.
@@ -756,6 +761,11 @@ async def renderQuoteImage(
 
     # Watermark bottom-right
     draw.text((W - 12, H - 12), watermark_text, fill=(90, 90, 90), font=font_wm, anchor="rb")
+
+    # Bottom-left marker dot, for cards built by hand rather than from a real message
+    if corner_dot_color is not None:
+        dot_r, margin = 6, 16
+        draw.ellipse([margin - dot_r, H - margin - dot_r, margin + dot_r, H - margin + dot_r], fill=corner_dot_color)
 
     had_spoiler = any("spoiler" in style for _, _, style in atoms)
 

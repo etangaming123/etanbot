@@ -1,32 +1,17 @@
 import io
-import re
 import traceback
+from types import SimpleNamespace
 
 import aiohttp
 import discord
+from discord import app_commands
 from discord.ext import commands
 
 import quoteimage
-from common import website, getDisplay, checkIfBanned, checkIfCooldown, setCooldown, dmUser
+from common import website, getDisplay, checkIfBanned, checkIfCooldown, setCooldown, dmUser, resolveMentions, handleCommandAccess, MENTION_RE
 
 FONT_PATH = quoteimage.resolveFontPath()  # first body font installed on this host, so the bot renders the same on Windows/macOS/Linux
-MENTION_RE = re.compile(r"<@!?(\d+)>|<@&(\d+)>|<#(\d+)>")
-
-def resolveMentions(text, message):
-    def repl(m):
-        if m.group(1):
-            uid = int(m.group(1))
-            user = discord.utils.get(message.mentions, id=uid) or (message.guild.get_member(uid) if message.guild else None)
-            return f"@{getDisplay(user)}" if user else "@unknown-user"
-        if m.group(2):
-            rid = int(m.group(2))
-            role = discord.utils.get(message.role_mentions, id=rid) or (message.guild.get_role(rid) if message.guild else None)
-            return f"@{role.name}" if role else "@unknown-role"
-        if m.group(3):
-            cid = int(m.group(3))
-            chan = discord.utils.get(message.channel_mentions, id=cid) or (message.guild.get_channel(cid) if message.guild else None)
-            return f"#{chan.name}" if chan else "#unknown-channel"
-    return MENTION_RE.sub(repl, text)
+MANUAL_QUOTE_DOT_COLOR = "#8649d7"  # marks cards built by hand via /etanbot-quote, rather than pulled from a real message
 
 async def resolveMember(guild, user):
     """Best Member object for `user`, so the card uses their server profile.
@@ -58,6 +43,8 @@ class quoteCog(commands.Cog):
             return
         if not message.reference:
             return  # bare mention, nothing to quote
+        if MENTION_RE.sub("", message.content).strip():
+            return  # extra text alongside the mention (e.g. a translate command) - not a quote
 
         if checkIfBanned(message.author.id):
             return
@@ -109,6 +96,44 @@ class quoteCog(commands.Cog):
                 await message.reply(f"Something went wrong creating the quote image: {e}", mention_author=False)
             except discord.Forbidden:
                 await dmUser(self.bot, message.author.id, "Something went wrong creating your quote image, and I also don't have permission to send messages in that channel. Ask a server admin to grant me the **Attach Files** and **Send Messages** permission in that channel, or in the server settings.")
+
+    @app_commands.command(name="etanbot-quote", description="Manually create an etan bot quote image.")
+    @app_commands.describe(text="The quote text.", user="Who to attribute the quote to (defaults to yourself).")
+    async def manualQuote(self, interaction: discord.Interaction, text: str, user: discord.User = None):
+        if not await handleCommandAccess(interaction, interaction.user.id, "quote"):
+            return
+        await interaction.response.defer()
+        setCooldown(interaction.user.id, "quote", 15)
+
+        try:
+            target = user or interaction.user
+            author = await resolveMember(interaction.guild, target) if interaction.guild else target
+            async with aiohttp.ClientSession() as session:
+                async with session.get(author.display_avatar.with_size(512).url) as resp:
+                    avatar_bytes = await resp.read()
+
+            # no real Message to resolve <@id>/<@&id>/<#id> against, so fake one
+            # out of just the guild - resolveMentions falls back to guild lookups
+            # whenever its mentions/role_mentions/channel_mentions come up empty
+            fake_message = SimpleNamespace(mentions=[], role_mentions=[], channel_mentions=[], guild=interaction.guild)
+            resolved_text = resolveMentions(text, fake_message)
+
+            png_bytes, had_spoiler = await quoteimage.renderQuoteImage(
+                content_text=resolved_text,
+                author_display_name=getDisplay(author),
+                author_username=author.name,
+                avatar_bytes=avatar_bytes,
+                font_path=FONT_PATH,
+                watermark_text=f"[MANUAL QUOTE] // etanbot // coded by etangaming123 // {website}",
+                corner_dot_color=MANUAL_QUOTE_DOT_COLOR,
+            )
+
+            await interaction.followup.send(file=discord.File(io.BytesIO(png_bytes), filename="quote.png", spoiler=had_spoiler))
+        except discord.Forbidden:
+            await interaction.followup.send(content="I don't have permission to send images here.")
+        except Exception as e:
+            traceback.print_exc()
+            await interaction.followup.send(content=f"Something went wrong creating the quote image: {e}")
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(quoteCog(bot))
