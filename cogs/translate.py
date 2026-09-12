@@ -87,10 +87,20 @@ class translateCog(commands.Cog):
 
         try:
             await message.channel.typing()
-            translated = await asyncio.to_thread(GoogleTranslator(source=source, target=target).translate, original_text)
-            if "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." in translated:
-                await message.reply("Google Translate returned an error. Please try again later. (this function is experimental!)", mention_author=False)
-                return
+            translated = None
+            for attempt in range(3):
+                try:
+                    translated = await asyncio.to_thread(
+                        GoogleTranslator(source=source, target=target).translate,
+                        original_text,
+                    )
+                    if "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." in translated:
+                        raise RuntimeError("Google Translate returned an error")
+                    break
+                except Exception:
+                    if attempt == 2:
+                        raise
+                    await asyncio.sleep(1)
             reply_text = truncateMessage(f"**Translating from `{source}` to `{target}`...**\noriginal:\n{original_text}\n\ntranslated:\n{translated}", 2000)
             await message.reply(reply_text, mention_author=False)
         except discord.Forbidden:
