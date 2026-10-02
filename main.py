@@ -10,7 +10,7 @@ from git import Repo
 repo = Repo(os.curdir)
 import secure_token
 
-from common import developergithub, ensure_datastores, repositoryurl, inviteurl, supportserver, website, setCooldown, config, handleCommandAccess, readTextFile, statuses, checkforupdates
+from common import developergithub, ensure_datastores, loadData, repositoryurl, inviteurl, supportserver, website, setCooldown, handleCommandAccess, readTextFile, statuses, checkforupdates, getUserHash
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -99,6 +99,13 @@ async def on_ready():
         print(f'Error syncing commands: {e}')
     DoThisEveryTenMinutes.start()
     print("Bot is up and running!")
+
+@bot.event
+async def on_guild_join(guild):
+    if getUserHash(guild.id) in loadData("bannedservers"):
+        print(f"Guild {guild.name} (ID: {guild.id}) is blacklisted. Leaving...")
+        await guild.leave()
+        return
 
 # general
 @bot.tree.command(name="etanbot-ping", description="Ping the bot", extras={"essential": True})

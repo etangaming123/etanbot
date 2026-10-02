@@ -112,5 +112,87 @@ class Admin(commands.Cog):
         else:
             await interaction.edit_original_response(content="An error occurred while deleting the user's data.", view=None)
 
+    @app_commands.command(name="z-admin-leave-server", description="Make the bot leave a server. (Admin only)")
+    @app_commands.describe(guild_id="The ID of the server to leave")
+    async def leave_server(self, interaction: discord.Interaction, guild_id: str):
+        if not await handleCommandAccess(interaction, interaction.user.id):
+            return
+        if interaction.user.id != int(config["poweruserid"]):
+            await interaction.response.send_message(content="You don't have permission to use this command.", ephemeral=True)
+            return
+
+        await interaction.response.defer(ephemeral=True)
+
+        try:
+            guild = self.bot.get_guild(int(guild_id))
+            if guild is None:
+                await interaction.edit_original_response(content=f"Bot is not in a server with ID {guild_id}.")
+                return
+
+            await guild.leave()
+            await interaction.edit_original_response(content=f"Bot has left the server: {guild.name} (ID: {guild.id}).")
+        except Exception as e:
+            await interaction.edit_original_response(content=f"An error occurred while trying to leave the server: {str(e)}")
+
+    @app_commands.command(name="z-admin-blacklist-server", description="Blacklist a server from using the bot. (Admin only)")
+    @app_commands.describe(guild_id="The ID of the server to blacklist")
+    async def blacklist_server(self, interaction: discord.Interaction, guild_id: str):
+        if not await handleCommandAccess(interaction, interaction.user.id):
+            return
+        if interaction.user.id != int(config["poweruserid"]):
+            await interaction.response.send_message(content="You don't have permission to use this command.", ephemeral=True)
+            return
+
+        await interaction.response.defer(ephemeral=True)
+
+        try:
+            guild = self.bot.get_guild(int(guild_id))
+            if guild is None:
+                await interaction.edit_original_response(content=f"Bot is not in a server with ID {guild_id}.")
+                return
+
+            bannedservers = loadData("bannedservers")
+            if getUserHash(guild.id) not in bannedservers:
+                bannedservers.append(getUserHash(guild.id))
+                saveData("bannedservers", bannedservers)
+                getBannedUsers(refresh=True)  # Refresh the banned servers list after saving
+            else:
+                await interaction.edit_original_response(content=f"Server {guild.name} (ID: {guild.id}) is already blacklisted.")
+                return
+
+            await interaction.edit_original_response(content=f"Server {guild.name} (ID: {guild.id}) has been blacklisted.")
+        except Exception as e:
+            await interaction.edit_original_response(content=f"An error occurred while trying to blacklist the server: {str(e)}")
+
+    @app_commands.command(name="z-admin-unblacklist-server", description="Unblacklist a server from using the bot. (Admin only)")
+    @app_commands.describe(guild_id="The ID of the server to unblacklist")
+    async def unblacklist_server(self, interaction: discord.Interaction, guild_id: str):
+        if not await handleCommandAccess(interaction, interaction.user.id):
+            return
+        if interaction.user.id != int(config["poweruserid"]):
+            await interaction.response.send_message(content="You don't have permission to use this command.", ephemeral=True)
+            return
+
+        await interaction.response.defer(ephemeral=True)
+
+        try:
+            guild = self.bot.get_guild(int(guild_id))
+            if guild is None:
+                await interaction.edit_original_response(content=f"Bot is not in a server with ID {guild_id}.")
+                return
+
+            bannedservers = loadData("bannedservers")
+            if getUserHash(guild.id) in bannedservers:
+                bannedservers.remove(getUserHash(guild.id))
+                saveData("bannedservers", bannedservers)
+                getBannedUsers(refresh=True)  # Refresh the banned servers list after saving
+            else:
+                await interaction.edit_original_response(content=f"Server {guild.name} (ID: {guild.id}) is not blacklisted.")
+                return
+
+            await interaction.edit_original_response(content=f"Server {guild.name} (ID: {guild.id}) has been unblacklisted.")
+        except Exception as e:
+            await interaction.edit_original_response(content=f"An error occurred while trying to unblacklist the server: {str(e)}")
+
 async def setup(bot: commands.Bot):
     await bot.add_cog(Admin(bot))

@@ -25,7 +25,7 @@ enablecooldowns = True
 # no touchy! unless you want more datastores
 userdatastores = ["linkedkokocards", "profiles", "usersettings"]
 otherdatastores = ["bannedusers", "gifs", "gimmickinbox", "gimmick-blocked-users", "guildcommandtoggles"]
-datastoresbuttheseonesarelists = ["gimmicklog"]
+datastoresbuttheseonesarelists = ["gimmicklog", "bannedservers"]
 
 sensitivestores = ["linkedkokocards"] # datastores whose values should never be shown raw (e.g. in /etanbot-list-data)
 
@@ -115,6 +115,7 @@ config = loadData("config")
 poweruserid = config["poweruserid"] # to bypass cooldowns if you're cool B)
 report_webhook_url = config.get("report_webhook_url")
 bannedusers = loadData("bannedusers") # load once
+bannedservers = loadData("bannedservers") # load once
 guildcommandtoggles = loadData("guildcommandtoggles") # load once
 
 def isPoweruser(userid: int):
@@ -367,6 +368,12 @@ def getBannedUsers(refresh: bool = False):
     if refresh:
         bannedusers = loadData("bannedusers")
     return bannedusers
+
+def getBannedServers(refresh: bool = False):
+    global bannedservers
+    if refresh:
+        bannedservers = loadData("bannedservers")
+    return bannedservers
 
 def readTextFile(textfile: str):
     with open(f"{textfile}.txt", "r") as f:
