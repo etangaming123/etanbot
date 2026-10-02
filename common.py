@@ -24,7 +24,7 @@ enablecooldowns = True
 
 # no touchy! unless you want more datastores
 userdatastores = ["linkedkokocards", "profiles", "usersettings"]
-otherdatastores = ["bannedusers", "gifs", "gimmickinbox", "gimmick-blocked-users", "guildcommandtoggles"]
+otherdatastores = ["bannedusers", "gifs", "gimmickinbox", "gimmick-blocked-users", "guildcommandtoggles", "guildautoresponders"]
 datastoresbuttheseonesarelists = ["gimmicklog"]
 
 sensitivestores = ["linkedkokocards"] # datastores whose values should never be shown raw (e.g. in /etanbot-list-data)
@@ -116,6 +116,7 @@ poweruserid = config["poweruserid"] # to bypass cooldowns if you're cool B)
 report_webhook_url = config.get("report_webhook_url")
 bannedusers = loadData("bannedusers") # load once
 guildcommandtoggles = loadData("guildcommandtoggles") # load once
+guildautoresponders = loadData("guildautoresponders") # load once
 
 def isPoweruser(userid: int):
     return poweruserid != None and userid == int(poweruserid)
@@ -248,6 +249,30 @@ def setCommandDisabled(guild_id: int, commandname: str, disabled: bool) -> bool:
     if not disabled_list:
         guildcommandtoggles.pop(guild_key, None)
     return saveData("guildcommandtoggles", guildcommandtoggles)
+
+def isAutoresponderEnabled(guild_id: int, key: str): # reads the in-memory cache only, never hits disk (called on every message)
+    if not isinstance(guildautoresponders, dict):
+        return False
+    return key in guildautoresponders.get(str(guild_id), [])
+
+def getEnabledAutorespondersForGuild(guild_id: int):
+    if not isinstance(guildautoresponders, dict):
+        return []
+    return list(guildautoresponders.get(str(guild_id), []))
+
+def setAutoresponderEnabled(guild_id: int, key: str, enabled: bool) -> bool:
+    global guildautoresponders
+    if not isinstance(guildautoresponders, dict):
+        guildautoresponders = {}
+    guild_key = str(guild_id)
+    enabled_list = guildautoresponders.setdefault(guild_key, [])
+    if enabled and key not in enabled_list:
+        enabled_list.append(key)
+    elif not enabled and key in enabled_list:
+        enabled_list.remove(key)
+    if not enabled_list:
+        guildautoresponders.pop(guild_key, None)
+    return saveData("guildautoresponders", guildautoresponders)
 
 async def handleCommandAccess(interaction: discord.Interaction, userid: int, commandname: str = None):
     banned = checkIfBanned(userid)

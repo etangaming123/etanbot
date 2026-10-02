@@ -11,3 +11,4 @@ numpy
 emoji
 fonttools
 deep-translator
+better-profanity
