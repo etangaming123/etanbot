@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 from common import loadData, repositoryurl, saveData, supportserver, setCooldown, handleCommandAccess
 from crypto_utils import encrypt_value, decrypt_value
 
-kokocreditdefaulturl = "https://estore.kokoamusement.com.au/BalanceMobile/BalanceMobile.aspx?i="
+kokocreditdefaulturl = "https://customer.kokoamusement.com.au/BalanceMobile/BalanceMobile.aspx?i="
 
 def get_koko_balance(token: str):
     try:
