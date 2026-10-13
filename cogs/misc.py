@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 
-from common import handleCommandAccess, readTextFile 
+from common import handleCommandAccess, readTextFile, poweruserid
 
 deretypes = readTextFile("deretypes")
 tonetags = readTextFile("tonetags")
@@ -119,6 +119,23 @@ class miscCog(commands.Cog):
                 stringo = stringo + "`-T` >> **T**urbulent (sensitive to stress, success-driven, perfectionistic, and eager to improve)\n"
 
         await interaction.edit_original_response(content=stringo)
+
+    @app_commands.command(name="etanbot-random-ip", description="Get a random IPv4 address, for entertainent purposes only!")
+    @app_commands.describe(fake="Whether to generate an invalid IP on purpose.", hidewarning="Whether to hide the warning. Doesn't do anything if you aren't the developer.")
+    async def random_ip(self, interaction: discord.Interaction, fake: bool = True, hidewarning: bool = False):
+        if not await handleCommandAccess(interaction, interaction.user.id):
+            return
+        await interaction.response.defer()
+        import random
+        octets = [random.randint(0, 255) for _ in range(4)]
+        if fake:
+            for index in random.sample(range(4), random.randint(1, 4)):
+                octets[index] = random.randint(256, 999)
+        ip = ".".join(str(octet) for octet in octets)
+        if interaction.user.id == int(poweruserid) and hidewarning == True or fake == True:
+            await interaction.edit_original_response(content=f"{ip}")
+        else:
+            await interaction.edit_original_response(content=f"{ip}\n-# This is a randomly generated IPv4 address made by generating 4 random numbers between 0 and 255. Do not use this IP for any practical or malicious purposes.")
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(miscCog(bot))
