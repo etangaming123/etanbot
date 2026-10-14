@@ -61,6 +61,10 @@ class quoteCog(commands.Cog):
         if original_message.author.id == self.bot.user.id:
             return  # don't quote the bot's own messages
 
+        if original_message.author.id == message.author.id: # that one mickey mouse "what a ####### narcissist"
+            await message.reply("https://cdn.discordapp.com/attachments/1478658570169094194/1559719190712029367/image.png?ex=6ad01931&is=6acec7b1&hm=a5a5dc13d18e8d1edf19f8b717c245b40bc35b10ac074271dd4533f6a2ffda98&", mention_author=False)
+            return
+
         try:
             await message.channel.typing()
             author = await resolveMember(message.guild, original_message.author)
