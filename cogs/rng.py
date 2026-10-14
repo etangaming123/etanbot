@@ -419,5 +419,26 @@ class rngCog(commands.Cog):
         random.seed() # reset the seed so other random commands aren't affected by this one
         await interaction.edit_original_response(content=f"{formatUsername(user)}'s a `{deretype}` >> {deretypes[deretype]}\n\n*This result is based on the `{methodreal}` method.*")
 
+    @app_commands.command(name="etanbot-random-pronouns", description="Get a random set of pronouns! (he, she, they, it)")
+    @app_commands.describe(extra="Additional pronouns, separated by commas. (e.g \"xe/xim, zir/zim\")", removedefault="Whether to remove the default pronouns (he, she, they, it) from the list. (defaults to false)")
+    async def randomPronouns(self, interaction: discord.Interaction, extra: str = None, removedefault: bool = False):
+        if not await handleCommandAccess(interaction, interaction.user.id):
+            return
+        await interaction.response.defer()
+        pronouns = [
+            "he/him",
+            "she/her",
+            "they/them",
+            "it/its"
+        ]
+        if removedefault:
+            pronouns = []
+        if extra != None:
+            extrasplit = extra.split(",")
+            for item in extrasplit:
+                pronouns.append(item.strip())
+        pronoun = random.choice(pronouns)
+        await interaction.edit_original_response(content=f"{pronoun}")
+
 async def setup(bot: commands.Bot):
     await bot.add_cog(rngCog(bot))
