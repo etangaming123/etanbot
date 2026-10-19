@@ -275,12 +275,5 @@ class messageCog(commands.Cog):
         finalstring += f" {random.choice(suffixes)}"
         await interaction.edit_original_response(content=f"{finalstring}\n{'-# Original: ' + text if showoriginal else ''}")
 
-    @app_commands.command(name="yumeship", description="Dedicated to Paro")
-    async def yumeship(self, yumeship: discord.Interaction):
-        if not await handleCommandAccess(yumeship, yumeship.user.id):
-            return
-        await yumeship.response.defer()
-        await yumeship.edit_original_response(content="I hop on the internet as usual I get a notification I am curious so I obviously click on it")
-
 async def setup(bot: commands.Bot):
     await bot.add_cog(messageCog(bot))

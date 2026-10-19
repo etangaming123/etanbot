@@ -82,7 +82,7 @@ class quoteCog(commands.Cog):
                 author_username=author.name,
                 avatar_bytes=avatar_bytes,
                 font_path=FONT_PATH,
-                watermark_text=f"etanbot // coded by etangaming123 // {website}",
+                watermark_text=f"etanbot // coded by etangaming123 // {website.removeprefix('https://')}",
             )
 
             # the card shows spoilered text dimmed rather than hidden, so spoiler
@@ -128,7 +128,7 @@ class quoteCog(commands.Cog):
                 author_username=author.name,
                 avatar_bytes=avatar_bytes,
                 font_path=FONT_PATH,
-                watermark_text=f"[MANUAL QUOTE] // etanbot // coded by etangaming123 // {website}",
+                watermark_text=f"[MANUAL QUOTE] // etanbot // coded by etangaming123 // {website.removeprefix('https://')}",
                 corner_dot_color=MANUAL_QUOTE_DOT_COLOR,
             )
 
